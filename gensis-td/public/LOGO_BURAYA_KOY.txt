@@ -1,0 +1,18 @@
+GENSIS LOGOSU BURAYA
+=====================
+
+Uygulama logoyu şu yoldan okuyor:  public/logo.png
+
+Yapman gereken:
+1. Gensis logo dosyanı bu "public" klasörüne kopyala.
+2. Adını tam olarak  logo.png  yap (küçük harf).
+3. Bu talimat dosyasını silebilirsin.
+
+En kolay yol (GitHub üzerinden, bilgisayarda dosya işi yapmadan):
+- GitHub'da repoya gir → "public" klasörüne tıkla.
+- "Add file" → "Upload files" → logoyu sürükle → adını logo.png yap → "Commit changes".
+- Vercel otomatik yeniden yayına alır; logo giriş ekranında ve kenar menüde görünür.
+
+Not: Kenar menü lacivert olduğu için logo orada otomatik olarak beyaz bir
+kutu içinde gösterilir (orijinal lacivert yazı kaybolmasın diye). Ekstra bir
+şey yapmana gerek yok.
