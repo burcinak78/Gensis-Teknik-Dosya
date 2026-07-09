@@ -3,19 +3,94 @@
 @tailwind utilities;
 
 :root {
-  --line: #e2e8f0;
+  --bg: #f5f6fa;
+  --line: #e5e9f0;
+  --navy: #1e2a5b;
+  --teal: #0d8b8b;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 html,
 body {
   padding: 0;
   margin: 0;
-  background: #f1f5f9;
+  background: var(--bg);
   color: #0f172a;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  font-family: var(--font-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
 }
 
-* {
-  box-sizing: border-box;
+/* Material Symbols */
+.material-symbols-rounded {
+  font-family: "Material Symbols Rounded";
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  direction: ltr;
+  font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 24;
+  vertical-align: middle;
+  user-select: none;
+}
+
+/* Prestige — birincil buton (lacivert gradyan) */
+.gs-btn {
+  background: linear-gradient(135deg, #1e2a5b 0%, #33478a 100%);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(30, 42, 91, 0.26);
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.gs-btn:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+.gs-btn:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Hero gradyan (giriş sol panel, belge banner) */
+.gs-hero {
+  background: linear-gradient(150deg, #1e2a5b 0%, #2a3c73 55%, #0d8b8b 130%);
+  color: #fff;
+}
+
+/* Kart */
+.gs-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+/* Yumuşak giriş animasyonu */
+@keyframes gsFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.gs-fade {
+  animation: gsFade 0.35s ease;
+}
+
+/* İnce kaydırma çubuğu */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d5dbe6;
+  border-radius: 8px;
+  border: 2px solid var(--bg);
 }

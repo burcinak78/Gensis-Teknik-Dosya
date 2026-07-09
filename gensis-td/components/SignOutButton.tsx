@@ -14,9 +14,11 @@ export default function SignOutButton() {
   return (
     <button
       onClick={signOut}
-      className="text-xs text-slate-300 hover:text-white underline"
+      title="Çıkış yap"
+      aria-label="Çıkış yap"
+      className="flex-none w-8 h-8 grid place-items-center rounded-lg text-[#94a3b8] hover:text-navy hover:bg-white"
     >
-      Çıkış yap
+      <span className="material-symbols-rounded text-[20px]">logout</span>
     </button>
   );
 }

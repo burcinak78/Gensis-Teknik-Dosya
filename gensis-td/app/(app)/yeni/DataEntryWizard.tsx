@@ -183,14 +183,15 @@ export default function DataEntryWizard(props: Props) {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}
-            className="text-sm font-bold px-4 py-2 rounded-lg border border-slate-200 disabled:opacity-40">Geri</button>
+            className="text-sm font-bold px-4 py-2 rounded-xl border border-[#e5e9f0] bg-white hover:bg-slate-50 disabled:opacity-45">← Geri</button>
           {step < 4 ? (
             <button onClick={() => setStep((s) => Math.min(4, s + 1))}
-              className="text-sm font-bold px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark">İleri →</button>
+              className="gs-btn text-sm font-bold px-5 py-2 rounded-xl">İleri →</button>
           ) : (
             <button onClick={handleSave} disabled={saving}
-              className="text-sm font-bold px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark disabled:opacity-40">
-              {saving ? "Kaydediliyor…" : "Kaydet ✓"}
+              className="text-sm font-bold px-5 py-2 rounded-xl text-white disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg,#16a34a,#15803d)", boxShadow: "0 6px 16px rgba(21,128,61,.26)" }}>
+              {saving ? "Kaydediliyor…" : "✓ Kaydet"}
             </button>
           )}
         </div>
@@ -198,10 +199,31 @@ export default function DataEntryWizard(props: Props) {
 
       <div className="p-7 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 max-w-6xl">
         <div className="min-w-0">
-          <div className="flex gap-2 mb-5">
-            {STEPS.map((s, i) => (
-              <div key={s} className={`flex-1 h-1.5 rounded-full ${i < step ? "bg-green-500" : i === step ? "bg-brand" : "bg-slate-200"}`} />
-            ))}
+          <div className="flex mb-7">
+            {STEPS.map((s, i) => {
+              const done = i < step;
+              const active = i === step;
+              return (
+                <div key={s} className={`flex flex-col items-center relative ${i < STEPS.length - 1 ? "flex-1" : ""}`}>
+                  {i < STEPS.length - 1 && (
+                    <span className="absolute top-[17px] left-1/2 w-full h-[3px] rounded-full"
+                      style={{ background: done ? "linear-gradient(90deg,#16a34a,#15803d)" : "#e5e9f0" }} />
+                  )}
+                  <button onClick={() => setStep(i)}
+                    className="relative z-10 w-[34px] h-[34px] rounded-full grid place-items-center text-sm font-bold transition"
+                    style={
+                      done
+                        ? { background: "linear-gradient(135deg,#16a34a,#15803d)", color: "#fff" }
+                        : active
+                        ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)", color: "#fff", boxShadow: "0 4px 12px rgba(30,42,91,.26)" }
+                        : { background: "#fff", color: "#94a3b8", border: "1.5px solid #e5e9f0" }
+                    }>
+                    {done ? <span className="material-symbols-rounded text-[20px]">check</span> : i + 1}
+                  </button>
+                  <span className={`mt-2 text-xs ${active ? "font-bold text-slate-800" : done ? "font-semibold text-slate-600" : "text-[#94a3b8]"}`}>{s}</span>
+                </div>
+              );
+            })}
           </div>
 
           {step === 0 && (
@@ -324,7 +346,8 @@ export default function DataEntryWizard(props: Props) {
                       <div className="flex flex-wrap gap-2 mb-1">
                         {catBrands.map((b) => (
                           <button key={b.id} onClick={() => pickBrand(cat.id, b.id)}
-                            className={`px-3 py-2 rounded-lg text-sm font-semibold border ${sel.brandId === b.id ? "bg-brand border-brand text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}>
+                            className={`px-3 py-2 rounded-lg text-sm font-semibold border ${sel.brandId === b.id ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
+                            style={sel.brandId === b.id ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)", boxShadow: "0 4px 12px rgba(30,42,91,.22)" } : undefined}>
                             {b.name}
                           </button>
                         ))}
@@ -335,7 +358,8 @@ export default function DataEntryWizard(props: Props) {
                           <div className="flex flex-wrap gap-2">
                             {catModels.map((m) => (
                               <button key={m.id} onClick={() => pickModel(cat.id, m.id)}
-                                className={`px-3 py-2 rounded-lg text-sm font-semibold border ${sel.modelId === m.id ? "bg-brand border-brand text-white shadow" : "bg-white border-brand/40 text-brand hover:bg-white"}`}>
+                                className={`px-3 py-2 rounded-lg text-sm font-semibold border ${sel.modelId === m.id ? "border-transparent text-white" : "bg-white border-brand/40 text-brand hover:bg-white"}`}
+                                style={sel.modelId === m.id ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)", boxShadow: "0 4px 12px rgba(30,42,91,.22)" } : undefined}>
                                 {m.name}
                               </button>
                             ))}
@@ -388,8 +412,8 @@ export default function DataEntryWizard(props: Props) {
       </div>
 
       <style jsx global>{`
-        .inp { width: 100%; font-size: 14px; padding: 11px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; }
-        .inp:focus { outline: none; border-color: #0d8b8b; box-shadow: 0 0 0 3px #e6f4f4; }
+        .inp { width: 100%; font-size: 14px; padding: 11px 12px; border: 1.5px solid #e5e9f0; border-radius: 12px; background: #fff; }
+        .inp:focus { outline: none; border-color: #1e2a5b; box-shadow: 0 0 0 3px #eef1f8; }
       `}</style>
     </div>
   );

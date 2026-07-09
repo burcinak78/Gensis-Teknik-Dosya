@@ -8,17 +8,24 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Gensis kurumsal renkleri (logodan)
+        // Prestige teması — birincil vurgu lacivert, ikincil teal
         brand: {
-          DEFAULT: "#0d8b8b", // teal
-          dark: "#0a6d6d",
-          light: "#e6f4f4",
+          DEFAULT: "#1e2a5b", // navy (birincil)
+          dark: "#141d40",
+          light: "#eef1f8", // yumuşak lacivert ton
         },
         navy: {
           DEFAULT: "#1e2a5b",
           dark: "#141d40",
         },
-        side: "#1e2a5b", // lacivert kenar menü
+        teal: {
+          DEFAULT: "#0d8b8b", // ikincil aksan
+          dark: "#0a6d6d",
+          light: "#e6f4f4",
+        },
+      },
+      fontFamily: {
+        sans: ["var(--font-jakarta)", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
       },
     },
   },

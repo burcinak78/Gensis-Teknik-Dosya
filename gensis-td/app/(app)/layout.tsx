@@ -1,14 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import SignOutButton from "@/components/SignOutButton";
-import Logo from "@/components/Logo";
+import SideNav from "@/components/SideNav";
 
-export default async function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
   const {
     data: { user },
@@ -22,41 +17,34 @@ export default async function AppLayout({
     .single();
 
   const rol = profile?.role ?? "customer";
+  const rolTr = rol === "admin" ? "Admin" : rol === "gensis" ? "Gensis Kullanıcı" : "Müşteri";
+  const adSoyad = profile?.full_name ?? user.email ?? "";
+  const bas = adSoyad.trim().slice(0, 2).toUpperCase() || "GT";
 
   return (
-    <div className="grid grid-cols-[240px_1fr] min-h-screen">
-      <aside className="bg-side text-slate-300 flex flex-col sticky top-0 h-screen">
-        <div className="px-4 py-4 border-b border-white/10">
-          <Logo variant="light" height={26} />
+    <div className="grid grid-cols-[248px_1fr] min-h-screen">
+      <aside className="bg-[#f8fafc] border-r border-[#e7ebf2] flex flex-col sticky top-0 h-screen">
+        <div className="flex items-center px-5 py-5 border-b border-[#e7ebf2]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="GENSIS" style={{ height: 26, width: "auto" }} />
         </div>
-        <nav className="p-3 flex-1 space-y-1">
-          <Link
-            href="/panel"
-            className="block px-3 py-2.5 rounded-lg hover:bg-white/10 text-sm font-semibold"
-          >
-            Panel
-          </Link>
-          <Link
-            href="/yeni"
-            className="block px-3 py-2.5 rounded-lg hover:bg-white/10 text-sm font-semibold"
-          >
-            + Yeni Teknik Dosya
-          </Link>
-          {rol === "admin" && (
-            <Link
-              href="/admin"
-              className="block px-3 py-2.5 rounded-lg hover:bg-white/10 text-sm font-semibold"
+
+        <SideNav isAdmin={rol === "admin"} />
+
+        <div className="p-3">
+          <div className="flex items-center gap-3 bg-[#eef1f8] rounded-xl p-3">
+            <span
+              className="w-9 h-9 rounded-full grid place-items-center text-white text-xs font-bold flex-none"
+              style={{ background: "linear-gradient(135deg,#1e2a5b,#33478a)" }}
             >
-              Yönetim
-            </Link>
-          )}
-        </nav>
-        <div className="p-4 border-t border-white/10 text-xs">
-          <div className="text-slate-200 font-semibold">
-            {profile?.full_name ?? user.email}
+              {bas}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-bold text-slate-800 truncate">{adSoyad}</div>
+              <div className="text-[11px] text-[#94a3b8]">{rolTr}</div>
+            </div>
+            <SignOutButton />
           </div>
-          <div className="mb-2 capitalize">{rol}</div>
-          <SignOutButton />
         </div>
       </aside>
       <main className="min-w-0">{children}</main>
