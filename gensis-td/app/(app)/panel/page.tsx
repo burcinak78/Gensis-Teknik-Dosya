@@ -51,6 +51,7 @@ export default async function PanelPage() {
                   <th className="px-4 py-3 font-semibold">Kat</th>
                   <th className="px-4 py-3 font-semibold">Durum</th>
                   <th className="px-4 py-3 font-semibold">Tarih</th>
+                  <th className="px-4 py-3 font-semibold">Belge</th>
                 </tr>
               </thead>
               <tbody>
@@ -67,6 +68,16 @@ export default async function PanelPage() {
                     </td>
                     <td className="px-4 py-3 text-slate-500">
                       {new Date(p.created_at).toLocaleDateString("tr-TR")}
+                    </td>
+                    <td className="px-4 py-3">
+                      <a
+                        href={`/api/pdf/uygunluk-beyani?projectId=${p.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand font-semibold hover:underline"
+                      >
+                        Uygunluk Beyanı PDF
+                      </a>
                     </td>
                   </tr>
                 ))}
