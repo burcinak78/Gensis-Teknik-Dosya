@@ -1,6 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { TEKNIK_DOSYA_BELGELERI } from "./belgeler";
+import { KULLANIM_KLAVUZU, BAKIM_KLAVUZU, SON_KONTROL } from "./belge_icerik";
 
 // Birleşik Teknik Dosya — belgeleri tek PDF'te birleştirir VEYA tek belge üretir (only).
 // Veri = project_render_context (jsonb). Font 'Roboto' route'ta register edilir.
@@ -33,6 +34,15 @@ const st = StyleSheet.create({
   coverWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   coverBig: { fontSize: 30, fontWeight: "bold", color: NAVY, marginBottom: 8 },
   coverSub: { fontSize: 13, color: TEAL, marginBottom: 40 },
+  klvItem: { flexDirection: "row", paddingVertical: 2, fontSize: 9.5 },
+  klvNo: { width: 22, color: TEAL },
+  klvText: { flex: 1, textAlign: "justify" },
+  skHead: { flexDirection: "row", backgroundColor: "#f1f5f9", paddingVertical: 3, paddingHorizontal: 2, fontSize: 8.5, fontWeight: "bold", color: NAVY },
+  skRow: { flexDirection: "row", paddingVertical: 2.5, paddingHorizontal: 2, borderBottomWidth: 0.5, borderBottomColor: "#f1f5f9", fontSize: 8.5 },
+  skNo: { width: 20, color: "#94a3b8" },
+  skItem: { flex: 1, paddingRight: 4 },
+  skBox: { width: 44, alignItems: "center" },
+  skSquare: { width: 11, height: 11, borderWidth: 0.8, borderColor: "#9ca3af", borderRadius: 2 },
 });
 
 const CAT_LABEL: Record<string, string> = {
@@ -424,6 +434,53 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <Footer firma={c.fname} />
     </Page>
   ),
+
+  kullanim_klavuzu: (c) => (
+    <Page key="kullanim_klavuzu" size="A4" style={st.page} wrap>
+      <DocHead firma={c.firma} title="ASANSÖR KULLANIM KILAVUZU" />
+      {KULLANIM_KLAVUZU.map((t, i) => (
+        <View key={i} style={st.klvItem} wrap={false}>
+          <Text style={st.klvNo}>{i + 1}.</Text>
+          <Text style={st.klvText}>{t}</Text>
+        </View>
+      ))}
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  bakim_klavuzu: (c) => (
+    <Page key="bakim_klavuzu" size="A4" style={st.page} wrap>
+      <DocHead firma={c.firma} title="ASANSÖR BAKIM KILAVUZU" />
+      {BAKIM_KLAVUZU.map((t, i) => (
+        <View key={i} style={st.klvItem} wrap={false}>
+          <Text style={st.klvNo}>{i + 1}.</Text>
+          <Text style={st.klvText}>{t}</Text>
+        </View>
+      ))}
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  son_kontrol_formu: (c) => (
+    <Page key="son_kontrol_formu" size="A4" style={st.page} wrap>
+      <DocHead firma={c.firma} title="ASANSÖR SON KONTROL FORMU (EN 81-20 / 28 / 70 / 73)" />
+      <View style={st.skHead} fixed>
+        <Text style={st.skNo}>#</Text>
+        <Text style={st.skItem}>Kontrol Maddesi</Text>
+        <Text style={st.skBox}>Uygun</Text>
+        <Text style={st.skBox}>Uygun D.</Text>
+      </View>
+      {SON_KONTROL.map((t, i) => (
+        <View key={i} style={st.skRow} wrap={false}>
+          <Text style={st.skNo}>{i + 1}</Text>
+          <Text style={st.skItem}>{t}</Text>
+          <View style={st.skBox}><View style={st.skSquare} /></View>
+          <View style={st.skBox}><View style={st.skSquare} /></View>
+        </View>
+      ))}
+      <Footer firma={c.fname} />
+    </Page>
+  ),
 };
 
 function EkBelgelerPage(c: Ctx) {
@@ -431,9 +488,9 @@ function EkBelgelerPage(c: Ctx) {
     <Page key="ek" size="A4" style={st.page}>
       <DocHead firma={c.firma} title="EK BELGELER" />
       <Text style={st.p}>
-        Aşağıdaki belgeler teknik dosyanın parçasıdır ve bir sonraki güncellemede bu dosyaya dahil edilecektir:
+        Aşağıdaki ek(ler) teknik dosyanın parçasıdır ve bir sonraki güncellemede otomatik eklenecektir:
       </Text>
-      {["Kullanım Kılavuzu", "Bakım Kılavuzu", "Son Kontrol Formu", "Seçili ekipmanların ürün sertifikaları (PDF ekleri)"].map(
+      {["Seçili ekipmanların ürün sertifikaları (PDF ekleri)"].map(
         (t, i) => (
           <View style={st.listRow} key={i}>
             <Text style={st.listNo}>•</Text>
