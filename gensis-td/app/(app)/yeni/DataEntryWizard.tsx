@@ -94,8 +94,36 @@ export default function DataEntryWizard(props: Props) {
   const isValid = missingText.length === 0 && missingEquip.length === 0;
   const totalMissing = missingText.length + missingEquip.length;
 
-  // hata sınıfı (kırmızı) helper
-  const ec = (v: any) => (showErrors && empty(v) ? " !border-red-500 !bg-red-50" : "");
+  // hata sınıfı (SOFT kırmızı) helper
+  const ec = (v: any) => (showErrors && empty(v) ? " !border-red-300 !bg-red-50" : "");
+
+  // adım bazlı zorunlu alanlar
+  const stepFieldMap: Record<number, Record<string, any>> = {
+    0: { companyId, dosyaNo, dosyaTarihi },
+    1: { binaAdi, montajAdresi, provinceId, districtId, pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi },
+    2: { beyanYuku, beyanHizi, katAdedi, durakAdedi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo, seyirMesafesi, motorSeriNo, motorGucu },
+  };
+  function stepMissing(i: number): number {
+    if (i === 3) return props.categories.filter((c) => !equip[c.id]?.modelId).length;
+    const fields = stepFieldMap[i];
+    if (!fields) return 0;
+    return Object.values(fields).filter(empty).length;
+  }
+  function goNext() {
+    const m = stepMissing(step);
+    if (m > 0) {
+      setShowErrors(true);
+      setError(`Bu adımda ${m} zorunlu alan eksik. Lütfen kırmızı ile işaretli alanları doldurun.`);
+      return;
+    }
+    setShowErrors(false);
+    setError(null);
+    setStep((s) => Math.min(4, s + 1));
+  }
+  function goToStep(i: number) {
+    if (i <= step) { setStep(i); setShowErrors(false); setError(null); }
+    else goNext();
+  }
 
   async function onProvinceChange(idStr: string) {
     const id = idStr ? Number(idStr) : "";
@@ -185,7 +213,7 @@ export default function DataEntryWizard(props: Props) {
           <button onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}
             className="text-sm font-bold px-4 py-2 rounded-xl border border-[#e5e9f0] bg-white hover:bg-slate-50 disabled:opacity-45">← Geri</button>
           {step < 4 ? (
-            <button onClick={() => setStep((s) => Math.min(4, s + 1))}
+            <button onClick={goNext}
               className="gs-btn text-sm font-bold px-5 py-2 rounded-xl">İleri →</button>
           ) : (
             <button onClick={handleSave} disabled={saving}
@@ -209,7 +237,7 @@ export default function DataEntryWizard(props: Props) {
                     <span className="absolute top-[17px] left-1/2 w-full h-[3px] rounded-full"
                       style={{ background: done ? "linear-gradient(90deg,#16a34a,#15803d)" : "#e5e9f0" }} />
                   )}
-                  <button onClick={() => setStep(i)}
+                  <button onClick={() => goToStep(i)}
                     className="relative z-10 w-[34px] h-[34px] rounded-full grid place-items-center text-sm font-bold transition"
                     style={
                       done
@@ -225,6 +253,13 @@ export default function DataEntryWizard(props: Props) {
               );
             })}
           </div>
+
+          {showErrors && stepMissing(step) > 0 && (
+            <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+              <span className="material-symbols-rounded text-[18px]">error</span>
+              Bu adımda {stepMissing(step)} zorunlu alan boş. Lütfen kırmızı ile işaretli alanları doldurun.
+            </div>
+          )}
 
           {step === 0 && (
             <Section title="Firma seçimi" desc="Tüm alanlar zorunludur. Firmayı seçince bilgileri otomatik gelir.">
