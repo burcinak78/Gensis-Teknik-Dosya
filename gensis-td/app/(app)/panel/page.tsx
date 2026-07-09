@@ -71,12 +71,12 @@ export default async function PanelPage() {
                     </td>
                     <td className="px-4 py-3">
                       <a
-                        href={`/api/pdf/uygunluk-beyani?projectId=${p.id}`}
+                        href={`/api/pdf/teknik-dosya?projectId=${p.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-brand font-semibold hover:underline"
                       >
-                        Uygunluk Beyanı PDF
+                        Teknik Dosya PDF
                       </a>
                     </td>
                   </tr>
