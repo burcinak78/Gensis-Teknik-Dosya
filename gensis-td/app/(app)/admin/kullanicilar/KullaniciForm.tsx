@@ -54,13 +54,18 @@ export default function KullaniciForm({ companies }: { companies: { id: string; 
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">
-            Bağlı Firma {f.role === "customer" ? "*" : "(opsiyonel)"}
-          </label>
-          <select value={f.company_id} onChange={(e) => set("company_id", e.target.value)} className={inp}>
-            <option value="">Firma seçiniz…</option>
-            {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
-          </select>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">Bağlı Firma</label>
+          {f.role === "customer" ? (
+            <select value={f.company_id} onChange={(e) => set("company_id", e.target.value)} className={inp}>
+              <option value="">Müşteri firması seçiniz… *</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
+            </select>
+          ) : (
+            <input value="Gensis (otomatik)" disabled className={inp + " bg-slate-100 text-slate-500"} />
+          )}
+          {f.role !== "customer" && (
+            <p className="text-xs text-slate-400 mt-1">Admin ve Gensis kullanıcıları otomatik olarak Gensis'e bağlanır.</p>
+          )}
         </div>
       </div>
       {msg && <div className={`mt-3 text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}

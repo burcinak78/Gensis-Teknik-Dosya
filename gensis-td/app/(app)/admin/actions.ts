@@ -29,7 +29,7 @@ export async function createCompany(form: Record<string, string>): Promise<Resul
       legal_name: form.legal_name,
       address: form.address || null,
       phone: form.phone || null,
-      fax: form.fax || null,
+      mobile_phone: form.mobile_phone || null,
       city: form.city || null,
       authorized_person: form.authorized_person || null,
       registered_brand: form.registered_brand || null,
@@ -41,6 +41,43 @@ export async function createCompany(form: Record<string, string>): Promise<Resul
   } catch (e: any) {
     return { ok: false, error: e.message };
   }
+}
+
+// ---------- Müşteri Güncelle ----------
+export async function updateCompany(id: string, form: Record<string, string>): Promise<Result> {
+  try {
+    await assertAdmin();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    const admin = createAdminClient();
+    const { error } = await admin.from("companies").update({
+      short_name: form.short_name,
+      legal_name: form.legal_name,
+      address: form.address || null,
+      phone: form.phone || null,
+      mobile_phone: form.mobile_phone || null,
+      city: form.city || null,
+      authorized_person: form.authorized_person || null,
+      registered_brand: form.registered_brand || null,
+      industry_reg_no: form.industry_reg_no || null,
+    }).eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/musteriler");
+    return { ok: true, message: "Müşteri güncellendi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// Gensis (operatör) firmasını bul/oluştur — personel kullanıcılar buna bağlanır
+async function ensureGensisCompany(admin: ReturnType<typeof createAdminClient>): Promise<string | null> {
+  const { data: g } = await admin.from("companies").select("id").ilike("short_name", "gensis").maybeSingle();
+  if (g) return g.id;
+  const { data: created } = await admin
+    .from("companies")
+    .insert({ short_name: "GENSİS", legal_name: "GENSİS", city: "BURSA" })
+    .select("id")
+    .single();
+  return created?.id ?? null;
 }
 
 // ---------- Yeni Kullanıcı (rol + firma) ----------
@@ -59,13 +96,16 @@ export async function createUser(form: {
       user_metadata: { full_name: form.full_name },
     });
     if (cErr || !created?.user) return { ok: false, error: cErr?.message ?? "Kullanıcı oluşturulamadı." };
+    // Admin/Gensis personeli otomatik Gensis firmasına bağlanır (müşteriye değil)
+    const staff = form.role === "admin" || form.role === "gensis";
+    const companyId = staff ? await ensureGensisCompany(admin) : form.company_id || null;
     // profil satırı trigger ile oluşur; rol ve firmayı ata
     const { error: pErr } = await admin.from("profiles").upsert(
       {
         id: created.user.id,
         full_name: form.full_name || form.email,
         role: form.role,
-        company_id: form.company_id || null,
+        company_id: companyId,
         is_active: true,
       },
       { onConflict: "id" }
@@ -105,6 +145,27 @@ export async function createEquipmentModel(form: {
     if (error) return { ok: false, error: error.message };
     revalidatePath("/admin/ekipmanlar");
     return { ok: true, message: "Ekipman modeli eklendi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Ekipman-Model Güncelle (isim + sertifika bağla) ----------
+export async function updateEquipmentModel(form: {
+  id: string; name: string; certificate_id: string;
+}): Promise<Result> {
+  try {
+    await assertAdmin();
+    if (!form.id) return { ok: false, error: "Model bulunamadı." };
+    const admin = createAdminClient();
+    const { error } = await admin.from("equipment_models").update({
+      name: form.name,
+      certificate_id: form.certificate_id || null,
+    }).eq("id", form.id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/ekipmanlar");
+    revalidatePath("/admin/sertifikalar");
+    return { ok: true, message: "Model güncellendi." };
   } catch (e: any) {
     return { ok: false, error: e.message };
   }
