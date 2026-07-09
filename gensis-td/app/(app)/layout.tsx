@@ -42,6 +42,14 @@ export default async function AppLayout({
           >
             + Yeni Teknik Dosya
           </Link>
+          {rol === "admin" && (
+            <Link
+              href="/admin"
+              className="block px-3 py-2.5 rounded-lg hover:bg-white/10 text-sm font-semibold"
+            >
+              Yönetim
+            </Link>
+          )}
         </nav>
         <div className="p-4 border-t border-white/10 text-xs">
           <div className="text-slate-200 font-semibold">

@@ -49,19 +49,25 @@ export async function GET(req: NextRequest) {
   const host = req.headers.get("host");
   registerFonts(`${proto}://${host}`);
 
-  // ?belge=<code> verilirse yalnız o belge; verilmezse tümü (birleşik)
-  const belge = req.nextUrl.searchParams.get("belge") ?? undefined;
+  // ?belge=<code> (bir veya birden fazla) verilirse yalnız onlar; verilmezse tümü.
+  // ?dl=1 verilirse tarayıcıda açmak yerine indirir.
+  const belgeler = req.nextUrl.searchParams.getAll("belge");
+  const dl = req.nextUrl.searchParams.get("dl") === "1";
+  const only =
+    belgeler.length === 0 ? undefined : belgeler.length === 1 ? belgeler[0] : belgeler;
 
   const buffer = await renderToBuffer(
-    React.createElement(TeknikDosyaDoc, { data: ctx, only: belge }) as any
+    React.createElement(TeknikDosyaDoc, { data: ctx, only }) as any
   );
 
   const dosyaNo = (ctx as any)?.dosya_no ?? projectId;
-  const adNamePart = belge ? `${dosyaNo}_${belge}` : `${dosyaNo}_tumu`;
+  const namePart =
+    belgeler.length === 1 ? `${dosyaNo}_${belgeler[0]}` : belgeler.length > 1 ? `${dosyaNo}_secili` : `${dosyaNo}_tumu`;
+  const disposition = dl ? "attachment" : "inline";
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="Teknik_Dosya_${adNamePart}.pdf"`,
+      "Content-Disposition": `${disposition}; filename="Teknik_Dosya_${namePart}.pdf"`,
       "Cache-Control": "no-store",
     },
   });

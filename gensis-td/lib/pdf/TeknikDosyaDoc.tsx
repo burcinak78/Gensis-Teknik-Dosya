@@ -503,13 +503,14 @@ function EkBelgelerPage(c: Ctx) {
   );
 }
 
-// only verildiğinde tek belge, verilmediğinde tümü + ek belgeler notu
-export function TeknikDosyaDoc({ data, only }: { data: any; only?: string }) {
+// only: tek belge (string) | seçili belgeler (string[]) | tümü (undefined)
+export function TeknikDosyaDoc({ data, only }: { data: any; only?: string | string[] }) {
   const c = buildCtx(data);
-  const codes = only
-    ? [only]
-    : TEKNIK_DOSYA_BELGELERI.filter((b) => b.hazir).map((b) => b.code);
+  const onlyList = only ? (Array.isArray(only) ? only : [only]) : null;
+  const codes = TEKNIK_DOSYA_BELGELERI
+    .filter((b) => b.hazir && (!onlyList || onlyList.includes(b.code)))
+    .map((b) => b.code);
   const pages = codes.map((code) => RENDERERS[code]?.(c)).filter(Boolean) as React.ReactElement[];
-  if (!only) pages.push(EkBelgelerPage(c));
+  if (!onlyList) pages.push(EkBelgelerPage(c)); // ek belgeler notu yalnız "tümü"nde
   return <Document>{pages}</Document>;
 }
