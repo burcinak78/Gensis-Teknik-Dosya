@@ -66,6 +66,17 @@ export default function DataEntryWizard(props: Props) {
   const [imalYili, setImalYili] = useState("");
   const [askiTipi, setAskiTipi] = useState("");
   const [katKapisi, setKatKapisi] = useState("");
+  // ek belge alanları
+  const [pafta, setPafta] = useState("");
+  const [ada, setAda] = useState("");
+  const [parsel, setParsel] = useState("");
+  const [yapiSahibi, setYapiSahibi] = useState("");
+  const [yapiSahibiAdresi, setYapiSahibiAdresi] = useState("");
+  const [asansorSeriNo, setAsansorSeriNo] = useState("");
+  const [asansorKimlikNo, setAsansorKimlikNo] = useState("");
+  const [seyirMesafesi, setSeyirMesafesi] = useState("");
+  const [motorSeriNo, setMotorSeriNo] = useState("");
+  const [motorGucu, setMotorGucu] = useState("");
   // ekipman seçimi: category_id -> { brandId, modelId }
   const [equip, setEquip] = useState<Record<string, { brandId?: string; modelId?: string }>>({});
 
@@ -156,6 +167,16 @@ export default function DataEntryWizard(props: Props) {
         aski_tipi: askiTipi,
         kat_kapisi: katKapisi,
         montaj_adresi: montajAdresi,
+        pafta,
+        ada,
+        parsel,
+        yapi_sahibi: yapiSahibi,
+        yapi_sahibi_adresi: yapiSahibiAdresi,
+        asansor_seri_no: asansorSeriNo,
+        asansor_kimlik_no: asansorKimlikNo,
+        seyir_mesafesi: seyirMesafesi,
+        motor_seri_no: motorSeriNo,
+        motor_gucu: motorGucu,
       },
       equipment,
     };
@@ -329,6 +350,23 @@ export default function DataEntryWizard(props: Props) {
                   </select>
                 </Field>
               </div>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Pafta">
+                  <input className="inp" value={pafta} onChange={(e) => setPafta(e.target.value)} />
+                </Field>
+                <Field label="Ada">
+                  <input className="inp" value={ada} onChange={(e) => setAda(e.target.value)} />
+                </Field>
+                <Field label="Parsel">
+                  <input className="inp" value={parsel} onChange={(e) => setParsel(e.target.value)} />
+                </Field>
+              </div>
+              <Field label="Yapı Sahibi">
+                <input className="inp" value={yapiSahibi} onChange={(e) => setYapiSahibi(e.target.value)} />
+              </Field>
+              <Field label="Yapı Sahibi Adresi">
+                <input className="inp" value={yapiSahibiAdresi} onChange={(e) => setYapiSahibiAdresi(e.target.value)} />
+              </Field>
             </Section>
           )}
 
@@ -380,6 +418,21 @@ export default function DataEntryWizard(props: Props) {
                       <option key={v} value={v}>{v}</option>
                     ))}
                   </select>
+                </Field>
+                <Field label="Asansör Seri No">
+                  <input className="inp" value={asansorSeriNo} onChange={(e) => setAsansorSeriNo(e.target.value)} />
+                </Field>
+                <Field label="Asansör Kimlik No">
+                  <input className="inp" value={asansorKimlikNo} onChange={(e) => setAsansorKimlikNo(e.target.value)} />
+                </Field>
+                <Field label="Seyir Mesafesi (m)">
+                  <input className="inp" value={seyirMesafesi} onChange={(e) => setSeyirMesafesi(e.target.value)} />
+                </Field>
+                <Field label="Motor Seri No">
+                  <input className="inp" value={motorSeriNo} onChange={(e) => setMotorSeriNo(e.target.value)} />
+                </Field>
+                <Field label="Motor Gücü (kW)">
+                  <input className="inp" value={motorGucu} onChange={(e) => setMotorGucu(e.target.value)} />
                 </Field>
               </div>
             </Section>

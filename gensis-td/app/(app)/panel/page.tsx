@@ -70,14 +70,12 @@ export default async function PanelPage() {
                       {new Date(p.created_at).toLocaleDateString("tr-TR")}
                     </td>
                     <td className="px-4 py-3">
-                      <a
-                        href={`/api/pdf/teknik-dosya?projectId=${p.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <Link
+                        href={`/panel/${p.id}`}
                         className="text-brand font-semibold hover:underline"
                       >
-                        Teknik Dosya PDF
-                      </a>
+                        Belgeler →
+                      </Link>
                     </td>
                   </tr>
                 ))}

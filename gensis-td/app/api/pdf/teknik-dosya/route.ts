@@ -49,15 +49,19 @@ export async function GET(req: NextRequest) {
   const host = req.headers.get("host");
   registerFonts(`${proto}://${host}`);
 
+  // ?belge=<code> verilirse yalnız o belge; verilmezse tümü (birleşik)
+  const belge = req.nextUrl.searchParams.get("belge") ?? undefined;
+
   const buffer = await renderToBuffer(
-    React.createElement(TeknikDosyaDoc, { data: ctx }) as any
+    React.createElement(TeknikDosyaDoc, { data: ctx, only: belge }) as any
   );
 
   const dosyaNo = (ctx as any)?.dosya_no ?? projectId;
+  const adNamePart = belge ? `${dosyaNo}_${belge}` : `${dosyaNo}_tumu`;
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="Teknik_Dosya_${dosyaNo}.pdf"`,
+      "Content-Disposition": `inline; filename="Teknik_Dosya_${adNamePart}.pdf"`,
       "Cache-Control": "no-store",
     },
   });

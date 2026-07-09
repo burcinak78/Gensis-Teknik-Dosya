@@ -1,7 +1,8 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { TEKNIK_DOSYA_BELGELERI } from "./belgeler";
 
-// Birleşik Teknik Dosya — görünür belgeleri tek PDF'te birleştirir.
+// Birleşik Teknik Dosya — belgeleri tek PDF'te birleştirir VEYA tek belge üretir (only).
 // Veri = project_render_context (jsonb). Font 'Roboto' route'ta register edilir.
 
 const NAVY = "#1e2a5b";
@@ -40,6 +41,23 @@ const CAT_LABEL: Record<string, string> = {
   fren_blogu: "Fren Bloğu", kumanda: "Kumanda Panosu", motor: "Makine Motoru",
 };
 
+const BAKIM_MADDELERI: [string, string][] = [
+  ["MADDE 2 – Sözleşmenin Konusu ve Kapsamı",
+    "Sözleşme, yukarıda adresi belirtilen asansörü/asansörleri kapsar. Konusu, asansörün aylık periyodik bakımının yapılmasıdır."],
+  ["MADDE 3 – Bakımın Tarifi",
+    "Bakım; makine, cihaz ve aksamların normal olarak çalışan bir asansör tesisinin teknik özelliklerine uygun çalışır durumda tutulmasıdır."],
+  ["MADDE 4 – Bakım Malzemesi",
+    "Yağ, üstüpü vb. bakım ile ilgili sarf malzemeleri müşteri tarafından temin edilecektir."],
+  ["MADDE 5 – Bakım ve Kontrolün İfa Şekli",
+    "Asansör ayda bir defa kontrol edilerek bakımı yapılacaktır. Yüklenici, müşterinin belirleyeceği en az 2 kişiye acil durumlarda kurtarma eğitimi verecektir. Anormal durum tespitinde asansör, bakım ekibi gelene kadar servis dışı bırakılacaktır."],
+  ["MADDE 6 – Bakıma Yetkili Olanlar",
+    "Yüklenicinin görevlendirdiği elemandan başka hiçbir yabancı asansör makine dairesine giremez."],
+  ["MADDE 7 – Tamirat, Tadilat ve Değişiklik",
+    "Tabii aşınma, harici tesir veya yabancı müdahalesi kaynaklı işler bakım kapsamı dışındadır. Parça değişimi müşteriye bildirilecek ve onayı ile yapılacaktır."],
+  ["MADDE 9 – Sözleşme Müddeti ve Fesih",
+    "İşbu sözleşme imzalandığı tarihten itibaren 1 (bir) yıl için geçerlidir. Taraflardan biri haklı sebeple sözleşmeyi feshedebilir."],
+];
+
 const v = (x: any) => (x !== undefined && x !== null && String(x).trim() !== "" ? String(x) : "—");
 
 function R({ l, val }: { l: string; val?: any }) {
@@ -68,263 +86,373 @@ function DocHead({ firma, title }: { firma: any; title: string }) {
   );
 }
 
-export function TeknikDosyaDoc({ data }: { data: any }) {
+type Ctx = ReturnType<typeof buildCtx>;
+function buildCtx(data: any) {
   const d = data || {};
   const firma = d.firma || {};
   const modul = d.firma_modul || {};
   const muh = d.muhendis || {};
   const kap = d.kapasite || {};
-  const inp = d.input_data || d; // input_data alanları
+  const inp = d.input_data || d;
   const ekipman: Record<string, any> = d.ekipman || {};
   const bugun = new Date().toLocaleDateString("tr-TR");
   const tarih = d.dosya_tarihi || bugun;
   const fname = v(firma.unvan || firma.kisa_ad);
   const kisi = d.kisi_sayisi ?? kap.kisi;
   const adaParsel = [inp.ada, inp.parsel].filter(Boolean).join(" / ");
-
   const eqEntries = Object.entries(ekipman);
+  return { d, firma, modul, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries };
+}
 
+// Her belge için render fonksiyonu (code -> Page)
+const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
+  kapak: (c) => (
+    <Page key="kapak" size="A4" style={st.page}>
+      <View style={st.coverWrap}>
+        <Text style={st.coverBig}>TEKNİK DOSYA</Text>
+        <Text style={st.coverSub}>2014/33 AB ASANSÖR YÖNETMELİĞİ</Text>
+        <R l="Dosya No" val={c.d.dosya_no} />
+        <View style={{ height: 10 }} />
+        <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
+        <R l="Bina Adı" val={c.d.bina_adi} />
+        <R l="Bina Adresi" val={c.d.montaj_adresi} />
+        <R l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
+        <View style={{ height: 24 }} />
+        <Text style={st.firmaName}>{c.fname}</Text>
+        <Text style={{ fontSize: 9, color: "#6b7280" }}>{c.tarih}</Text>
+      </View>
+    </Page>
+  ),
+
+  dilekce: (c) => (
+    <Page key="dilekce" size="A4" style={st.page}>
+      <View style={st.topRow}><Text> </Text><Text>{c.tarih}</Text></View>
+      <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 4 }}>
+        {v(c.d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI'NA
+      </Text>
+      <Text style={{ textAlign: "center", color: "#6b7280", marginBottom: 18 }}>{v(c.d.il)}</Text>
+      <Text style={st.p}>
+        Aşağıda özellikleri verilmiş olan ve firmamız tarafından montajı yapılan 1 adet asansör için
+        tescil belgesinin tarafımıza verilmesini arz ederiz.
+      </Text>
+      <R l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
+      <R l="Montaj Adresi" val={c.d.montaj_adresi} />
+      <R l="Pafta" val={c.inp.pafta} />
+      <R l="Ada" val={c.inp.ada} />
+      <R l="Parsel" val={c.inp.parsel} />
+      <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg. · ${v(c.kisi)} Kişi` : undefined} />
+      <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
+      <R l="Durak Sayısı" val={c.d.durak_adedi} />
+      <Text style={{ marginTop: 20 }}>Saygılarımızla,</Text>
+      <View style={st.signWrap}>
+        <View />
+        <View style={st.signBox}>
+          <Text style={{ fontWeight: "bold" }}>{c.fname}</Text>
+          <Text style={st.signLine}>Kaşe / İmza</Text>
+        </View>
+      </View>
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  firma_bilgileri: (c) => (
+    <Page key="firma_bilgileri" size="A4" style={st.page}>
+      <DocHead firma={c.firma} title="FİRMA BİLGİLERİ" />
+      <R l="Ticari Ünvan" val={c.firma.unvan} />
+      <R l="Tescilli Marka" val={c.firma.tescilli_marka} />
+      <R l="Yetkili / Ünvanı" val={c.firma.yetkili} />
+      <R l="Adres" val={c.firma.adres} />
+      <R l="Yer" val={c.firma.sehir} />
+      <R l="Ülke" val="TÜRKİYE" />
+      <R l="Telefon" val={c.firma.telefon} />
+      <R l="Faks" val={c.firma.faks} />
+      <R l="Sanayi Sicil No" val={c.firma.sanayi_sicil_no} />
+      <R l="CE İşaretlemesi Sorumlusu" val={c.muh.makine?.ad || c.firma.yetkili} />
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  tescil: (c) => (
+    <Page key="tescil" size="A4" style={st.page}>
+      <DocHead firma={c.firma} title="YENİ ASANSÖR İÇİN TESCİL BELGESİ (EK-1)" />
+      <R l="Tescil Tarihi" val={c.tarih} />
+      <R l="Tescili Yapan İdare" val={c.d.belediye ? `${v(c.d.belediye)} Belediyesi` : undefined} />
+      <Text style={st.sec}>Asansör Monte Edene Dair Bilgiler</Text>
+      <R l="Adı / Ünvanı" val={c.firma.unvan} />
+      <R l="Adresi" val={c.firma.adres} />
+      <R l="İletişim" val={[c.firma.telefon, c.firma.faks].filter(Boolean).join(" · ")} />
+      <Text style={st.sec}>Asansöre Dair Bilgiler</Text>
+      <R l="Asansör Kimlik No" val={c.inp.asansor_kimlik_no} />
+      <R l="Ada / Parsel No" val={c.adaParsel} />
+      <R l="Montaj Adresi" val={c.d.montaj_adresi} />
+      <R l="Markası" val={c.firma.tescilli_marka} />
+      <R l="Seri Numarası" val={c.inp.asansor_seri_no} />
+      <R l="İmal Yılı" val={c.d.imal_yili} />
+      <R l="Tahrik Türü" val="ELEKTRİKLİ DİREKT TAHRİK" />
+      <R l="Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
+      <R l="Kapasite / Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : undefined} />
+      <R l="Durak Sayısı" val={c.d.durak_adedi} />
+      <Text style={st.sec}>Mevzuat</Text>
+      <R l="Yönetmelik" val="ASANSÖR YÖNETMELİĞİ (2014/33/AB)" />
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  garanti: (c) => (
+    <Page key="garanti" size="A4" style={st.page}>
+      <DocHead firma={c.firma} title="GARANTİ BELGESİ (EK-3)" />
+      <R l="Belge Düzenleme Tarihi" val={c.tarih} />
+      <R l="Ünvanı" val={c.firma.unvan} />
+      <R l="Adresi" val={c.firma.adres} />
+      <R l="Telefon / Faks" val={[c.firma.telefon, c.firma.faks].filter(Boolean).join(" · ")} />
+      <Text style={st.sec}>Malın</Text>
+      <R l="Cinsi" val="ELEKTRİKLİ DİREKT TAHRİK" />
+      <R l="Markası" val={c.firma.tescilli_marka} />
+      <R l="Teslim Tarihi" val={c.tarih} />
+      <R l="Teslim Adresi" val={c.d.montaj_adresi} />
+      <R l="Ada / Parsel No" val={c.adaParsel} />
+      <R l="Azami Tamir Süresi" val="15 GÜN" />
+      <R l="Garanti Süresi" val="3 YIL" />
+      <Text style={st.sec}>Onay</Text>
+      <R l="Firma Yetkilisi" val={c.firma.yetkili} />
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  bakim_sozlesmesi: (c) => (
+    <Page key="bakim_sozlesmesi" size="A4" style={st.page} wrap>
+      <DocHead firma={c.firma} title="ASANSÖR BAKIM SÖZLEŞMESİ" />
+      <R l="Yüklenici (Bakım Firması)" val={c.firma.unvan} />
+      <R l="Müşteri (Yapı Sahibi)" val={c.inp.yapi_sahibi} />
+      <R l="Asansör Adresi" val={c.d.montaj_adresi} />
+      {BAKIM_MADDELERI.map(([b, m], i) => (
+        <View key={i} style={{ marginTop: 8 }} wrap={false}>
+          <Text style={{ fontWeight: "bold", color: NAVY, fontSize: 9.5 }}>{b}</Text>
+          <Text style={{ textAlign: "justify", fontSize: 9.5 }}>{m}</Text>
+        </View>
+      ))}
+      <Text style={st.sec}>MADDE 12 – Bakım Ücreti</Text>
+      <R l="Aylık Bakım Ücreti" val={c.inp.bakim_ucreti} />
+      <View style={st.signWrap}>
+        <View style={st.signBox}><Text style={st.signLine}>Yüklenici</Text><Text style={{ fontSize: 9 }}>{c.fname}</Text></View>
+        <View style={st.signBox}><Text style={st.signLine}>Müşteri</Text><Text style={{ fontSize: 9 }}>{v(c.inp.yapi_sahibi)}</Text></View>
+      </View>
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  muh_taahhut: (c) => (
+    <Page key="muh_taahhut" size="A4" style={st.page}>
+      <DocHead firma={c.firma} title="TAAHHÜTNAME" />
+      <Text style={st.sec}>Makine Mühendisi (Proje Müellifi)</Text>
+      <R l="Adı Soyadı" val={c.muh.makine?.ad} />
+      <R l="Oda Sicil No" val={c.muh.makine?.oda_sicil} />
+      <R l="Ünvanı" val="Makina Mühendisi" />
+      <Text style={st.sec}>Elektrik Mühendisi (Proje Müellifi)</Text>
+      <R l="Adı Soyadı" val={c.muh.elektrik?.ad} />
+      <R l="Oda Sicil No" val={c.muh.elektrik?.oda_sicil} />
+      <R l="Ünvanı" val="Elektrik Mühendisi" />
+      <Text style={st.sec}>Müellifliği Üstlenilen Proje</Text>
+      <R l="İl / İlçe" val={[c.d.il, c.d.belediye].filter(Boolean).join(" / ")} />
+      <R l="İlgili İdare" val={c.d.belediye ? `${v(c.d.belediye)} Belediyesi` : undefined} />
+      <R l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
+      <Text style={st.p}>
+        Yukarıda bilgileri verilen projenin müellifi olarak, ilgili mevzuat ve standartlara uygun
+        şekilde hazırlandığını taahhüt ederiz.
+      </Text>
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  uygunluk_beyani: (c) => (
+    <Page key="uygunluk_beyani" size="A4" style={st.page}>
+      <DocHead firma={c.firma} title="UYGUNLUK BEYANI" />
+      <Text style={st.p}>
+        Aşağıda teknik bilgileri verilen asansörün; 2014/33/AB Asansör Yönetmeliği ve ilgili
+        uyumlaştırılmış standartlar (TS EN 81-20 / TS EN 81-50) hükümlerine uygun olarak tasarlandığını,
+        imal ve monte edildiğini beyan ederiz.
+      </Text>
+      <Text style={st.sec}>Asansör Bilgileri</Text>
+      <R l="Bina / İl" val={[c.d.bina_adi, c.d.il].filter(Boolean).join(" · ")} />
+      <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : undefined} />
+      <R l="Kişi Sayısı" val={c.kisi} />
+      <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
+      <R l="Kat / Durak" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
+      <Text style={st.sec}>Belgelendirme</Text>
+      <R l="Uygunluk Modülü" val={c.d.modul} />
+      <R l="Onaylanmış Kuruluş" val={c.modul.onaylanmis_kurulus} />
+      <R l="Modül Belge No" val={c.modul.belge_no} />
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  yazili_beyanname: (c) => (
+    <Page key="yazili_beyanname" size="A4" style={st.page}>
+      <DocHead firma={c.firma} title="BEYANNAME" />
+      <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
+      <R l="Asansörün Tipi" val="ELEKTRİKLİ DİREKT TAHRİK" />
+      <R l="Yapım Yılı" val={c.d.imal_yili} />
+      <R l="Seyir Mesafesi" val={c.inp.seyir_mesafesi ? `${c.inp.seyir_mesafesi} m` : undefined} />
+      <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg` : undefined} />
+      <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
+      <R l="Kat / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
+      <R l="Ada / Parsel" val={c.adaParsel} />
+      <R l="Asansör Adresi" val={c.d.montaj_adresi} />
+      <R l="Firma Adı / Ünvanı" val={c.firma.unvan} />
+      <R l="Firma Adresi" val={c.firma.adres} />
+      <R l="Firma Yetkilisi" val={c.firma.yetkili} />
+      <Text style={{ marginTop: 12, fontSize: 9, color: "#6b7280" }}>
+        İş bu evrak; 03.04.2021 tarihli, 31443 sayılı Resmî Gazete kapsamında düzenlenmiştir.
+      </Text>
+      <View style={st.signWrap}>
+        <View />
+        <View style={st.signBox}>
+          <Text style={{ fontWeight: "bold" }}>{v(c.firma.yetkili)}</Text>
+          <Text style={st.signLine}>Kaşe / İmza</Text>
+        </View>
+      </View>
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  teknik_komponent: (c) => (
+    <Page key="teknik_komponent" size="A4" style={st.page}>
+      <DocHead firma={c.firma} title="ASANSÖR TEKNİK ÖZELLİKLERİ & GÜVENLİK EKİPMANLARI LİSTESİ" />
+      <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
+      <R l="Asansörün Tipi" val="Elektrikli İnsan Asansörü" />
+      <R l="Yapım Yılı" val={c.d.imal_yili} />
+      <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg` : undefined} />
+      <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
+      <R l="Kat / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
+      <R l="Kat Kapısı" val={c.inp.kat_kapisi} />
+      <R l="Askı Tipi" val={c.inp.aski_tipi} />
+      <Text style={st.sec}>Güvenlik Ekipmanları</Text>
+      {c.eqEntries.length === 0 ? (
+        <Text style={{ color: "#9ca3af" }}>Seçili ekipman yok.</Text>
+      ) : (
+        c.eqEntries.map(([code, e]) => (
+          <View style={st.eqRow} key={code}>
+            <Text style={st.eqA}>{CAT_LABEL[code] || code}</Text>
+            <Text style={st.eqB}>{[e?.marka, e?.model].filter(Boolean).join(" ") || "—"}</Text>
+            <Text style={st.eqC}>{e?.sertifika_no ? `Sert: ${e.sertifika_no}` : ""}</Text>
+          </View>
+        ))
+      )}
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  motor_beyannamesi: (c) => (
+    <Page key="motor_beyannamesi" size="A4" style={st.page}>
+      <View style={st.topRow}><Text> </Text><Text>Tarih: {c.tarih}</Text></View>
+      <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 2 }}>MOTOR BEYANNAMESİ</Text>
+      <Text style={{ textAlign: "center", color: "#6b7280", marginBottom: 16 }}>
+        {v(c.d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI RUHSAT VE DENETİM MÜDÜRLÜĞÜ
+      </Text>
+      <Text style={st.p}>
+        {v(c.d.montaj_adresi)} adresinde, {v(c.inp.pafta)} pafta {v(c.inp.ada)} ada {v(c.inp.parsel)} parsel
+        sayılı yerde bulunan elektrik motorunun fenni ve teknik şartlara uygun olarak kullanılacağını beyan ederiz.
+      </Text>
+      <Text style={st.sec}>Motorun Özellikleri</Text>
+      <R l="Motor Markası" val={c.ekipman.motor?.marka} />
+      <R l="Motor Modeli" val={c.ekipman.motor?.model} />
+      <R l="Motor Seri No" val={c.inp.motor_seri_no} />
+      <R l="Motor Gücü" val={c.inp.motor_gucu ? `${c.inp.motor_gucu} kW` : undefined} />
+      <Text style={{ marginTop: 16, textAlign: "right" }}>SAYGILARIMIZLA</Text>
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  seyir_defteri: (c) => (
+    <Page key="seyir_defteri" size="A4" style={st.page}>
+      <DocHead firma={c.firma} title="ASANSÖR SEYİR DEFTERİ" />
+      <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
+      <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
+      <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
+      <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
+      <R l="Yapımcı Firma" val={c.firma.unvan} />
+      <R l="Servise Verildiği Tarih" val={c.tarih} />
+      <Text style={st.sec}>Yasal ve Periyodik Kontroller</Text>
+      <Text style={{ color: "#9ca3af" }}>
+        (Periyodik kontrol, revizyon ve önemli olay kayıtları için bu bölüm boş bırakılmıştır.)
+      </Text>
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  egitim_tutanagi: (c) => (
+    <Page key="egitim_tutanagi" size="A4" style={st.page}>
+      <DocHead firma={c.firma} title="ASANSÖRDE MAHSUR KALAN KİŞİLERİN KURTARILMASI EĞİTİMİ" />
+      <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
+      <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
+      <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
+      <Text style={st.p}>
+        Aşağıda listede ismi bulunan kişilere, yetkili kişi tarafından asansörde mahsur kalan
+        kişilerin kurtarılmasına yönelik eğitim verilmiştir.
+      </Text>
+      <View style={st.signWrap}>
+        <View style={st.signBox}><Text style={st.signLine}>Eğitimi Veren (İsim / İmza)</Text></View>
+        <View style={st.signBox}><Text style={st.signLine}>Eğitimi Alan (İsim / İmza)</Text></View>
+      </View>
+      <Text style={{ marginTop: 14, color: "#6b7280" }}>Tarih: {c.tarih}</Text>
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+
+  teslim_tutanagi: (c) => (
+    <Page key="teslim_tutanagi" size="A4" style={st.page}>
+      <DocHead firma={c.firma} title="ASANSÖR ve DOKÜMAN TESLİM TUTANAĞI" />
+      <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
+      <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
+      <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
+      <Text style={st.sec}>Asansör Sahibine Verilen Doküman Listesi</Text>
+      {[
+        "AT Uygunluk Beyanı", "Asansör Teknik Özellikleri", "Güvenlik Ekipmanları Listesi",
+        "Asansör Projesi", "Güvenlik Ekipmanları CE ve Test Belgeleri",
+        "Güvenlik Ekipmanları Kullanma Kılavuzları, Şema ve Diyagramları",
+        "Asansör Kullanma Kılavuzu", "Asansör Kurtarma Talimatı", "Asansör Seyir Defteri",
+      ].map((t, i) => (
+        <View style={st.listRow} key={i}>
+          <Text style={st.listNo}>{i + 1}.</Text>
+          <Text>{t}</Text>
+        </View>
+      ))}
+      <Text style={st.p}>
+        Yukarıda belirtilen dokümanları eksiksiz ve asansörü/asansörleri çalışır durumda teslim aldım.
+      </Text>
+      <Text style={{ marginTop: 8, color: "#6b7280" }}>Tarih: {c.tarih}</Text>
+      <Footer firma={c.fname} />
+    </Page>
+  ),
+};
+
+function EkBelgelerPage(c: Ctx) {
   return (
-    <Document>
-      {/* 1 — KAPAK */}
-      <Page size="A4" style={st.page}>
-        <View style={st.coverWrap}>
-          <Text style={st.coverBig}>TEKNİK DOSYA</Text>
-          <Text style={st.coverSub}>2014/33 AB ASANSÖR YÖNETMELİĞİ</Text>
-          <R l="Dosya No" val={d.dosya_no} />
-          <View style={{ height: 10 }} />
-          <R l="Asansör Seri No" val={inp.asansor_seri_no} />
-          <R l="Bina Adı" val={d.bina_adi} />
-          <R l="Bina Adresi" val={d.montaj_adresi} />
-          <R l="Pafta / Ada / Parsel" val={[inp.pafta, inp.ada, inp.parsel].filter(Boolean).join(" / ")} />
-          <View style={{ height: 24 }} />
-          <Text style={st.firmaName}>{fname}</Text>
-          <Text style={{ fontSize: 9, color: "#6b7280" }}>{tarih}</Text>
-        </View>
-      </Page>
-
-      {/* 2 — DİLEKÇE */}
-      <Page size="A4" style={st.page}>
-        <View style={st.topRow}><Text> </Text><Text>{tarih}</Text></View>
-        <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 4 }}>
-          {v(d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI'NA
-        </Text>
-        <Text style={{ textAlign: "center", color: "#6b7280", marginBottom: 18 }}>{v(d.il)}</Text>
-        <Text style={st.p}>
-          Aşağıda özellikleri verilmiş olan ve firmamız tarafından montajı yapılan 1 adet asansör için
-          tescil belgesinin tarafımıza verilmesini arz ederiz.
-        </Text>
-        <R l="Yapı Sahibi" val={inp.yapi_sahibi} />
-        <R l="Montaj Adresi" val={d.montaj_adresi} />
-        <R l="Pafta" val={inp.pafta} />
-        <R l="Ada" val={inp.ada} />
-        <R l="Parsel" val={inp.parsel} />
-        <R l="Beyan Yükü" val={d.beyan_yuku_kg ? `${d.beyan_yuku_kg} Kg. · ${v(kisi)} Kişi` : undefined} />
-        <R l="Beyan Hızı" val={d.beyan_hizi ? `${d.beyan_hizi} m/s` : undefined} />
-        <R l="Durak Sayısı" val={d.durak_adedi} />
-        <Text style={{ marginTop: 20 }}>Saygılarımızla,</Text>
-        <View style={st.signWrap}>
-          <View />
-          <View style={st.signBox}>
-            <Text style={{ fontWeight: "bold" }}>{fname}</Text>
-            <Text style={st.signLine}>Kaşe / İmza</Text>
-          </View>
-        </View>
-        <Footer firma={fname} />
-      </Page>
-
-      {/* 3 — FİRMA BİLGİLERİ */}
-      <Page size="A4" style={st.page}>
-        <DocHead firma={firma} title="FİRMA BİLGİLERİ" />
-        <R l="Ticari Ünvan" val={firma.unvan} />
-        <R l="Tescilli Marka" val={firma.tescilli_marka} />
-        <R l="Yetkili / Ünvanı" val={firma.yetkili} />
-        <R l="Adres" val={firma.adres} />
-        <R l="Yer" val={firma.sehir} />
-        <R l="Ülke" val="TÜRKİYE" />
-        <R l="Telefon" val={firma.telefon} />
-        <R l="Faks" val={firma.faks} />
-        <R l="Sanayi Sicil No" val={firma.sanayi_sicil_no} />
-        <R l="CE İşaretlemesi Sorumlusu" val={muh.makine?.ad || firma.yetkili} />
-        <Footer firma={fname} />
-      </Page>
-
-      {/* 4 — UYGUNLUK BEYANI */}
-      <Page size="A4" style={st.page}>
-        <DocHead firma={firma} title="UYGUNLUK BEYANI" />
-        <Text style={st.p}>
-          Aşağıda teknik bilgileri verilen asansörün; 2014/33/AB Asansör Yönetmeliği ve ilgili
-          uyumlaştırılmış standartlar (TS EN 81-20 / TS EN 81-50) hükümlerine uygun olarak tasarlandığını,
-          imal ve monte edildiğini beyan ederiz.
-        </Text>
-        <Text style={st.sec}>Asansör Bilgileri</Text>
-        <R l="Bina / İl" val={[d.bina_adi, d.il].filter(Boolean).join(" · ")} />
-        <R l="Beyan Yükü" val={d.beyan_yuku_kg ? `${d.beyan_yuku_kg} kg` : undefined} />
-        <R l="Kişi Sayısı" val={kisi} />
-        <R l="Beyan Hızı" val={d.beyan_hizi ? `${d.beyan_hizi} m/s` : undefined} />
-        <R l="Kat / Durak" val={`${v(d.kat_adedi)} / ${v(d.durak_adedi)}`} />
-        <Text style={st.sec}>Belgelendirme</Text>
-        <R l="Uygunluk Modülü" val={d.modul} />
-        <R l="Onaylanmış Kuruluş" val={modul.onaylanmis_kurulus} />
-        <R l="Modül Belge No" val={modul.belge_no} />
-        <Footer firma={fname} />
-      </Page>
-
-      {/* 5 — YAZILI BEYANNAME */}
-      <Page size="A4" style={st.page}>
-        <DocHead firma={firma} title="BEYANNAME" />
-        <R l="Asansör Seri No" val={inp.asansor_seri_no} />
-        <R l="Asansörün Tipi" val="ELEKTRİKLİ DİREKT TAHRİK" />
-        <R l="Yapım Yılı" val={d.imal_yili} />
-        <R l="Seyir Mesafesi" val={inp.seyir_mesafesi ? `${inp.seyir_mesafesi} m` : undefined} />
-        <R l="Beyan Yükü" val={d.beyan_yuku_kg ? `${d.beyan_yuku_kg} Kg` : undefined} />
-        <R l="Beyan Hızı" val={d.beyan_hizi ? `${d.beyan_hizi} m/s` : undefined} />
-        <R l="Kat / Durak Adedi" val={`${v(d.kat_adedi)} / ${v(d.durak_adedi)}`} />
-        <R l="Ada / Parsel" val={adaParsel} />
-        <R l="Asansör Adresi" val={d.montaj_adresi} />
-        <R l="Firma Adı / Ünvanı" val={firma.unvan} />
-        <R l="Firma Adresi" val={firma.adres} />
-        <R l="Firma Yetkilisi" val={firma.yetkili} />
-        <Text style={{ marginTop: 12, fontSize: 9, color: "#6b7280" }}>
-          İş bu evrak; 03.04.2021 tarihli, 31443 sayılı Resmî Gazete kapsamında düzenlenmiştir.
-        </Text>
-        <View style={st.signWrap}>
-          <View />
-          <View style={st.signBox}>
-            <Text style={{ fontWeight: "bold" }}>{v(firma.yetkili)}</Text>
-            <Text style={st.signLine}>Kaşe / İmza</Text>
-          </View>
-        </View>
-        <Footer firma={fname} />
-      </Page>
-
-      {/* 6 — TEKNİK & KOMPONENT LİSTESİ */}
-      <Page size="A4" style={st.page}>
-        <DocHead firma={firma} title="ASANSÖR TEKNİK ÖZELLİKLERİ & GÜVENLİK EKİPMANLARI LİSTESİ" />
-        <R l="Asansör Seri No" val={inp.asansor_seri_no} />
-        <R l="Asansörün Tipi" val="Elektrikli İnsan Asansörü" />
-        <R l="Yapım Yılı" val={d.imal_yili} />
-        <R l="Beyan Yükü" val={d.beyan_yuku_kg ? `${d.beyan_yuku_kg} Kg` : undefined} />
-        <R l="Beyan Hızı" val={d.beyan_hizi ? `${d.beyan_hizi} m/s` : undefined} />
-        <R l="Kat / Durak Adedi" val={`${v(d.kat_adedi)} / ${v(d.durak_adedi)}`} />
-        <R l="Kat Kapısı" val={inp.kat_kapisi} />
-        <R l="Askı Tipi" val={inp.aski_tipi} />
-        <Text style={st.sec}>Güvenlik Ekipmanları</Text>
-        {eqEntries.length === 0 ? (
-          <Text style={{ color: "#9ca3af" }}>Seçili ekipman yok.</Text>
-        ) : (
-          eqEntries.map(([code, e]) => (
-            <View style={st.eqRow} key={code}>
-              <Text style={st.eqA}>{CAT_LABEL[code] || code}</Text>
-              <Text style={st.eqB}>{[e?.marka, e?.model].filter(Boolean).join(" ") || "—"}</Text>
-              <Text style={st.eqC}>{e?.sertifika_no ? `Sert: ${e.sertifika_no}` : ""}</Text>
-            </View>
-          ))
-        )}
-        <Footer firma={fname} />
-      </Page>
-
-      {/* 7 — MOTOR BEYANNAMESİ */}
-      <Page size="A4" style={st.page}>
-        <View style={st.topRow}><Text> </Text><Text>Tarih: {tarih}</Text></View>
-        <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 2 }}>MOTOR BEYANNAMESİ</Text>
-        <Text style={{ textAlign: "center", color: "#6b7280", marginBottom: 16 }}>
-          {v(d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI RUHSAT VE DENETİM MÜDÜRLÜĞÜ
-        </Text>
-        <Text style={st.p}>
-          {v(d.montaj_adresi)} adresinde, {v(inp.pafta)} pafta {v(inp.ada)} ada {v(inp.parsel)} parsel sayılı yerde
-          bulunan elektrik motorunun fenni ve teknik şartlara uygun olarak kullanılacağını beyan ederiz.
-        </Text>
-        <Text style={st.sec}>Motorun Özellikleri</Text>
-        <R l="Motor Markası" val={ekipman.motor?.marka} />
-        <R l="Motor Modeli" val={ekipman.motor?.model} />
-        <R l="Motor Seri No" val={inp.motor_seri_no} />
-        <R l="Motor Gücü" val={inp.motor_gucu} />
-        <Text style={{ marginTop: 16, textAlign: "right" }}>SAYGILARIMIZLA</Text>
-        <Footer firma={fname} />
-      </Page>
-
-      {/* 8 — GARANTİ BELGESİ */}
-      <Page size="A4" style={st.page}>
-        <DocHead firma={firma} title="GARANTİ BELGESİ (EK-3)" />
-        <R l="Belge Düzenleme Tarihi" val={tarih} />
-        <R l="Ünvanı" val={firma.unvan} />
-        <R l="Adresi" val={firma.adres} />
-        <R l="Telefon / Faks" val={[firma.telefon, firma.faks].filter(Boolean).join(" · ")} />
-        <Text style={st.sec}>Malın</Text>
-        <R l="Cinsi" val="ELEKTRİKLİ DİREKT TAHRİK" />
-        <R l="Markası" val={firma.tescilli_marka} />
-        <R l="Teslim Tarihi" val={tarih} />
-        <R l="Teslim Adresi" val={d.montaj_adresi} />
-        <R l="Ada / Parsel No" val={adaParsel} />
-        <R l="Azami Tamir Süresi" val="15 GÜN" />
-        <R l="Garanti Süresi" val="3 YIL" />
-        <Text style={st.sec}>Onay</Text>
-        <R l="Firma Yetkilisi" val={firma.yetkili} />
-        <Footer firma={fname} />
-      </Page>
-
-      {/* 9 — EĞİTİM TUTANAĞI */}
-      <Page size="A4" style={st.page}>
-        <DocHead firma={firma} title="ASANSÖRDE MAHSUR KALAN KİŞİLERİN KURTARILMASI EĞİTİMİ" />
-        <R l="Asansör Seri No" val={inp.asansor_seri_no} />
-        <R l="Asansörün Bulunduğu Adres" val={d.montaj_adresi} />
-        <R l="Asansörün Sahibi" val={inp.yapi_sahibi} />
-        <Text style={st.p}>
-          Aşağıda listede ismi bulunan kişilere, yetkili kişi tarafından asansörde mahsur kalan
-          kişilerin kurtarılmasına yönelik eğitim verilmiştir.
-        </Text>
-        <View style={st.signWrap}>
-          <View style={st.signBox}><Text style={st.signLine}>Eğitimi Veren (İsim / İmza)</Text></View>
-          <View style={st.signBox}><Text style={st.signLine}>Eğitimi Alan (İsim / İmza)</Text></View>
-        </View>
-        <Text style={{ marginTop: 14, color: "#6b7280" }}>Tarih: {tarih}</Text>
-        <Footer firma={fname} />
-      </Page>
-
-      {/* 10 — TESLİM TUTANAĞI */}
-      <Page size="A4" style={st.page}>
-        <DocHead firma={firma} title="ASANSÖR ve DOKÜMAN TESLİM TUTANAĞI" />
-        <R l="Asansör Seri No" val={inp.asansor_seri_no} />
-        <R l="Asansörün Bulunduğu Adres" val={d.montaj_adresi} />
-        <R l="Asansörün Sahibi" val={inp.yapi_sahibi} />
-        <Text style={st.sec}>Asansör Sahibine Verilen Doküman Listesi</Text>
-        {[
-          "AT Uygunluk Beyanı", "Asansör Teknik Özellikleri", "Güvenlik Ekipmanları Listesi",
-          "Asansör Projesi", "Güvenlik Ekipmanları CE ve Test Belgeleri",
-          "Güvenlik Ekipmanları Kullanma Kılavuzları, Şema ve Diyagramları",
-          "Asansör Kullanma Kılavuzu", "Asansör Kurtarma Talimatı", "Asansör Seyir Defteri",
-        ].map((t, i) => (
-          <View style={st.listRow} key={i}>
-            <Text style={st.listNo}>{i + 1}.</Text>
-            <Text>{t}</Text>
-          </View>
-        ))}
-        <Text style={st.p}>
-          Yukarıda belirtilen dokümanları eksiksiz ve asansörü/asansörleri çalışır durumda teslim aldım.
-        </Text>
-        <Text style={{ marginTop: 8, color: "#6b7280" }}>Tarih: {tarih}</Text>
-        <Footer firma={fname} />
-      </Page>
-
-      {/* 11 — SONRAKİ PARTİDE EKLENECEK */}
-      <Page size="A4" style={st.page}>
-        <DocHead firma={firma} title="EK BELGELER" />
-        <Text style={st.p}>
-          Aşağıdaki belgeler teknik dosyanın parçasıdır ve bir sonraki güncellemede bu dosyaya dahil edilecektir:
-        </Text>
-        {[
-          "Tescil Belgesi", "Bakım Sözleşmesi", "Mühendis Taahhütnamesi",
-          "Kullanım Kılavuzu", "Bakım Kılavuzu", "Seyir Defteri",
-          "Son Kontrol Formu", "Seçili ekipmanların ürün sertifikaları (PDF ekleri)",
-        ].map((t, i) => (
+    <Page key="ek" size="A4" style={st.page}>
+      <DocHead firma={c.firma} title="EK BELGELER" />
+      <Text style={st.p}>
+        Aşağıdaki belgeler teknik dosyanın parçasıdır ve bir sonraki güncellemede bu dosyaya dahil edilecektir:
+      </Text>
+      {["Kullanım Kılavuzu", "Bakım Kılavuzu", "Son Kontrol Formu", "Seçili ekipmanların ürün sertifikaları (PDF ekleri)"].map(
+        (t, i) => (
           <View style={st.listRow} key={i}>
             <Text style={st.listNo}>•</Text>
             <Text>{t}</Text>
           </View>
-        ))}
-        <Footer firma={fname} />
-      </Page>
-    </Document>
+        )
+      )}
+      <Footer firma={c.fname} />
+    </Page>
   );
+}
+
+// only verildiğinde tek belge, verilmediğinde tümü + ek belgeler notu
+export function TeknikDosyaDoc({ data, only }: { data: any; only?: string }) {
+  const c = buildCtx(data);
+  const codes = only
+    ? [only]
+    : TEKNIK_DOSYA_BELGELERI.filter((b) => b.hazir).map((b) => b.code);
+  const pages = codes.map((code) => RENDERERS[code]?.(c)).filter(Boolean) as React.ReactElement[];
+  if (!only) pages.push(EkBelgelerPage(c));
+  return <Document>{pages}</Document>;
 }
