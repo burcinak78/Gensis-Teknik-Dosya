@@ -60,7 +60,7 @@ export default function DataEntryWizard(props: Props) {
   const [seyirMesafesi, setSeyirMesafesi] = useState("");
   const [motorSeriNo, setMotorSeriNo] = useState("");
   const [motorGucu, setMotorGucu] = useState("");
-  const [equip, setEquip] = useState<Record<string, { brandId?: string; modelId?: string }>>({});
+  const [equip, setEquip] = useState<Record<string, { brandId?: string; modelId?: string; seriNo?: string }>>({});
 
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -89,8 +89,13 @@ export default function DataEntryWizard(props: Props) {
     durakAdedi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo,
     seyirMesafesi, motorSeriNo, motorGucu,
   };
+  // ekipman: marka + model + seri no dolu değilse eksik sayılır
+  const eqIncomplete = (catId: string) => {
+    const s = equip[catId];
+    return !s?.modelId || !s?.seriNo || !s.seriNo.trim();
+  };
   const missingText = Object.entries(requiredMap).filter(([, v]) => empty(v)).map(([k]) => k);
-  const missingEquip = props.categories.filter((cat) => !equip[cat.id]?.modelId);
+  const missingEquip = props.categories.filter((cat) => eqIncomplete(cat.id));
   const isValid = missingText.length === 0 && missingEquip.length === 0;
   const totalMissing = missingText.length + missingEquip.length;
 
@@ -104,7 +109,7 @@ export default function DataEntryWizard(props: Props) {
     2: { beyanYuku, beyanHizi, katAdedi, durakAdedi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo, seyirMesafesi, motorSeriNo, motorGucu },
   };
   function stepMissing(i: number): number {
-    if (i === 3) return props.categories.filter((c) => !equip[c.id]?.modelId).length;
+    if (i === 3) return props.categories.filter((c) => eqIncomplete(c.id)).length;
     const fields = stepFieldMap[i];
     if (!fields) return 0;
     return Object.values(fields).filter(empty).length;
@@ -142,8 +147,11 @@ export default function DataEntryWizard(props: Props) {
   function pickModel(catId: string, modelId: string) {
     setEquip((e) => ({ ...e, [catId]: { ...e[catId], modelId } }));
   }
+  function setSeriNo(catId: string, v: string) {
+    setEquip((e) => ({ ...e, [catId]: { ...e[catId], seriNo: v } }));
+  }
 
-  const selectedEquipCount = Object.values(equip).filter((e) => e.modelId).length;
+  const selectedEquipCount = props.categories.filter((c) => !eqIncomplete(c.id)).length;
 
   async function handleSave() {
     if (!isValid) {
@@ -159,7 +167,7 @@ export default function DataEntryWizard(props: Props) {
       .filter(([, val]) => val.modelId)
       .map(([category_id, val]) => {
         const model = props.models.find((m) => m.id === val.modelId);
-        return { category_id, slot: "main", brand_id: val.brandId ?? null, model_id: val.modelId ?? null, certificate_id: model?.certificate_id ?? null };
+        return { category_id, slot: "main", brand_id: val.brandId ?? null, model_id: val.modelId ?? null, certificate_id: model?.certificate_id ?? null, seri_no: val.seriNo?.trim() || null };
       });
 
     const payload: DraftPayload = {
@@ -373,7 +381,7 @@ export default function DataEntryWizard(props: Props) {
                   const model = props.models.find((m) => m.id === sel.modelId);
                   const cert = model?.certificate_id ? certById.get(model.certificate_id) : undefined;
                   const nb = cert?.notified_body_id ? nbById.get(cert.notified_body_id) : undefined;
-                  const eksik = showErrors && !sel.modelId;
+                  const eksik = showErrors && eqIncomplete(cat.id);
                   return (
                     <div key={cat.id} className={`bg-white border rounded-xl p-4 ${eksik ? "border-red-400 bg-red-50/40" : "border-slate-200"}`}>
                       <div className="font-bold mb-2">{cat.name} <span className="text-red-500">*</span></div>
@@ -405,6 +413,17 @@ export default function DataEntryWizard(props: Props) {
                         <div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-3 text-xs">
                           <div className="flex justify-between"><span className="text-slate-500">Sertifika No</span><span className="font-semibold">{cert.cert_no}</span></div>
                           {nb && <div className="flex justify-between mt-1"><span className="text-slate-500">Onaylanmış Kuruluş</span><span className="font-semibold">{nb.identity_no} · {nb.name}</span></div>}
+                        </div>
+                      )}
+                      {sel.modelId && (
+                        <div className="mt-3">
+                          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Ekipman Seri No *</label>
+                          <input
+                            value={sel.seriNo ?? ""}
+                            onChange={(e) => setSeriNo(cat.id, e.target.value)}
+                            placeholder="Bu ekipmanın üzerindeki seri numarasını girin"
+                            className={"inp" + (showErrors && (!sel.seriNo || !sel.seriNo.trim()) ? " !border-red-300 !bg-red-50" : "")}
+                          />
                         </div>
                       )}
                     </div>

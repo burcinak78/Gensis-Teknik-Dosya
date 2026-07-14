@@ -307,7 +307,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
               <Text style={st.fc1}>{lab}</Text>
               <Text style={st.fc2}>{e?.marka || ""}</Text>
               <Text style={st.fc3}>{e?.model || ""}</Text>
-              <Text style={st.fc4}>{""}</Text>
+              <Text style={st.fc4}>{e?.seri_no || ""}</Text>
             </View>
           ))}
           <FSection>MEVZUAT</FSection>
@@ -467,7 +467,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <View style={st.eqRow} key={code}>
             <Text style={st.eqA}>{CAT_LABEL[code] || code}</Text>
             <Text style={st.eqB}>{[e?.marka, e?.model].filter(Boolean).join(" ") || "—"}</Text>
-            <Text style={st.eqC}>{e?.sertifika_no ? `Sert: ${e.sertifika_no}` : ""}</Text>
+            <Text style={st.eqC}>{[e?.seri_no ? `Seri: ${e.seri_no}` : "", e?.sertifika_no ? `Sert: ${e.sertifika_no}` : ""].filter(Boolean).join(" · ")}</Text>
           </View>
         ))
       )}
@@ -489,7 +489,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <Text style={st.sec}>Motorun Özellikleri</Text>
       <R l="Motor Markası" val={c.ekipman.motor?.marka} />
       <R l="Motor Modeli" val={c.ekipman.motor?.model} />
-      <R l="Motor Seri No" val={c.inp.motor_seri_no} />
+      <R l="Motor Seri No" val={c.ekipman.motor?.seri_no || c.inp.motor_seri_no} />
       <R l="Motor Gücü" val={c.inp.motor_gucu ? `${c.inp.motor_gucu} kW` : undefined} />
       <Text style={{ marginTop: 16, textAlign: "right" }}>SAYGILARIMIZLA</Text>
       <Footer firma={c.fname} />
