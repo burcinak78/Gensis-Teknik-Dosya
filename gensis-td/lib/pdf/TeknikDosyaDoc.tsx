@@ -45,18 +45,20 @@ const st = StyleSheet.create({
   skSquare: { width: 11, height: 11, borderWidth: 0.8, borderColor: "#9ca3af", borderRadius: 2 },
 
   // Resmi form (EK-1 / EK-3 / Taahhütname) — kutulu, keskin köşeli, koyu kenarlık
-  formTitle: { textAlign: "center", fontWeight: "bold", fontSize: 13, color: "#0f172a", marginBottom: 2 },
-  formSub: { textAlign: "center", fontSize: 9, color: "#475569", marginBottom: 8 },
+  // Resmi form için daraltılmış sayfa (tek sayfaya sığması için)
+  pageForm: { fontFamily: "Roboto", fontSize: 8, color: "#1f2937", paddingTop: 26, paddingHorizontal: 32, paddingBottom: 34, lineHeight: 1.25 },
+  formTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#0f172a", marginBottom: 1 },
+  formSub: { textAlign: "center", fontSize: 8.5, color: "#475569", marginBottom: 6 },
   fBox: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderRightWidth: 0.8, borderColor: "#334155" },
   fRow: { flexDirection: "row", borderBottomWidth: 0.8, borderColor: "#334155" },
-  fLabel: { width: "46%", padding: 3.5, fontSize: 8.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#334155" },
-  fVal: { flex: 1, padding: 3.5, fontSize: 8.3, color: "#111827" },
-  fSection: { padding: 3.5, fontSize: 8.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#334155" },
+  fLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#334155" },
+  fVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#111827" },
+  fSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#334155" },
   fColHead: { flexDirection: "row", backgroundColor: "#f1f5f9", borderBottomWidth: 0.8, borderColor: "#334155" },
-  fc1: { width: "40%", padding: 3, fontSize: 7.8, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155" },
-  fc2: { width: "22%", padding: 3, fontSize: 7.8, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
-  fc3: { width: "22%", padding: 3, fontSize: 7.8, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
-  fc4: { flex: 1, padding: 3, fontSize: 7.8, fontWeight: "bold", textAlign: "center" },
+  fc1: { width: "40%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155" },
+  fc2: { width: "22%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
+  fc3: { width: "22%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
+  fc4: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", textAlign: "center" },
 });
 
 // Resmi form yardımcıları
@@ -271,7 +273,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       ["Elektrikli güvenlik tertibatları", eq.kumanda || {}],
     ];
     return (
-      <Page key="tescil" size="A4" style={st.page}>
+      <Page key="tescil" size="A4" style={st.pageForm}>
         <Text style={st.formTitle}>YENİ ASANSÖR İÇİN TESCİL BELGESİ</Text>
         <Text style={st.formSub}>EK-1</Text>
         <View style={st.fBox}>
@@ -323,13 +325,12 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <FSection>GARANTİ BELGESİNE DAİR BİLGİLER</FSection>
           <FRow l="GARANTİ SÜRESİ" val="3 YIL" />
         </View>
-        <Text style={{ fontSize: 8.3, marginTop: 8, textAlign: "justify" }}>
+        <Text style={{ fontSize: 7.3, marginTop: 6, textAlign: "justify" }}>
           {v(c.d.montaj_adresi)} adresinde monte edilen ve {c.tarih} tarihinde piyasaya arz edilmiş olan asansörün tescili yapılmıştır.
         </Text>
-        <View style={{ marginTop: 26, alignItems: "flex-end" }}>
-          <Text style={{ fontSize: 8.3, textAlign: "center" }}>İLGİLİ İDARE ADINA İMZA YETKİLİSİNİN{"\n"}İMZA VE MÜHÜR</Text>
+        <View style={{ marginTop: 14, alignItems: "flex-end" }}>
+          <Text style={{ fontSize: 7.3, textAlign: "center" }}>İLGİLİ İDARE ADINA İMZA YETKİLİSİNİN{"\n"}İMZA VE MÜHÜR</Text>
         </View>
-        <Footer firma={c.fname} />
       </Page>
     );
   },
