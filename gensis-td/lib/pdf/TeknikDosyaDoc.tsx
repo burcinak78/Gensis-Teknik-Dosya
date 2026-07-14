@@ -43,7 +43,85 @@ const st = StyleSheet.create({
   skItem: { flex: 1, paddingRight: 4 },
   skBox: { width: 44, alignItems: "center" },
   skSquare: { width: 11, height: 11, borderWidth: 0.8, borderColor: "#9ca3af", borderRadius: 2 },
+
+  // Resmi form (EK-1 / EK-3 / Taahhütname) — kutulu, keskin köşeli, koyu kenarlık
+  formTitle: { textAlign: "center", fontWeight: "bold", fontSize: 13, color: "#0f172a", marginBottom: 2 },
+  formSub: { textAlign: "center", fontSize: 9, color: "#475569", marginBottom: 8 },
+  fBox: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderRightWidth: 0.8, borderColor: "#334155" },
+  fRow: { flexDirection: "row", borderBottomWidth: 0.8, borderColor: "#334155" },
+  fLabel: { width: "46%", padding: 3.5, fontSize: 8.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#334155" },
+  fVal: { flex: 1, padding: 3.5, fontSize: 8.3, color: "#111827" },
+  fSection: { padding: 3.5, fontSize: 8.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#334155" },
+  fColHead: { flexDirection: "row", backgroundColor: "#f1f5f9", borderBottomWidth: 0.8, borderColor: "#334155" },
+  fc1: { width: "40%", padding: 3, fontSize: 7.8, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155" },
+  fc2: { width: "22%", padding: 3, fontSize: 7.8, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
+  fc3: { width: "22%", padding: 3, fontSize: 7.8, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
+  fc4: { flex: 1, padding: 3, fontSize: 7.8, fontWeight: "bold", textAlign: "center" },
 });
+
+// Resmi form yardımcıları
+function FRow({ l, val }: { l: string; val?: any }) {
+  return (
+    <View style={st.fRow}>
+      <Text style={st.fLabel}>{l}</Text>
+      <Text style={st.fVal}>{val !== undefined && val !== null && String(val).trim() !== "" ? String(val) : ""}</Text>
+    </View>
+  );
+}
+function FSection({ children }: { children: any }) {
+  return <Text style={st.fSection}>{children}</Text>;
+}
+
+// Mühendis Taahhütnamesi — Makine / Elektrik için ayrı sayfa (aynı düzen)
+function taahhutPage(c: any, disc: "makine" | "elektrik") {
+  const m = disc === "makine" ? c.muh?.makine : c.muh?.elektrik;
+  const unvan = disc === "makine" ? "MAKİNA MÜHENDİSİ" : "ELEKTRİK MÜHENDİSİ";
+  const unvanKisa = disc === "makine" ? "Mak.Müh." : "Elk.Müh.";
+  return (
+    <Page key={"muh_taahhut_" + disc} size="A4" style={st.page}>
+      <Text style={st.formTitle}>TAAHHÜTNAME</Text>
+      <Text style={st.formSub}>{unvan}</Text>
+      <View style={st.fBox}>
+        <FSection>PROJE MÜELLİFİ</FSection>
+        <FRow l="Adı Soyadı" val={m?.ad} />
+        <FRow l="Unvanı" val={unvan} />
+        <FRow l="Oda Sicil No" val={m?.oda_sicil} />
+        <FSection>MÜELLİFLİĞİ ÜSTLENİLEN PROJE</FSection>
+        <FRow l="İl / İlçe" val={[c.d.il, c.d.belediye].filter(Boolean).join(" / ")} />
+        <FRow l="İlgili İdare" val={c.d.belediye ? `${v(c.d.belediye)} Belediyesi` : ""} />
+        <FRow l="Pafta / Ada / Parsel No" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
+        <FRow l="Yapı Adresi" val={c.d.montaj_adresi} />
+        <FRow l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
+        <FRow l="Yapı Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
+        <FRow l="Projenin Türü" val="ELEKTRİKLİ ASANSÖR" />
+      </View>
+      <Text style={{ fontSize: 8.6, marginTop: 10, textAlign: "justify", lineHeight: 1.5 }}>
+        Yukarıdaki bilgilere sahip projenin müellifliğini üstlendiğimi; 6235 sayılı Türk Mühendis ve
+        Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında söz konusu
+        işi yapmaya yasal olarak yetkili olduğumu ve müellifliğim önünde herhangi bir kısıtlılık
+        bulunmadığını; yukarıdaki bilgilere sahip yapıya ilişkin hazırlanan projenin imar, yapı,
+        deprem, yangın, enerji verimliliği, asansör gibi ilgili tüm mevzuat hükümlerine uygun olarak
+        hazırlandığını taahhüt ederim.
+      </Text>
+      <View style={{ marginTop: 24, width: "55%", alignSelf: "flex-end" }}>
+        <Text style={{ fontSize: 8.6, fontWeight: "bold", textAlign: "center", marginBottom: 3 }}>Proje Müellifi</Text>
+        <View style={st.fBox}>
+          <FRow l="Adı-Soyadı" val={m?.ad} />
+          <FRow l="Unvanı" val={unvanKisa} />
+          <FRow l="Oda Sic.No" val={m?.oda_sicil} />
+          <FRow l="İmza" val="" />
+        </View>
+      </View>
+      <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
+        Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilir ve haklarında Türk
+        Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına ve 6235 sayılı Türk Mühendis ve
+        Mimar Odaları Birliği Kanunu ile ilgili mevzuat gereği bağlı bulundukları meslek odasına bilgi
+        verilecektir.
+      </Text>
+      <Footer firma={c.fname} />
+    </Page>
+  );
+}
 
 const CAT_LABEL: Record<string, string> = {
   hiz_regulatoru: "Hız Regülatörü", tampon: "Tampon", tampon_kabin: "Kabin Tamponu",
@@ -182,49 +260,113 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     </Page>
   ),
 
-  tescil: (c) => (
-    <Page key="tescil" size="A4" style={st.page}>
-      <DocHead firma={c.firma} title="YENİ ASANSÖR İÇİN TESCİL BELGESİ (EK-1)" />
-      <R l="Tescil Tarihi" val={c.tarih} />
-      <R l="Tescili Yapan İdare" val={c.d.belediye ? `${v(c.d.belediye)} Belediyesi` : undefined} />
-      <Text style={st.sec}>Asansör Monte Edene Dair Bilgiler</Text>
-      <R l="Adı / Ünvanı" val={c.firma.unvan} />
-      <R l="Adresi" val={c.firma.adres} />
-      <R l="İletişim" val={[c.firma.telefon, c.firma.faks].filter(Boolean).join(" · ")} />
-      <Text style={st.sec}>Asansöre Dair Bilgiler</Text>
-      <R l="Asansör Kimlik No" val={c.inp.asansor_kimlik_no} />
-      <R l="Ada / Parsel No" val={c.adaParsel} />
-      <R l="Montaj Adresi" val={c.d.montaj_adresi} />
-      <R l="Markası" val={c.firma.tescilli_marka} />
-      <R l="Seri Numarası" val={c.inp.asansor_seri_no} />
-      <R l="İmal Yılı" val={c.d.imal_yili} />
-      <R l="Tahrik Türü" val="ELEKTRİKLİ DİREKT TAHRİK" />
-      <R l="Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
-      <R l="Kapasite / Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : undefined} />
-      <R l="Durak Sayısı" val={c.d.durak_adedi} />
-      <Text style={st.sec}>Mevzuat</Text>
-      <R l="Yönetmelik" val="ASANSÖR YÖNETMELİĞİ (2014/33/AB)" />
-      <Footer firma={c.fname} />
-    </Page>
-  ),
+  tescil: (c) => {
+    const eq = c.ekipman;
+    const guv: [string, any][] = [
+      ["Durak kapılarını kilitleme tertibatı", eq.kapi_kilidi || {}],
+      ["Kabinin düşmesini/kontrolsüz hareketini engelleyen tertibatlar", eq.fren_blogu || eq.kabin_kilidi || {}],
+      ["Aşırı hız sınırlayıcı tertibatlar", eq.hiz_regulatoru || {}],
+      ["Kabin Tamponu", eq.tampon_kabin || eq.tampon || {}],
+      ["Ağırlık Tamponu", eq.tampon_agirlik || {}],
+      ["Elektrikli güvenlik tertibatları", eq.kumanda || {}],
+    ];
+    return (
+      <Page key="tescil" size="A4" style={st.page}>
+        <Text style={st.formTitle}>YENİ ASANSÖR İÇİN TESCİL BELGESİ</Text>
+        <Text style={st.formSub}>EK-1</Text>
+        <View style={st.fBox}>
+          <FRow l="TESCİL TARİHİ" val="" />
+          <FRow l="TESCİL KAYIT NUMARASI" val="" />
+          <FRow l="TESCİLİ YAPAN İLGİLİ İDARENİN ADI VE ADRESİ" val={c.d.belediye ? `${v(c.d.belediye)} Belediyesi` : ""} />
+          <FSection>ASANSÖR MONTE EDENE DAİR BİLGİLER</FSection>
+          <FRow l="ASANSÖR MONTE EDENİN ADI" val={c.firma.unvan} />
+          <FRow l="ASANSÖR MONTE EDENİN ADRESİ" val={c.firma.adres} />
+          <FRow l="ASANSÖR MONTE EDENE AİT İLETİŞİM BİLGİLERİ" val={c.firma.telefon} />
+          <FSection>ASANSÖRE DAİR BİLGİLER</FSection>
+          <FRow l="ASANSÖR KİMLİK NUMARASI" val={c.inp.asansor_kimlik_no} />
+          <FRow l="ADA VE PARSEL NO" val={c.adaParsel} />
+          <FRow l="ASANSÖRÜN MONTAJ ADRESİ" val={c.d.montaj_adresi} />
+          <FRow l="ASANSÖRÜN MARKASI" val={c.firma.tescilli_marka} />
+          <FRow l="ASANSÖRÜN SERİ NUMARASI" val={c.inp.asansor_seri_no} />
+          <FRow l="ASANSÖRÜN İMAL YILI" val={c.d.imal_yili} />
+          <FRow l="ASANSÖRÜN TAHRİK TÜRÜ" val="ELEKTRİKLİ DİREKT TAHRİK" />
+          <FRow l="ASANSÖRÜN HIZI" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} />
+          <FRow l="ASANSÖRÜN KAPASİTESİ VEYA BEYAN YÜKÜ" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : ""} />
+          <FRow l="ASANSÖRÜN DURAK SAYISI" val={c.d.durak_adedi} />
+          <FSection>ASANSÖR GÜVENLİK AKSAMLARI</FSection>
+          <View style={st.fColHead}>
+            <Text style={st.fc1}>Aksam</Text>
+            <Text style={st.fc2}>MARKA</Text>
+            <Text style={st.fc3}>MODEL</Text>
+            <Text style={st.fc4}>SERİ NO</Text>
+          </View>
+          {guv.map(([lab, e], i) => (
+            <View style={st.fRow} key={i}>
+              <Text style={st.fc1}>{lab}</Text>
+              <Text style={st.fc2}>{e?.marka || ""}</Text>
+              <Text style={st.fc3}>{e?.model || ""}</Text>
+              <Text style={st.fc4}>{""}</Text>
+            </View>
+          ))}
+          <FSection>MEVZUAT</FSection>
+          <FRow l="YÖNETMELİK ADI" val="ASANSÖR YÖNETMELİĞİ (2014/33/AB)" />
+          <FSection>AT UYGUNLUK BEYANINA DAİR BİLGİLER</FSection>
+          <FRow l="BEYAN TARİHİ" val={c.tarih} />
+          <FRow l="İMZA SAHİBİNİN ADI VE SOYADI" val={c.firma.yetkili} />
+          <FSection>UYGUNLUK BELGESİNE DAİR BİLGİLER</FSection>
+          <FRow l="BELGE NUMARASI" val={c.modul.belge_no} />
+          <FRow l="BELGE DÜZENLENME TARİHİ" val={c.modul.tarih} />
+          <FRow l="ONAYLANMIŞ KURULUŞUN ADI" val={c.modul.onaylanmis_kurulus} />
+          <FRow l="ONAYLANMIŞ KURULUŞUN KİMLİK NUMARASI" val={c.modul.kurulus_no} />
+          <FSection>TSE HİZMET YETERLİLİK BELGESİNE DAİR BİLGİLER</FSection>
+          <FRow l="BELGENİN GEÇERLİLİK SÜRESİ" val="1 YIL" />
+          <FSection>GARANTİ BELGESİNE DAİR BİLGİLER</FSection>
+          <FRow l="GARANTİ SÜRESİ" val="3 YIL" />
+        </View>
+        <Text style={{ fontSize: 8.3, marginTop: 8, textAlign: "justify" }}>
+          {v(c.d.montaj_adresi)} adresinde monte edilen ve {c.tarih} tarihinde piyasaya arz edilmiş olan asansörün tescili yapılmıştır.
+        </Text>
+        <View style={{ marginTop: 26, alignItems: "flex-end" }}>
+          <Text style={{ fontSize: 8.3, textAlign: "center" }}>İLGİLİ İDARE ADINA İMZA YETKİLİSİNİN{"\n"}İMZA VE MÜHÜR</Text>
+        </View>
+        <Footer firma={c.fname} />
+      </Page>
+    );
+  },
 
   garanti: (c) => (
     <Page key="garanti" size="A4" style={st.page}>
-      <DocHead firma={c.firma} title="GARANTİ BELGESİ (EK-3)" />
-      <R l="Belge Düzenleme Tarihi" val={c.tarih} />
-      <R l="Ünvanı" val={c.firma.unvan} />
-      <R l="Adresi" val={c.firma.adres} />
-      <R l="Telefon / Faks" val={[c.firma.telefon, c.firma.faks].filter(Boolean).join(" · ")} />
-      <Text style={st.sec}>Malın</Text>
-      <R l="Cinsi" val="ELEKTRİKLİ DİREKT TAHRİK" />
-      <R l="Markası" val={c.firma.tescilli_marka} />
-      <R l="Teslim Tarihi" val={c.tarih} />
-      <R l="Teslim Adresi" val={c.d.montaj_adresi} />
-      <R l="Ada / Parsel No" val={c.adaParsel} />
-      <R l="Azami Tamir Süresi" val="15 GÜN" />
-      <R l="Garanti Süresi" val="3 YIL" />
-      <Text style={st.sec}>Onay</Text>
-      <R l="Firma Yetkilisi" val={c.firma.yetkili} />
+      <Text style={st.formTitle}>GARANTİ BELGESİ</Text>
+      <Text style={st.formSub}>EK-3</Text>
+      <View style={st.fBox}>
+        <FRow l="BELGE DÜZENLEME TARİHİ" val={c.tarih} />
+        <FRow l="BELGE EN SON GEÇERLİLİK TARİHİ" val="" />
+        <FSection>ASANSÖR MONTE EDENİN / İMALATÇININ / İTHALATÇININ / DAĞITICININ</FSection>
+        <FRow l="ÜNVANI" val={c.firma.unvan} />
+        <FRow l="ADRESİ" val={c.firma.adres} />
+        <FRow l="TELEFON VE FAKS NUMARASI, DİĞER İLETİŞİM BİLGİLERİ" val={c.firma.telefon} />
+        <FSection>FATURANIN</FSection>
+        <FRow l="TARİHİ" val="" />
+        <FRow l="SAYISI" val="" />
+        <FSection>MALIN</FSection>
+        <FRow l="CİNSİ" val="ELEKTRİKLİ DİREKT TAHRİK" />
+        <FRow l="MARKASI" val={c.firma.tescilli_marka} />
+        <FRow l="MODELİ" val="SINIF I" />
+        <FRow l="SERİ NUMARASI" val={c.inp.asansor_seri_no} />
+        <FRow l="TESLİM TARİHİ" val={c.tarih} />
+        <FRow l="TESLİM ADRESİ" val={c.d.montaj_adresi} />
+        <FRow l="ADA VE PARSEL NO" val={c.adaParsel} />
+        <FRow l="AZAMİ TAMİR SÜRESİ" val="15 GÜN" />
+        <FRow l="GARANTİ SÜRESİ" val="3 YIL" />
+        <FSection>YETKİLİ SERVİSİN VEYA SERVİSLERİN</FSection>
+        <FRow l="ÜNVANI" val={c.firma.unvan} />
+        <FRow l="ADRESİ" val={c.firma.adres} />
+        <FRow l="TELEFON VE FAKS NUMARASI, DİĞER İLETİŞİM BİLGİLERİ" val={c.firma.telefon} />
+        <FSection>ONAY</FSection>
+        <FRow l="FİRMA YETKİLİSİNİN ADI VE SOYADI" val={c.firma.yetkili} />
+        <FRow l="FİRMA YETKİLİSİNİN İMZASI" val="" />
+        <FRow l="FİRMA KAŞESİ" val="" />
+      </View>
       <Footer firma={c.fname} />
     </Page>
   ),
@@ -251,28 +393,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     </Page>
   ),
 
-  muh_taahhut: (c) => (
-    <Page key="muh_taahhut" size="A4" style={st.page}>
-      <DocHead firma={c.firma} title="TAAHHÜTNAME" />
-      <Text style={st.sec}>Makine Mühendisi (Proje Müellifi)</Text>
-      <R l="Adı Soyadı" val={c.muh.makine?.ad} />
-      <R l="Oda Sicil No" val={c.muh.makine?.oda_sicil} />
-      <R l="Ünvanı" val="Makina Mühendisi" />
-      <Text style={st.sec}>Elektrik Mühendisi (Proje Müellifi)</Text>
-      <R l="Adı Soyadı" val={c.muh.elektrik?.ad} />
-      <R l="Oda Sicil No" val={c.muh.elektrik?.oda_sicil} />
-      <R l="Ünvanı" val="Elektrik Mühendisi" />
-      <Text style={st.sec}>Müellifliği Üstlenilen Proje</Text>
-      <R l="İl / İlçe" val={[c.d.il, c.d.belediye].filter(Boolean).join(" / ")} />
-      <R l="İlgili İdare" val={c.d.belediye ? `${v(c.d.belediye)} Belediyesi` : undefined} />
-      <R l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
-      <Text style={st.p}>
-        Yukarıda bilgileri verilen projenin müellifi olarak, ilgili mevzuat ve standartlara uygun
-        şekilde hazırlandığını taahhüt ederiz.
-      </Text>
-      <Footer firma={c.fname} />
-    </Page>
-  ),
+  muh_taahhut_makine: (c) => taahhutPage(c, "makine"),
+  muh_taahhut_elektrik: (c) => taahhutPage(c, "elektrik"),
 
   uygunluk_beyani: (c) => (
     <Page key="uygunluk_beyani" size="A4" style={st.page}>
