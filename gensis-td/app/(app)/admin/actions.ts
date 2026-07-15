@@ -176,6 +176,49 @@ export async function createEngineer(form: {
   }
 }
 
+// ---------- Mühendis Güncelle ----------
+export async function updateEngineer(id: string, form: {
+  full_name: string; discipline: string; chamber_reg_no: string; company_id: string;
+}): Promise<Result> {
+  try {
+    await assertAdmin();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    if (!["makine", "elektrik"].includes(form.discipline)) return { ok: false, error: "Branş seçin." };
+    const admin = createAdminClient();
+    const title = form.discipline === "makine" ? "Mak.Müh." : "Elk.Müh.";
+    const { error } = await admin.from("engineers").update({
+      full_name: form.full_name,
+      discipline: form.discipline,
+      title,
+      chamber_reg_no: form.chamber_reg_no || null,
+      company_id: form.company_id || null,
+    }).eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/muhendisler");
+    return { ok: true, message: "Mühendis güncellendi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Mühendis Sil ----------
+export async function deleteEngineer(id: string): Promise<Result> {
+  try {
+    await assertAdmin();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    const admin = createAdminClient();
+    // projelerdeki referansları temizle (FK engellemesin)
+    await admin.from("projects").update({ makine_muhendis_id: null }).eq("makine_muhendis_id", id);
+    await admin.from("projects").update({ elektrik_muhendis_id: null }).eq("elektrik_muhendis_id", id);
+    const { error } = await admin.from("engineers").delete().eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/muhendisler");
+    return { ok: true, message: "Mühendis silindi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // ---------- Ekipman-Model Güncelle (isim + sertifika bağla) ----------
 export async function updateEquipmentModel(form: {
   id: string; name: string; certificate_id: string;
