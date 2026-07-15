@@ -478,13 +478,23 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
             <Text style={[st.thcell, { width: "17%" }]}>Seri No</Text>
             <Text style={[st.thcell, { width: "17%" }]}>Sert No</Text>
           </View>
-          {c.eqEntries.map(([code, e]) => (
-            <View style={st.trow} key={code}>
-              <Text style={[st.tcell, { width: "20%" }]}>{e?.marka || "—"}</Text>
-              <Text style={[st.tcell, { width: "26%" }]}>{CAT_LABEL[code] || code}</Text>
-              <Text style={[st.tcell, { width: "20%" }]}>{e?.model || "—"}</Text>
-              <Text style={[st.tcell, { width: "17%" }]}>{e?.seri_no || ""}</Text>
-              <Text style={[st.tcell, { width: "17%" }]}>{e?.sertifika_no || ""}</Text>
+          {c.eqEntries.flatMap(([code, e]) => {
+            const list = Array.isArray(e?.seri_list)
+              ? (e.seri_list as any[]).map((s) => (s == null ? "" : String(s))).filter((s) => s.trim())
+              : null;
+            // çoklu seri no'lu ekipman (kapı kilidi / kabin kapı kilidi) → her seri ayrı satır
+            if (list && list.length) {
+              const suf = code === "kabin_kilidi" ? "Giriş" : "Kat";
+              return list.map((s, i) => ({ e, key: code + "_" + i, tip: `${CAT_LABEL[code] || code} (${suf} ${i + 1})`, seri: s }));
+            }
+            return [{ e, key: code, tip: CAT_LABEL[code] || code, seri: e?.seri_no || "" }];
+          }).map((row) => (
+            <View style={st.trow} key={row.key}>
+              <Text style={[st.tcell, { width: "20%" }]}>{row.e?.marka || "—"}</Text>
+              <Text style={[st.tcell, { width: "26%" }]}>{row.tip}</Text>
+              <Text style={[st.tcell, { width: "20%" }]}>{row.e?.model || "—"}</Text>
+              <Text style={[st.tcell, { width: "17%" }]}>{row.seri}</Text>
+              <Text style={[st.tcell, { width: "17%" }]}>{row.e?.sertifika_no || ""}</Text>
             </View>
           ))}
         </View>

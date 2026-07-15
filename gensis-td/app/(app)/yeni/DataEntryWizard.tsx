@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { saveDraftProject, type DraftPayload } from "./actions";
+import { saveDraftProject, updateDraftProject, type DraftPayload } from "./actions";
 
 type Company = {
   id: string; short_name: string; legal_name: string; address: string | null;
@@ -21,11 +21,27 @@ type Lookup = { list_key: string; value: string; sort_order: number };
 type District = { id: string; name: string };
 type Engineer = { id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null };
 
+type EquipInit = Record<string, { brandId?: string; modelId?: string; seriNo?: string; seriList?: string[] }>;
+// Düzenleme modunda mevcut projeyi dolduran başlangıç verisi
+export type InitialData = {
+  id: string;
+  companyId: string; dosyaNo: string; dosyaTarihi: string;
+  binaAdi: string; montajAdresi: string;
+  provinceId: number | ""; districtId: string; districts: District[];
+  beyanYuku: number | ""; beyanHizi: string; katAdedi: string; durakAdedi: string;
+  girisSayisi: string; imalYili: string; askiTipi: string; katKapisi: string;
+  pafta: string; ada: string; parsel: string; yapiSahibi: string; yapiSahibiAdresi: string;
+  asansorSeriNo: string; asansorKimlikNo: string; seyirMesafesi: string; motorGucu: string;
+  makineMuhId: string; elektrikMuhId: string;
+  equip: EquipInit;
+};
+
 type Props = {
   companies: Company[]; categories: Category[]; brands: Brand[]; models: Model[];
   certificates: Certificate[]; notifiedBodies: NotifiedBody[]; provinces: Province[];
   capacity: Capacity[]; lookups: Lookup[];
   engineers: Engineer[]; gensisCompanyId: string | null;
+  initial?: InitialData | null;
 };
 
 const STEPS = ["Firma", "Yapı Ruhsatı", "Asansör", "Ekipmanlar", "Önizleme"];
@@ -43,38 +59,41 @@ export default function DataEntryWizard(props: Props) {
   const router = useRouter();
   const supabase = createClient();
 
+  const init = props.initial;
+  const isEdit = !!init?.id;
+
   const [step, setStep] = useState(0);
-  const [companyId, setCompanyId] = useState("");
-  const [dosyaNo, setDosyaNo] = useState("");
-  const [dosyaTarihi, setDosyaTarihi] = useState(new Date().toISOString().slice(0, 10));
-  const [binaAdi, setBinaAdi] = useState("");
-  const [montajAdresi, setMontajAdresi] = useState("");
-  const [provinceId, setProvinceId] = useState<number | "">("");
-  const [districtId, setDistrictId] = useState("");
-  const [districts, setDistricts] = useState<District[]>([]);
-  const [beyanYuku, setBeyanYuku] = useState<number | "">("");
-  const [beyanHizi, setBeyanHizi] = useState("");
-  const [katAdedi, setKatAdedi] = useState("");
-  const [durakAdedi, setDurakAdedi] = useState("");
-  const [girisSayisi, setGirisSayisi] = useState("");
-  const [imalYili, setImalYili] = useState("");
-  const [askiTipi, setAskiTipi] = useState("");
-  const [katKapisi, setKatKapisi] = useState("");
-  const [pafta, setPafta] = useState("");
-  const [ada, setAda] = useState("");
-  const [parsel, setParsel] = useState("");
-  const [yapiSahibi, setYapiSahibi] = useState("");
-  const [yapiSahibiAdresi, setYapiSahibiAdresi] = useState("");
-  const [asansorSeriNo, setAsansorSeriNo] = useState("");
-  const [asansorKimlikNo, setAsansorKimlikNo] = useState("");
-  const [seyirMesafesi, setSeyirMesafesi] = useState("");
-  const [motorGucu, setMotorGucu] = useState("");
-  // proje müellifi mühendisler — default Gensis'e atanmış olanlar
+  const [companyId, setCompanyId] = useState(init?.companyId ?? "");
+  const [dosyaNo, setDosyaNo] = useState(init?.dosyaNo ?? "");
+  const [dosyaTarihi, setDosyaTarihi] = useState(init?.dosyaTarihi ?? new Date().toISOString().slice(0, 10));
+  const [binaAdi, setBinaAdi] = useState(init?.binaAdi ?? "");
+  const [montajAdresi, setMontajAdresi] = useState(init?.montajAdresi ?? "");
+  const [provinceId, setProvinceId] = useState<number | "">(init?.provinceId ?? "");
+  const [districtId, setDistrictId] = useState(init?.districtId ?? "");
+  const [districts, setDistricts] = useState<District[]>(init?.districts ?? []);
+  const [beyanYuku, setBeyanYuku] = useState<number | "">(init?.beyanYuku ?? "");
+  const [beyanHizi, setBeyanHizi] = useState(init?.beyanHizi ?? "");
+  const [katAdedi, setKatAdedi] = useState(init?.katAdedi ?? "");
+  const [durakAdedi, setDurakAdedi] = useState(init?.durakAdedi ?? "");
+  const [girisSayisi, setGirisSayisi] = useState(init?.girisSayisi ?? "");
+  const [imalYili, setImalYili] = useState(init?.imalYili ?? "");
+  const [askiTipi, setAskiTipi] = useState(init?.askiTipi ?? "");
+  const [katKapisi, setKatKapisi] = useState(init?.katKapisi ?? "");
+  const [pafta, setPafta] = useState(init?.pafta ?? "");
+  const [ada, setAda] = useState(init?.ada ?? "");
+  const [parsel, setParsel] = useState(init?.parsel ?? "");
+  const [yapiSahibi, setYapiSahibi] = useState(init?.yapiSahibi ?? "");
+  const [yapiSahibiAdresi, setYapiSahibiAdresi] = useState(init?.yapiSahibiAdresi ?? "");
+  const [asansorSeriNo, setAsansorSeriNo] = useState(init?.asansorSeriNo ?? "");
+  const [asansorKimlikNo, setAsansorKimlikNo] = useState(init?.asansorKimlikNo ?? "");
+  const [seyirMesafesi, setSeyirMesafesi] = useState(init?.seyirMesafesi ?? "");
+  const [motorGucu, setMotorGucu] = useState(init?.motorGucu ?? "");
+  // proje müellifi mühendisler — default Gensis'e atanmış olanlar (düzenlemede kayıtlı olan)
   const gMak = props.engineers.find((e) => e.discipline === "makine" && e.company_id === props.gensisCompanyId);
   const gElk = props.engineers.find((e) => e.discipline === "elektrik" && e.company_id === props.gensisCompanyId);
-  const [makineMuhId, setMakineMuhId] = useState(gMak?.id ?? "");
-  const [elektrikMuhId, setElektrikMuhId] = useState(gElk?.id ?? "");
-  const [equip, setEquip] = useState<Record<string, { brandId?: string; modelId?: string; seriNo?: string; seriList?: string[] }>>({});
+  const [makineMuhId, setMakineMuhId] = useState(init?.makineMuhId ?? gMak?.id ?? "");
+  const [elektrikMuhId, setElektrikMuhId] = useState(init?.elektrikMuhId ?? gElk?.id ?? "");
+  const [equip, setEquip] = useState<Record<string, { brandId?: string; modelId?: string; seriNo?: string; seriList?: string[] }>>(init?.equip ?? {});
 
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -239,7 +258,7 @@ export default function DataEntryWizard(props: Props) {
       equipment,
     };
 
-    const res = await saveDraftProject(payload);
+    const res = isEdit ? await updateDraftProject(init!.id, payload) : await saveDraftProject(payload);
     setSaving(false);
     if (res.ok) { setSavedId(res.id); router.refresh(); }
     else setError(res.error);
@@ -250,11 +269,15 @@ export default function DataEntryWizard(props: Props) {
       <div className="p-7 max-w-2xl">
         <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center">
           <div className="w-16 h-16 rounded-full bg-green-50 text-green-600 grid place-items-center text-3xl mx-auto mb-4">✓</div>
-          <h1 className="text-xl font-extrabold mb-1">Kaydedildi</h1>
-          <p className="text-slate-500 mb-6">{dosyaNo} numaralı teknik dosya oluşturuldu.</p>
+          <h1 className="text-xl font-extrabold mb-1">{isEdit ? "Güncellendi" : "Kaydedildi"}</h1>
+          <p className="text-slate-500 mb-6">{dosyaNo} numaralı teknik dosya {isEdit ? "güncellendi" : "oluşturuldu"}.</p>
           <div className="flex gap-3 justify-center">
             <button onClick={() => router.push("/panel")} className="bg-brand hover:bg-brand-dark text-white font-bold px-5 py-2.5 rounded-lg">Panele dön</button>
-            <button onClick={() => window.location.reload()} className="bg-slate-100 hover:bg-slate-200 font-bold px-5 py-2.5 rounded-lg">Yeni dosya</button>
+            {isEdit ? (
+              <button onClick={() => router.push(`/panel/${savedId}`)} className="bg-slate-100 hover:bg-slate-200 font-bold px-5 py-2.5 rounded-lg">Belgeleri gör</button>
+            ) : (
+              <button onClick={() => window.location.reload()} className="bg-slate-100 hover:bg-slate-200 font-bold px-5 py-2.5 rounded-lg">Yeni dosya</button>
+            )}
           </div>
         </div>
       </div>
@@ -265,7 +288,7 @@ export default function DataEntryWizard(props: Props) {
     <div>
       <div className="bg-white border-b border-slate-200 px-7 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="text-sm text-slate-500">
-          Yeni Teknik Dosya › <b className="text-slate-900">{STEPS[step]}</b>
+          {isEdit ? "Teknik Dosya Düzenle" : "Yeni Teknik Dosya"} › <b className="text-slate-900">{STEPS[step]}</b>
           {showErrors && totalMissing > 0 && (
             <span className="ml-3 text-xs text-red-600 font-semibold">{totalMissing} zorunlu alan eksik</span>
           )}
@@ -280,7 +303,7 @@ export default function DataEntryWizard(props: Props) {
             <button onClick={handleSave} disabled={saving}
               className="text-sm font-bold px-5 py-2 rounded-xl text-white disabled:opacity-50"
               style={{ background: "linear-gradient(135deg,#16a34a,#15803d)", boxShadow: "0 6px 16px rgba(21,128,61,.26)" }}>
-              {saving ? "Kaydediliyor…" : "✓ Kaydet"}
+              {saving ? "Kaydediliyor…" : isEdit ? "✓ Güncelle" : "✓ Kaydet"}
             </button>
           )}
         </div>

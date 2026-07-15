@@ -59,7 +59,7 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
               <th className="px-5 py-3">Kapasite</th>
               <th className="px-5 py-3">Durum</th>
               <th className="px-5 py-3">Tarih</th>
-              <th className="px-5 py-3">Belge</th>
+              <th className="px-5 py-3">İşlemler</th>
             </tr>
           </thead>
           <tbody>
@@ -77,7 +77,13 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
                   </td>
                   <td className="px-5 py-3 text-[#94a3b8]">{new Date(p.created_at).toLocaleDateString("tr-TR")}</td>
                   <td className="px-5 py-3">
-                    <Link href={`/panel/${p.id}`} onClick={(e) => e.stopPropagation()} className="text-navy font-semibold hover:underline">Belgeler →</Link>
+                    <div className="flex items-center gap-4">
+                      <Link href={`/panel/${p.id}/duzenle`} onClick={(e) => e.stopPropagation()}
+                        className="text-slate-600 font-semibold hover:text-navy hover:underline inline-flex items-center gap-1">
+                        <span className="material-symbols-rounded text-[16px]">edit</span> Düzenle
+                      </Link>
+                      <Link href={`/panel/${p.id}`} onClick={(e) => e.stopPropagation()} className="text-navy font-semibold hover:underline">Belgeler →</Link>
+                    </div>
                   </td>
                 </tr>
               );
