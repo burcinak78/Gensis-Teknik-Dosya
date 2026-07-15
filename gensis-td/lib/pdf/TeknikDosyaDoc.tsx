@@ -59,6 +59,13 @@ const st = StyleSheet.create({
   fc2: { width: "22%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
   fc3: { width: "22%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
   fc4: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", textAlign: "center" },
+  // Genel tablo (Marka/Tip/Model.. ve Seyir Defteri tabloları)
+  tbl: { borderTopWidth: 0.6, borderLeftWidth: 0.6, borderColor: "#94a3b8", marginTop: 4 },
+  trow: { flexDirection: "row" },
+  thcell: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 7.4, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#94a3b8" },
+  tcell: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, color: "#111827", borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#94a3b8" },
+  tcellTall: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, minHeight: 20, borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#94a3b8" },
+  ckbox: { width: 11, height: 11, borderWidth: 0.9, borderColor: "#334155", borderRadius: 2, marginRight: 8 },
 });
 
 // Resmi form yardımcıları
@@ -463,13 +470,24 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       {c.eqEntries.length === 0 ? (
         <Text style={{ color: "#9ca3af" }}>Seçili ekipman yok.</Text>
       ) : (
-        c.eqEntries.map(([code, e]) => (
-          <View style={st.eqRow} key={code}>
-            <Text style={st.eqA}>{CAT_LABEL[code] || code}</Text>
-            <Text style={st.eqB}>{[e?.marka, e?.model].filter(Boolean).join(" ") || "—"}</Text>
-            <Text style={st.eqC}>{[e?.seri_no ? `Seri: ${e.seri_no}` : "", e?.sertifika_no ? `Sert: ${e.sertifika_no}` : ""].filter(Boolean).join(" · ")}</Text>
+        <View style={st.tbl}>
+          <View style={st.trow}>
+            <Text style={[st.thcell, { width: "20%" }]}>Marka</Text>
+            <Text style={[st.thcell, { width: "26%" }]}>Tip</Text>
+            <Text style={[st.thcell, { width: "20%" }]}>Model</Text>
+            <Text style={[st.thcell, { width: "17%" }]}>Seri No</Text>
+            <Text style={[st.thcell, { width: "17%" }]}>Sert No</Text>
           </View>
-        ))
+          {c.eqEntries.map(([code, e]) => (
+            <View style={st.trow} key={code}>
+              <Text style={[st.tcell, { width: "20%" }]}>{e?.marka || "—"}</Text>
+              <Text style={[st.tcell, { width: "26%" }]}>{CAT_LABEL[code] || code}</Text>
+              <Text style={[st.tcell, { width: "20%" }]}>{e?.model || "—"}</Text>
+              <Text style={[st.tcell, { width: "17%" }]}>{e?.seri_no || ""}</Text>
+              <Text style={[st.tcell, { width: "17%" }]}>{e?.sertifika_no || ""}</Text>
+            </View>
+          ))}
+        </View>
       )}
       <Footer firma={c.fname} />
     </Page>
@@ -497,17 +515,75 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   ),
 
   seyir_defteri: (c) => (
-    <Page key="seyir_defteri" size="A4" style={st.page}>
-      <DocHead firma={c.firma} title="ASANSÖR SEYİR DEFTERİ" />
-      <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
-      <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
-      <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
-      <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
-      <R l="Yapımcı Firma" val={c.firma.unvan} />
-      <R l="Servise Verildiği Tarih" val={c.tarih} />
-      <Text style={st.sec}>Yasal ve Periyodik Kontroller</Text>
-      <Text style={{ color: "#9ca3af" }}>
-        (Periyodik kontrol, revizyon ve önemli olay kayıtları için bu bölüm boş bırakılmıştır.)
+    <Page key="seyir_defteri" size="A4" style={st.page} wrap>
+      <Text style={st.formTitle}>ASANSÖR SEYİR DEFTERİ</Text>
+      <View style={{ height: 6 }} />
+      <View style={st.fBox}>
+        <FRow l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
+        <FRow l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
+        <FRow l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
+        <FRow l="Asansör Seri No" val={c.inp.asansor_seri_no} />
+        <FRow l="Yapımcı Firma" val={c.firma.unvan} />
+        <FRow l="Yapımcı Firma Adresi" val={c.firma.adres} />
+        <FRow l="Asansörün Servise Verildiği Tarih" val={c.tarih} />
+        <FRow l="Bakım Sözleşmesi Tarihi" val="" />
+      </View>
+
+      <Text style={[st.sec, { marginTop: 14 }]}>ÖNEMLİ REVİZYON VE DEĞİŞİKLİKLER</Text>
+      <View style={st.tbl}>
+        <View style={st.trow}>
+          <Text style={[st.thcell, { width: "34%" }]}>Yapılan Revizyon veya Değişiklik</Text>
+          <Text style={[st.thcell, { width: "22%" }]}>Yapımcı</Text>
+          <Text style={[st.thcell, { width: "28%" }]}>Adres ve Telefonu</Text>
+          <Text style={[st.thcell, { width: "16%" }]}>Tarih</Text>
+        </View>
+        {[...Array(7)].map((_, i) => (
+          <View style={st.trow} key={i}>
+            <Text style={[st.tcellTall, { width: "34%" }]}> </Text>
+            <Text style={[st.tcellTall, { width: "22%" }]}> </Text>
+            <Text style={[st.tcellTall, { width: "28%" }]}> </Text>
+            <Text style={[st.tcellTall, { width: "16%" }]}> </Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={[st.sec, { marginTop: 14 }]} break>YASAL VE PERİYODİK KONTROLLER</Text>
+      <View style={st.tbl}>
+        <View style={st.trow}>
+          <Text style={[st.thcell, { width: "8%" }]}>No</Text>
+          <Text style={[st.thcell, { width: "30%" }]}>Kontrolü Yapan Kuruluş</Text>
+          <Text style={[st.thcell, { width: "31%" }]}>Kontrolü Gerçekleştiren{"\n"}Adı-Soyadı / Unvanı</Text>
+          <Text style={[st.thcell, { width: "16%" }]}>Kaşe / İmza</Text>
+          <Text style={[st.thcell, { width: "15%" }]}>Tarih</Text>
+        </View>
+        {[...Array(5)].map((_, i) => (
+          <View style={st.trow} key={i}>
+            <Text style={[st.tcellTall, { width: "8%", textAlign: "center" }]}>{i + 1}</Text>
+            <Text style={[st.tcellTall, { width: "30%" }]}> </Text>
+            <Text style={[st.tcellTall, { width: "31%" }]}> </Text>
+            <Text style={[st.tcellTall, { width: "16%" }]}> </Text>
+            <Text style={[st.tcellTall, { width: "15%" }]}> </Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={[st.sec, { marginTop: 14 }]}>BİLDİRİLMESİ GEREKEN ÖNEMLİ OLAYLAR (KURTARMA OPERASYONLARI, KAZALAR vb.)</Text>
+      <View style={st.tbl}>
+        <View style={st.trow}>
+          <Text style={[st.thcell, { width: "8%" }]}>No</Text>
+          <Text style={[st.thcell, { width: "92%" }]}>Olay Açıklaması / Tarih</Text>
+        </View>
+        {[...Array(5)].map((_, i) => (
+          <View style={st.trow} key={i}>
+            <Text style={[st.tcellTall, { width: "8%", textAlign: "center" }]}>{i + 1}</Text>
+            <Text style={[st.tcellTall, { width: "92%" }]}> </Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={{ fontSize: 7.4, marginTop: 12, color: "#475569", textAlign: "justify" }}>
+        NOT: Asansörün güvenliğini etkileyecek revizyon gerçekleştiren her asansör firması ile kontrolü
+        gerçekleştiren her kuruluş, yaptığı işlemi bu deftere kaydetmekle yükümlüdür.
       </Text>
       <Footer firma={c.fname} />
     </Page>
@@ -544,8 +620,10 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         "Asansör Projesi", "Güvenlik Ekipmanları CE ve Test Belgeleri",
         "Güvenlik Ekipmanları Kullanma Kılavuzları, Şema ve Diyagramları",
         "Asansör Kullanma Kılavuzu", "Asansör Kurtarma Talimatı", "Asansör Seyir Defteri",
+        "Diğer (Belirtiniz)",
       ].map((t, i) => (
-        <View style={st.listRow} key={i}>
+        <View style={[st.listRow, { alignItems: "center" }]} key={i}>
+          <View style={st.ckbox} />
           <Text style={st.listNo}>{i + 1}.</Text>
           <Text>{t}</Text>
         </View>
@@ -601,6 +679,16 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <View style={st.skBox}><View style={st.skSquare} /></View>
         </View>
       ))}
+      <View style={{ marginTop: 18, flexDirection: "row", justifyContent: "flex-end" }} wrap={false}>
+        <View style={{ width: "55%" }}>
+          <Text style={{ fontSize: 9, fontWeight: "bold", color: NAVY, marginBottom: 4 }}>Kontrol Sorumlusu</Text>
+          <View style={st.fBox}>
+            <FRow l="Adı-Soyadı" val="" />
+            <FRow l="Tarih" val="" />
+            <FRow l="İmza" val="" />
+          </View>
+        </View>
+      </View>
       <Footer firma={c.fname} />
     </Page>
   ),
