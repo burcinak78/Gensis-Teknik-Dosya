@@ -19,11 +19,13 @@ type Province = { id: number; name: string };
 type Capacity = { beyan_yuku_kg: number; kisi_sayisi: number | null; kabin_agirlik_kg: number | null; karsi_agirlik_kg: number | null };
 type Lookup = { list_key: string; value: string; sort_order: number };
 type District = { id: string; name: string };
+type Engineer = { id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null };
 
 type Props = {
   companies: Company[]; categories: Category[]; brands: Brand[]; models: Model[];
   certificates: Certificate[]; notifiedBodies: NotifiedBody[]; provinces: Province[];
   capacity: Capacity[]; lookups: Lookup[];
+  engineers: Engineer[]; gensisCompanyId: string | null;
 };
 
 const STEPS = ["Firma", "Yapı Ruhsatı", "Asansör", "Ekipmanlar", "Önizleme"];
@@ -60,6 +62,11 @@ export default function DataEntryWizard(props: Props) {
   const [seyirMesafesi, setSeyirMesafesi] = useState("");
   const [motorSeriNo, setMotorSeriNo] = useState("");
   const [motorGucu, setMotorGucu] = useState("");
+  // proje müellifi mühendisler — default Gensis'e atanmış olanlar
+  const gMak = props.engineers.find((e) => e.discipline === "makine" && e.company_id === props.gensisCompanyId);
+  const gElk = props.engineers.find((e) => e.discipline === "elektrik" && e.company_id === props.gensisCompanyId);
+  const [makineMuhId, setMakineMuhId] = useState(gMak?.id ?? "");
+  const [elektrikMuhId, setElektrikMuhId] = useState(gElk?.id ?? "");
   const [equip, setEquip] = useState<Record<string, { brandId?: string; modelId?: string; seriNo?: string }>>({});
 
   const [showErrors, setShowErrors] = useState(false);
@@ -74,6 +81,16 @@ export default function DataEntryWizard(props: Props) {
   }, [props.lookups]);
 
   const company = props.companies.find((c) => c.id === companyId) || null;
+
+  // mühendis dropdown seçenekleri: Gensis'e bağlı + seçili firmaya bağlı olanlar
+  const makineOptions = useMemo(
+    () => props.engineers.filter((e) => e.discipline === "makine" && (e.company_id === props.gensisCompanyId || (!!companyId && e.company_id === companyId))),
+    [props.engineers, props.gensisCompanyId, companyId]
+  );
+  const elektrikOptions = useMemo(
+    () => props.engineers.filter((e) => e.discipline === "elektrik" && (e.company_id === props.gensisCompanyId || (!!companyId && e.company_id === companyId))),
+    [props.engineers, props.gensisCompanyId, companyId]
+  );
   const kisi = useMemo(() => {
     if (beyanYuku === "") return null;
     return props.capacity.find((c) => c.beyan_yuku_kg === beyanYuku)?.kisi_sayisi ?? null;
@@ -84,7 +101,7 @@ export default function DataEntryWizard(props: Props) {
 
   // zorunlu alanlar
   const requiredMap: Record<string, any> = {
-    companyId, dosyaNo, dosyaTarihi, binaAdi, montajAdresi, provinceId, districtId,
+    companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId, binaAdi, montajAdresi, provinceId, districtId,
     pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi, beyanYuku, beyanHizi, katAdedi,
     durakAdedi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo,
     seyirMesafesi, motorSeriNo, motorGucu,
@@ -104,7 +121,7 @@ export default function DataEntryWizard(props: Props) {
 
   // adım bazlı zorunlu alanlar
   const stepFieldMap: Record<number, Record<string, any>> = {
-    0: { companyId, dosyaNo, dosyaTarihi },
+    0: { companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId },
     1: { binaAdi, montajAdresi, provinceId, districtId, pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi },
     2: { beyanYuku, beyanHizi, katAdedi, durakAdedi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo, seyirMesafesi, motorSeriNo, motorGucu },
   };
@@ -172,6 +189,7 @@ export default function DataEntryWizard(props: Props) {
 
     const payload: DraftPayload = {
       company_id: companyId, dosya_no: dosyaNo, dosya_tarihi: dosyaTarihi || null,
+      makine_muhendis_id: makineMuhId || null, elektrik_muhendis_id: elektrikMuhId || null,
       bina_adi: binaAdi || null, montaj_adresi: montajAdresi || null,
       province_id: provinceId === "" ? null : provinceId, district_id: districtId || null,
       beyan_yuku_kg: beyanYuku === "" ? null : beyanYuku, kisi_sayisi: kisi,
@@ -281,6 +299,21 @@ export default function DataEntryWizard(props: Props) {
                 <Field label="Dosya No *"><input className={"inp" + ec(dosyaNo)} value={dosyaNo} onChange={(e) => setDosyaNo(e.target.value)} placeholder="TD-2026-0001" /></Field>
                 <Field label="Tarih *"><input type="date" className={"inp" + ec(dosyaTarihi)} value={dosyaTarihi} onChange={(e) => setDosyaTarihi(e.target.value)} /></Field>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Makine Mühendisi (Proje Müellifi) *">
+                  <select className={"inp" + ec(makineMuhId)} value={makineMuhId} onChange={(e) => setMakineMuhId(e.target.value)}>
+                    <option value="">Seçiniz…</option>
+                    {makineOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name}{m.chamber_reg_no ? ` · ${m.chamber_reg_no}` : ""}</option>)}
+                  </select>
+                </Field>
+                <Field label="Elektrik Mühendisi (Proje Müellifi) *">
+                  <select className={"inp" + ec(elektrikMuhId)} value={elektrikMuhId} onChange={(e) => setElektrikMuhId(e.target.value)}>
+                    <option value="">Seçiniz…</option>
+                    {elektrikOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name}{m.chamber_reg_no ? ` · ${m.chamber_reg_no}` : ""}</option>)}
+                  </select>
+                </Field>
+              </div>
+              <p className="text-xs text-slate-400">Varsayılan olarak Gensis'e atanmış mühendisler gelir; gerekirse firmaya bağlı diğer mühendisleri seçebilirsiniz.</p>
               {company && (
                 <div className="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
                   <div className="text-xs font-bold text-slate-500 uppercase mb-2">Otomatik dolan bilgiler</div>

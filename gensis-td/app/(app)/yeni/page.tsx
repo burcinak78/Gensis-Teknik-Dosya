@@ -17,6 +17,7 @@ export default async function YeniPage() {
     provinces,
     capacity,
     lookups,
+    engineers,
   ] = await Promise.all([
     supabase
       .from("companies")
@@ -35,11 +36,15 @@ export default async function YeniPage() {
       .select("beyan_yuku_kg, kisi_sayisi, kabin_agirlik_kg, karsi_agirlik_kg")
       .order("beyan_yuku_kg"),
     supabase.from("lookup_values").select("list_key, value, sort_order").order("sort_order"),
+    supabase.from("engineers").select("id, full_name, discipline, chamber_reg_no, company_id").order("full_name").limit(2000),
   ]);
+
+  const companyList = companies.data ?? [];
+  const gensis = companyList.find((c) => (c.short_name ?? "").toLocaleLowerCase("tr").includes("gensis"));
 
   return (
     <DataEntryWizard
-      companies={companies.data ?? []}
+      companies={companyList}
       categories={categories.data ?? []}
       brands={brands.data ?? []}
       models={models.data ?? []}
@@ -48,6 +53,8 @@ export default async function YeniPage() {
       provinces={provinces.data ?? []}
       capacity={capacity.data ?? []}
       lookups={lookups.data ?? []}
+      engineers={engineers.data ?? []}
+      gensisCompanyId={gensis?.id ?? null}
     />
   );
 }

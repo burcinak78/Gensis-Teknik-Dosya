@@ -19,6 +19,8 @@ export type DraftPayload = {
   company_id: string;
   dosya_no: string;
   dosya_tarihi: string | null;
+  makine_muhendis_id: string | null;
+  elektrik_muhendis_id: string | null;
   bina_adi: string | null;
   montaj_adresi: string | null;
   province_id: number | null;
@@ -51,6 +53,8 @@ export async function saveDraftProject(payload: DraftPayload): Promise<SaveResul
       status: "draft",
       dosya_no: payload.dosya_no,
       dosya_tarihi: payload.dosya_tarihi,
+      makine_muhendis_id: payload.makine_muhendis_id,
+      elektrik_muhendis_id: payload.elektrik_muhendis_id,
       bina_adi: payload.bina_adi,
       montaj_adresi: payload.montaj_adresi,
       province_id: payload.province_id,

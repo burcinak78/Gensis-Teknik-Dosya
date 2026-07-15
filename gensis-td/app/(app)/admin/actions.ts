@@ -150,6 +150,32 @@ export async function createEquipmentModel(form: {
   }
 }
 
+// ---------- Yeni Mühendis (Proje Müellifi) ----------
+export async function createEngineer(form: {
+  full_name: string; discipline: string; chamber_reg_no: string; company_id: string;
+}): Promise<Result> {
+  try {
+    await assertAdmin();
+    if (!form.full_name) return { ok: false, error: "Ad Soyad zorunlu." };
+    if (!["makine", "elektrik"].includes(form.discipline)) return { ok: false, error: "Branş seçin." };
+    const admin = createAdminClient();
+    const title = form.discipline === "makine" ? "Mak.Müh." : "Elk.Müh.";
+    const { error } = await admin.from("engineers").insert({
+      full_name: form.full_name,
+      discipline: form.discipline,
+      title,
+      chamber_reg_no: form.chamber_reg_no || null,
+      company_id: form.company_id || null,
+      is_active: true,
+    });
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/muhendisler");
+    return { ok: true, message: "Mühendis eklendi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // ---------- Ekipman-Model Güncelle (isim + sertifika bağla) ----------
 export async function updateEquipmentModel(form: {
   id: string; name: string; certificate_id: string;
