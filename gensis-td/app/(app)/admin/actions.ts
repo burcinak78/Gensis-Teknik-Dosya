@@ -118,6 +118,41 @@ export async function createUser(form: {
   }
 }
 
+// ---------- Kullanıcı Güncelle (profil + opsiyonel şifre) ----------
+export async function updateUser(form: {
+  id: string; full_name: string; role: string; company_id: string; is_active: string; password?: string;
+}): Promise<Result> {
+  try {
+    await assertAdmin();
+    if (!form.id) return { ok: false, error: "Kullanıcı bulunamadı." };
+    if (!["admin", "gensis", "customer"].includes(form.role)) return { ok: false, error: "Geçersiz rol." };
+    const admin = createAdminClient();
+    // Admin/Gensis personeli otomatik Gensis firmasına bağlanır
+    const staff = form.role === "admin" || form.role === "gensis";
+    const companyId = staff ? await ensureGensisCompany(admin) : form.company_id || null;
+    const { error: pErr } = await admin
+      .from("profiles")
+      .update({
+        full_name: form.full_name || null,
+        role: form.role,
+        company_id: companyId,
+        is_active: form.is_active === "true",
+      })
+      .eq("id", form.id);
+    if (pErr) return { ok: false, error: pErr.message };
+    // yeni şifre girildiyse güncelle
+    if (form.password && form.password.length > 0) {
+      if (form.password.length < 6) return { ok: false, error: "Şifre en az 6 karakter olmalı." };
+      const { error: aErr } = await admin.auth.admin.updateUserById(form.id, { password: form.password });
+      if (aErr) return { ok: false, error: "Şifre güncellenemedi: " + aErr.message };
+    }
+    revalidatePath("/admin/kullanicilar");
+    return { ok: true, message: "Kullanıcı güncellendi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // ---------- Yeni Ekipman-Model ----------
 export async function createEquipmentModel(form: {
   category_id: string; brand_id: string; new_brand: string; model_name: string; certificate_id: string;
