@@ -13,6 +13,7 @@ type EquipmentSel = {
   model_id: string | null;
   certificate_id: string | null;
   seri_no: string | null;
+  seri_list?: string[] | null;
 };
 
 export type DraftPayload = {
@@ -85,6 +86,7 @@ export async function saveDraftProject(payload: DraftPayload): Promise<SaveResul
         model_id: e.model_id,
         certificate_id: e.certificate_id,
         seri_no: e.seri_no,
+        seri_list: e.seri_list ?? null,
       }))
     );
     if (eqErr) return { ok: false, error: "Ekipman kaydı: " + eqErr.message };

@@ -30,6 +30,13 @@ type Props = {
 
 const STEPS = ["Firma", "Yapı Ruhsatı", "Asansör", "Ekipmanlar", "Önizleme"];
 const RANGE_100 = Array.from({ length: 100 }, (_, i) => i + 1);
+// Her kat/giriş için ayrı seri no giren kategoriler:
+//  - kapı kilidi: durak sayısı kadar (her katta bir kilit) → "Kat 1..N"
+//  - kabin kapı kilidi: giriş sayısı kadar → "Giriş 1..N"
+const MULTI_SERI: Record<string, { count: "durak" | "giris"; label: string }> = {
+  kapi_kilidi: { count: "durak", label: "Kat" },
+  kabin_kilidi: { count: "giris", label: "Giriş" },
+};
 const empty = (x: any) => x === "" || x === null || x === undefined;
 
 export default function DataEntryWizard(props: Props) {
@@ -67,7 +74,7 @@ export default function DataEntryWizard(props: Props) {
   const gElk = props.engineers.find((e) => e.discipline === "elektrik" && e.company_id === props.gensisCompanyId);
   const [makineMuhId, setMakineMuhId] = useState(gMak?.id ?? "");
   const [elektrikMuhId, setElektrikMuhId] = useState(gElk?.id ?? "");
-  const [equip, setEquip] = useState<Record<string, { brandId?: string; modelId?: string; seriNo?: string }>>({});
+  const [equip, setEquip] = useState<Record<string, { brandId?: string; modelId?: string; seriNo?: string; seriList?: string[] }>>({});
 
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -106,10 +113,24 @@ export default function DataEntryWizard(props: Props) {
     durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo,
     seyirMesafesi, motorGucu,
   };
+  // kategori her kat/giriş için ayrı seri no istiyorsa kaç adet? (0 = tekli)
+  const multiCountFor = (catId: string) => {
+    const cat = props.categories.find((c) => c.id === catId);
+    const cfg = cat ? MULTI_SERI[cat.code] : undefined;
+    if (!cfg) return 0;
+    return cfg.count === "durak" ? Number(durakAdedi || 0) : Number(girisSayisi || 0);
+  };
   // ekipman: marka + model + seri no dolu değilse eksik sayılır
   const eqIncomplete = (catId: string) => {
     const s = equip[catId];
-    return !s?.modelId || !s?.seriNo || !s.seriNo.trim();
+    if (!s?.modelId) return true;
+    const n = multiCountFor(catId);
+    if (n > 0) {
+      const list = s.seriList || [];
+      for (let i = 0; i < n; i++) if (!list[i] || !list[i].trim()) return true;
+      return false;
+    }
+    return !s?.seriNo || !s.seriNo.trim();
   };
   const missingText = Object.entries(requiredMap).filter(([, v]) => empty(v)).map(([k]) => k);
   const missingEquip = props.categories.filter((cat) => eqIncomplete(cat.id));
@@ -167,6 +188,13 @@ export default function DataEntryWizard(props: Props) {
   function setSeriNo(catId: string, v: string) {
     setEquip((e) => ({ ...e, [catId]: { ...e[catId], seriNo: v } }));
   }
+  function setSeriAt(catId: string, i: number, v: string) {
+    setEquip((e) => {
+      const cur = e[catId]?.seriList ? [...e[catId].seriList!] : [];
+      cur[i] = v;
+      return { ...e, [catId]: { ...e[catId], seriList: cur } };
+    });
+  }
 
   const selectedEquipCount = props.categories.filter((c) => !eqIncomplete(c.id)).length;
 
@@ -184,7 +212,14 @@ export default function DataEntryWizard(props: Props) {
       .filter(([, val]) => val.modelId)
       .map(([category_id, val]) => {
         const model = props.models.find((m) => m.id === val.modelId);
-        return { category_id, slot: "main", brand_id: val.brandId ?? null, model_id: val.modelId ?? null, certificate_id: model?.certificate_id ?? null, seri_no: val.seriNo?.trim() || null };
+        const n = multiCountFor(category_id);
+        let seri_no = val.seriNo?.trim() || null;
+        let seri_list: string[] | null = null;
+        if (n > 0) {
+          seri_list = Array.from({ length: n }, (_, i) => (val.seriList?.[i] || "").trim());
+          seri_no = seri_list.filter(Boolean).join("; ") || null;
+        }
+        return { category_id, slot: "main", brand_id: val.brandId ?? null, model_id: val.modelId ?? null, certificate_id: model?.certificate_id ?? null, seri_no, seri_list };
       });
 
     const payload: DraftPayload = {
@@ -418,6 +453,8 @@ export default function DataEntryWizard(props: Props) {
                   const cert = model?.certificate_id ? certById.get(model.certificate_id) : undefined;
                   const nb = cert?.notified_body_id ? nbById.get(cert.notified_body_id) : undefined;
                   const eksik = showErrors && eqIncomplete(cat.id);
+                  const multiCfg = MULTI_SERI[cat.code];
+                  const multiN = multiCountFor(cat.id);
                   return (
                     <div key={cat.id} className={`bg-white border rounded-xl p-4 ${eksik ? "border-red-400 bg-red-50/40" : "border-slate-200"}`}>
                       <div className="font-bold mb-2">{cat.name} <span className="text-red-500">*</span></div>
@@ -451,7 +488,35 @@ export default function DataEntryWizard(props: Props) {
                           {nb && <div className="flex justify-between mt-1"><span className="text-slate-500">Onaylanmış Kuruluş</span><span className="font-semibold">{nb.identity_no} · {nb.name}</span></div>}
                         </div>
                       )}
-                      {sel.modelId && (
+                      {sel.modelId && multiCfg && multiN > 0 && (
+                        <div className="mt-3">
+                          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                            Seri No — her {multiCfg.label.toLocaleLowerCase("tr")} için ayrı ({multiN} adet) *
+                          </label>
+                          <div className="space-y-2">
+                            {Array.from({ length: multiN }).map((_, i) => {
+                              const v = sel.seriList?.[i] ?? "";
+                              return (
+                                <div key={i} className="flex items-center gap-2">
+                                  <span className="w-20 shrink-0 text-xs font-semibold text-slate-600">{multiCfg.label} {i + 1}</span>
+                                  <input
+                                    value={v}
+                                    onChange={(e) => setSeriAt(cat.id, i, e.target.value)}
+                                    placeholder="Seri no"
+                                    className={"inp" + (showErrors && !v.trim() ? " !border-red-300 !bg-red-50" : "")}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {sel.modelId && multiCfg && multiN === 0 && (
+                        <div className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          Seri no kutuları için önce Asansör adımında {multiCfg.count === "durak" ? "durak" : "giriş"} sayısını girin.
+                        </div>
+                      )}
+                      {sel.modelId && !multiCfg && (
                         <div className="mt-3">
                           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Ekipman Seri No *</label>
                           <input
