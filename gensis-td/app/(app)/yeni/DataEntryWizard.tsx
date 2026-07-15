@@ -49,6 +49,7 @@ export default function DataEntryWizard(props: Props) {
   const [beyanHizi, setBeyanHizi] = useState("");
   const [katAdedi, setKatAdedi] = useState("");
   const [durakAdedi, setDurakAdedi] = useState("");
+  const [girisSayisi, setGirisSayisi] = useState("");
   const [imalYili, setImalYili] = useState("");
   const [askiTipi, setAskiTipi] = useState("");
   const [katKapisi, setKatKapisi] = useState("");
@@ -60,7 +61,6 @@ export default function DataEntryWizard(props: Props) {
   const [asansorSeriNo, setAsansorSeriNo] = useState("");
   const [asansorKimlikNo, setAsansorKimlikNo] = useState("");
   const [seyirMesafesi, setSeyirMesafesi] = useState("");
-  const [motorSeriNo, setMotorSeriNo] = useState("");
   const [motorGucu, setMotorGucu] = useState("");
   // proje müellifi mühendisler — default Gensis'e atanmış olanlar
   const gMak = props.engineers.find((e) => e.discipline === "makine" && e.company_id === props.gensisCompanyId);
@@ -103,8 +103,8 @@ export default function DataEntryWizard(props: Props) {
   const requiredMap: Record<string, any> = {
     companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId, binaAdi, montajAdresi, provinceId, districtId,
     pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi, beyanYuku, beyanHizi, katAdedi,
-    durakAdedi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo,
-    seyirMesafesi, motorSeriNo, motorGucu,
+    durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo,
+    seyirMesafesi, motorGucu,
   };
   // ekipman: marka + model + seri no dolu değilse eksik sayılır
   const eqIncomplete = (catId: string) => {
@@ -123,7 +123,7 @@ export default function DataEntryWizard(props: Props) {
   const stepFieldMap: Record<number, Record<string, any>> = {
     0: { companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId },
     1: { binaAdi, montajAdresi, provinceId, districtId, pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi },
-    2: { beyanYuku, beyanHizi, katAdedi, durakAdedi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo, seyirMesafesi, motorSeriNo, motorGucu },
+    2: { beyanYuku, beyanHizi, katAdedi, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo, seyirMesafesi, motorGucu },
   };
   function stepMissing(i: number): number {
     if (i === 3) return props.categories.filter((c) => eqIncomplete(c.id)).length;
@@ -199,7 +199,7 @@ export default function DataEntryWizard(props: Props) {
         aski_tipi: askiTipi, kat_kapisi: katKapisi, montaj_adresi: montajAdresi,
         pafta, ada, parsel, yapi_sahibi: yapiSahibi, yapi_sahibi_adresi: yapiSahibiAdresi,
         asansor_seri_no: asansorSeriNo, asansor_kimlik_no: asansorKimlikNo,
-        seyir_mesafesi: seyirMesafesi, motor_seri_no: motorSeriNo, motor_gucu: motorGucu,
+        seyir_mesafesi: seyirMesafesi, motor_gucu: motorGucu, giris_sayisi: girisSayisi,
       },
       equipment,
     };
@@ -365,20 +365,24 @@ export default function DataEntryWizard(props: Props) {
                 </Field>
                 <Field label="Kişi Sayısı (otomatik)"><input className="inp bg-slate-100" value={kisi ?? ""} disabled /></Field>
                 <Field label="Beyan Hızı (m/s) *">
-                  <select className={"inp" + ec(beyanHizi)} value={beyanHizi} onChange={(e) => setBeyanHizi(e.target.value)}>
-                    <option value="">Seçiniz…</option>
-                    {(lookupGroups["beyan_hizi"] ?? ["0.63", "1", "1.6"]).map((x) => <option key={x} value={x}>{x}</option>)}
-                  </select>
+                  <input className={"inp" + ec(beyanHizi)} value={beyanHizi} onChange={(e) => setBeyanHizi(e.target.value)} placeholder="Örn. 1.0" />
                 </Field>
                 <Field label="İmal Yılı *"><input className={"inp" + ec(imalYili)} value={imalYili} onChange={(e) => setImalYili(e.target.value)} placeholder="2026" /></Field>
                 <Field label="Kat Adedi *">
-                  <select className={"inp" + ec(katAdedi)} value={katAdedi} onChange={(e) => setKatAdedi(e.target.value)}>
+                  <select className={"inp" + ec(katAdedi)} value={katAdedi}
+                    onChange={(e) => { const v = e.target.value; setKatAdedi(v); if (durakAdedi && v && Number(durakAdedi) > Number(v)) setDurakAdedi(""); }}>
                     <option value="">Seçiniz…</option>
                     {RANGE_100.map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </Field>
-                <Field label="Durak Adedi *">
-                  <select className={"inp" + ec(durakAdedi)} value={durakAdedi} onChange={(e) => setDurakAdedi(e.target.value)}>
+                <Field label="Durak Adedi * (kattan fazla olamaz)">
+                  <select className={"inp" + ec(durakAdedi)} value={durakAdedi} onChange={(e) => setDurakAdedi(e.target.value)} disabled={!katAdedi}>
+                    <option value="">{katAdedi ? "Seçiniz…" : "Önce kat adedi"}</option>
+                    {RANGE_100.filter((n) => !katAdedi || n <= Number(katAdedi)).map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </Field>
+                <Field label="Giriş Sayısı *">
+                  <select className={"inp" + ec(girisSayisi)} value={girisSayisi} onChange={(e) => setGirisSayisi(e.target.value)}>
                     <option value="">Seçiniz…</option>
                     {RANGE_100.map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
@@ -398,7 +402,6 @@ export default function DataEntryWizard(props: Props) {
                 <Field label="Asansör Seri No *"><input className={"inp" + ec(asansorSeriNo)} value={asansorSeriNo} onChange={(e) => setAsansorSeriNo(e.target.value)} /></Field>
                 <Field label="Asansör Kimlik No *"><input className={"inp" + ec(asansorKimlikNo)} value={asansorKimlikNo} onChange={(e) => setAsansorKimlikNo(e.target.value)} /></Field>
                 <Field label="Seyir Mesafesi (m) *"><input className={"inp" + ec(seyirMesafesi)} value={seyirMesafesi} onChange={(e) => setSeyirMesafesi(e.target.value)} /></Field>
-                <Field label="Motor Seri No *"><input className={"inp" + ec(motorSeriNo)} value={motorSeriNo} onChange={(e) => setMotorSeriNo(e.target.value)} /></Field>
                 <Field label="Motor Gücü (kW) *"><input className={"inp" + ec(motorGucu)} value={motorGucu} onChange={(e) => setMotorGucu(e.target.value)} /></Field>
               </div>
             </Section>
