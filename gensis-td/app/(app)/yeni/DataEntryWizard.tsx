@@ -10,7 +10,7 @@ type Company = {
   phone: string | null; fax: string | null; city: string | null;
   authorized_person: string | null; registered_brand: string | null; industry_reg_no: string | null;
 };
-type Category = { id: string; code: string; name: string; sort_order: number };
+type Category = { id: string; code: string; name: string; sort_order: number; drive_type?: string };
 type Brand = { id: string; category_id: string; name: string };
 type Model = { id: string; brand_id: string; name: string; certificate_id: string | null };
 type Certificate = { id: string; cert_no: string; notified_body_id: string | null };
@@ -32,6 +32,7 @@ export type InitialData = {
   girisSayisi: string; imalYili: string; askiTipi: string; katKapisi: string;
   pafta: string; ada: string; parsel: string; yapiSahibi: string; yapiSahibiAdresi: string;
   asansorSeriNo: string; asansorKimlikNo: string; seyirMesafesi: string; motorGucu: string;
+  asansorTipi: string; pistonOlculeri: string; pistonYeri: string; debi: string; uniteBilgisi: string;
   makineMuhId: string; elektrikMuhId: string;
   equip: EquipInit;
 };
@@ -88,6 +89,12 @@ export default function DataEntryWizard(props: Props) {
   const [asansorKimlikNo, setAsansorKimlikNo] = useState(init?.asansorKimlikNo ?? "");
   const [seyirMesafesi, setSeyirMesafesi] = useState(init?.seyirMesafesi ?? "");
   const [motorGucu, setMotorGucu] = useState(init?.motorGucu ?? "");
+  // asansör tahrik tipi + hidroliğe özgü alanlar
+  const [asansorTipi, setAsansorTipi] = useState(init?.asansorTipi ?? "elektrik");
+  const [pistonOlculeri, setPistonOlculeri] = useState(init?.pistonOlculeri ?? "");
+  const [pistonYeri, setPistonYeri] = useState(init?.pistonYeri ?? "");
+  const [debi, setDebi] = useState(init?.debi ?? "");
+  const [uniteBilgisi, setUniteBilgisi] = useState(init?.uniteBilgisi ?? "");
   // proje müellifi mühendisler — default Gensis'e atanmış olanlar (düzenlemede kayıtlı olan)
   const gMak = props.engineers.find((e) => e.discipline === "makine" && e.company_id === props.gensisCompanyId);
   const gElk = props.engineers.find((e) => e.discipline === "elektrik" && e.company_id === props.gensisCompanyId);
@@ -125,12 +132,20 @@ export default function DataEntryWizard(props: Props) {
   const certById = useMemo(() => new Map(props.certificates.map((c) => [c.id, c])), [props.certificates]);
   const nbById = useMemo(() => new Map(props.notifiedBodies.map((n) => [n.id, n])), [props.notifiedBodies]);
 
+  // asansör tipine göre geçerli ekipman kategorileri (drive_type: both/elektrik/hidrolik)
+  const isHid = asansorTipi === "hidrolik";
+  const applicableCats = props.categories.filter((c) => !c.drive_type || c.drive_type === "both" || c.drive_type === asansorTipi);
+  // tahrik tipine göre değişen zorunlu alanlar
+  const driveReq: Record<string, any> = isHid
+    ? { pistonOlculeri, pistonYeri, debi, uniteBilgisi }
+    : { motorGucu };
+
   // zorunlu alanlar
   const requiredMap: Record<string, any> = {
     companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId, binaAdi, montajAdresi, provinceId, districtId,
     pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi, beyanYuku, beyanHizi, katAdedi,
     durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo,
-    seyirMesafesi, motorGucu,
+    seyirMesafesi, ...driveReq,
   };
   // kategori her kat/giriş için ayrı seri no istiyorsa kaç adet? (0 = tekli)
   const multiCountFor = (catId: string) => {
@@ -152,7 +167,7 @@ export default function DataEntryWizard(props: Props) {
     return !s?.seriNo || !s.seriNo.trim();
   };
   const missingText = Object.entries(requiredMap).filter(([, v]) => empty(v)).map(([k]) => k);
-  const missingEquip = props.categories.filter((cat) => eqIncomplete(cat.id));
+  const missingEquip = applicableCats.filter((cat) => eqIncomplete(cat.id));
   const isValid = missingText.length === 0 && missingEquip.length === 0;
   const totalMissing = missingText.length + missingEquip.length;
 
@@ -163,10 +178,10 @@ export default function DataEntryWizard(props: Props) {
   const stepFieldMap: Record<number, Record<string, any>> = {
     0: { companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId },
     1: { binaAdi, montajAdresi, provinceId, districtId, pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi },
-    2: { beyanYuku, beyanHizi, katAdedi, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo, seyirMesafesi, motorGucu },
+    2: { beyanYuku, beyanHizi, katAdedi, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo, seyirMesafesi, ...driveReq },
   };
   function stepMissing(i: number): number {
-    if (i === 3) return props.categories.filter((c) => eqIncomplete(c.id)).length;
+    if (i === 3) return applicableCats.filter((c) => eqIncomplete(c.id)).length;
     const fields = stepFieldMap[i];
     if (!fields) return 0;
     return Object.values(fields).filter(empty).length;
@@ -215,7 +230,7 @@ export default function DataEntryWizard(props: Props) {
     });
   }
 
-  const selectedEquipCount = props.categories.filter((c) => !eqIncomplete(c.id)).length;
+  const selectedEquipCount = applicableCats.filter((c) => !eqIncomplete(c.id)).length;
 
   async function handleSave() {
     if (!isValid) {
@@ -228,7 +243,7 @@ export default function DataEntryWizard(props: Props) {
     setSaving(true);
     setError(null);
     const equipment = Object.entries(equip)
-      .filter(([, val]) => val.modelId)
+      .filter(([catId, val]) => val.modelId && applicableCats.some((c) => c.id === catId))
       .map(([category_id, val]) => {
         const model = props.models.find((m) => m.id === val.modelId);
         const n = multiCountFor(category_id);
@@ -254,6 +269,8 @@ export default function DataEntryWizard(props: Props) {
         pafta, ada, parsel, yapi_sahibi: yapiSahibi, yapi_sahibi_adresi: yapiSahibiAdresi,
         asansor_seri_no: asansorSeriNo, asansor_kimlik_no: asansorKimlikNo,
         seyir_mesafesi: seyirMesafesi, motor_gucu: motorGucu, giris_sayisi: girisSayisi,
+        asansor_tipi: asansorTipi,
+        piston_olculeri: pistonOlculeri, piston_yeri: pistonYeri, debi: debi, unite_bilgisi: uniteBilgisi,
       },
       equipment,
     };
@@ -347,6 +364,18 @@ export default function DataEntryWizard(props: Props) {
 
           {step === 0 && (
             <Section title="Firma seçimi" desc="Tüm alanlar zorunludur. Firmayı seçince bilgileri otomatik gelir.">
+              <Field label="Asansör Tipi *">
+                <div className="flex gap-2">
+                  {[{ v: "elektrik", t: "Elektrikli" }, { v: "hidrolik", t: "Hidrolik" }].map((o) => (
+                    <button key={o.v} type="button" onClick={() => setAsansorTipi(o.v)}
+                      className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-bold border transition-colors ${asansorTipi === o.v ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
+                      style={asansorTipi === o.v ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)", boxShadow: "0 4px 12px rgba(30,42,91,.22)" } : undefined}>
+                      {o.t}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400 mt-1">Seçime göre asansör alanları ve ekipman listesi (motor ↔ hidrolik valfler) değişir.</p>
+              </Field>
               <Field label="Montaj / Mimarlık Firması *">
                 <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} className={"inp" + ec(companyId)}>
                   <option value="">Firma seçiniz…</option>
@@ -460,7 +489,22 @@ export default function DataEntryWizard(props: Props) {
                 <Field label="Asansör Seri No *"><input className={"inp" + ec(asansorSeriNo)} value={asansorSeriNo} onChange={(e) => setAsansorSeriNo(e.target.value)} /></Field>
                 <Field label="Asansör Kimlik No *"><input className={"inp" + ec(asansorKimlikNo)} value={asansorKimlikNo} onChange={(e) => setAsansorKimlikNo(e.target.value)} /></Field>
                 <Field label="Seyir Mesafesi (m) *"><input className={"inp" + ec(seyirMesafesi)} value={seyirMesafesi} onChange={(e) => setSeyirMesafesi(e.target.value)} /></Field>
-                <Field label="Motor Gücü (kW) *"><input className={"inp" + ec(motorGucu)} value={motorGucu} onChange={(e) => setMotorGucu(e.target.value)} /></Field>
+                {!isHid ? (
+                  <Field label="Motor Gücü (kW) *"><input className={"inp" + ec(motorGucu)} value={motorGucu} onChange={(e) => setMotorGucu(e.target.value)} /></Field>
+                ) : (
+                  <>
+                    <Field label="Ünite / Motor Bilgisi *"><input className={"inp" + ec(uniteBilgisi)} value={uniteBilgisi} onChange={(e) => setUniteBilgisi(e.target.value)} placeholder="Marka / güç" /></Field>
+                    <Field label="Piston Ölçüleri (mm) *"><input className={"inp" + ec(pistonOlculeri)} value={pistonOlculeri} onChange={(e) => setPistonOlculeri(e.target.value)} placeholder="Örn. 165x8x4700" /></Field>
+                    <Field label="Piston Yeri *">
+                      <select className={"inp" + ec(pistonYeri)} value={pistonYeri} onChange={(e) => setPistonYeri(e.target.value)}>
+                        <option value="">Seçiniz…</option>
+                        <option value="Tek Piston">Tek Piston</option>
+                        <option value="Çift Piston">Çift Piston</option>
+                      </select>
+                    </Field>
+                    <Field label="Debi (l/d) *"><input className={"inp" + ec(debi)} value={debi} onChange={(e) => setDebi(e.target.value)} placeholder="Örn. 380" /></Field>
+                  </>
+                )}
               </div>
             </Section>
           )}
@@ -468,7 +512,7 @@ export default function DataEntryWizard(props: Props) {
           {step === 3 && (
             <Section title="Kritik ekipmanlar" desc="Tümü zorunludur. Önce marka, sonra model seçin.">
               <div className="space-y-4">
-                {props.categories.map((cat) => {
+                {applicableCats.map((cat) => {
                   const catBrands = props.brands.filter((b) => b.category_id === cat.id);
                   const sel = equip[cat.id] || {};
                   const catModels = sel.brandId ? props.models.filter((m) => m.brand_id === sel.brandId) : [];
@@ -565,10 +609,11 @@ export default function DataEntryWizard(props: Props) {
                 </div>
               )}
               <div className="bg-white border border-slate-200 rounded-xl p-4">
+                <SummRow k="Asansör Tipi" v={isHid ? "Hidrolik" : "Elektrikli"} />
                 <SummRow k="Firma" v={company?.short_name} /><SummRow k="Dosya No" v={dosyaNo} />
                 <SummRow k="Bina" v={binaAdi} /><SummRow k="Kapasite" v={beyanYuku ? `${beyanYuku} kg · ${kisi ?? "—"} kişi` : "—"} />
                 <SummRow k="Kat / Durak" v={`${katAdedi || "—"} / ${durakAdedi || "—"}`} />
-                <SummRow k="Seçili ekipman" v={`${selectedEquipCount} / ${props.categories.length}`} />
+                <SummRow k="Seçili ekipman" v={`${selectedEquipCount} / ${applicableCats.length}`} />
               </div>
               {error && <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
             </Section>
@@ -581,7 +626,7 @@ export default function DataEntryWizard(props: Props) {
             <SummRow k="Firma" v={company?.short_name} /><SummRow k="Dosya No" v={dosyaNo} />
             <SummRow k="İl" v={props.provinces.find((p) => p.id === provinceId)?.name} />
             <SummRow k="Kapasite" v={beyanYuku ? `${beyanYuku} kg` : "—"} />
-            <SummRow k="Ekipman" v={`${selectedEquipCount} / ${props.categories.length}`} />
+            <SummRow k="Ekipman" v={`${selectedEquipCount} / ${applicableCats.length}`} />
             <div className={`mt-3 text-xs font-semibold ${isValid ? "text-green-600" : "text-red-500"}`}>
               {isValid ? "✓ Tüm zorunlu alanlar dolu" : `${totalMissing} zorunlu alan eksik`}
             </div>

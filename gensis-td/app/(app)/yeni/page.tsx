@@ -25,7 +25,7 @@ export default async function YeniPage() {
         "id, short_name, legal_name, address, phone, fax, city, authorized_person, registered_brand, industry_reg_no"
       )
       .order("short_name"),
-    supabase.from("equipment_categories").select("id, code, name, sort_order").order("sort_order"),
+    supabase.from("equipment_categories").select("id, code, name, sort_order, drive_type").order("sort_order"),
     supabase.from("equipment_brands").select("id, category_id, name").order("name"),
     supabase.from("equipment_models").select("id, brand_id, name, certificate_id").order("name"),
     supabase.from("certificates").select("id, cert_no, notified_body_id"),
