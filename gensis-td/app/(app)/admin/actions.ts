@@ -24,7 +24,7 @@ export async function createCompany(form: Record<string, string>): Promise<Resul
     await assertAdmin();
     if (!form.short_name || !form.legal_name) return { ok: false, error: "Kısa ad ve ünvan zorunlu." };
     const admin = createAdminClient();
-    const { error } = await admin.from("companies").insert({
+    const { data, error } = await admin.from("companies").insert({
       short_name: form.short_name,
       legal_name: form.legal_name,
       address: form.address || null,
@@ -34,10 +34,10 @@ export async function createCompany(form: Record<string, string>): Promise<Resul
       authorized_person: form.authorized_person || null,
       registered_brand: form.registered_brand || null,
       industry_reg_no: form.industry_reg_no || null,
-    });
-    if (error) return { ok: false, error: error.message };
+    }).select("id").single();
+    if (error || !data) return { ok: false, error: error?.message ?? "Müşteri eklenemedi." };
     revalidatePath("/admin/musteriler");
-    return { ok: true, message: "Müşteri eklendi." };
+    return { ok: true, message: "Müşteri eklendi.", id: data.id };
   } catch (e: any) {
     return { ok: false, error: e.message };
   }
@@ -253,6 +253,49 @@ export async function deleteEngineer(id: string): Promise<Result> {
     if (error) return { ok: false, error: error.message };
     revalidatePath("/admin/muhendisler");
     return { ok: true, message: "Mühendis silindi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Müşteri Belgesi Yükle / Güncelle (Sanayi Sicil, TSE HYB ...) ----------
+export async function uploadCompanyDocument(formData: FormData): Promise<Result> {
+  try {
+    await assertAdmin();
+    const company_id = String(formData.get("company_id") || "");
+    const doc_type = String(formData.get("doc_type") || "");
+    const belge_no = String(formData.get("belge_no") || "") || null;
+    const issue_date = String(formData.get("issue_date") || "") || null;
+    const valid_until = String(formData.get("valid_until") || "") || null;
+    const notified_body_id = String(formData.get("notified_body_id") || "") || null;
+    const file = formData.get("file") as File | null;
+    if (!company_id || !doc_type) return { ok: false, error: "Eksik bilgi." };
+
+    const admin = createAdminClient();
+    const row: Record<string, any> = { company_id, doc_type, belge_no, issue_date, valid_until, notified_body_id };
+
+    if (file && file.size > 0) {
+      const ext = (file.name.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "") || "pdf";
+      const path = `musteri/${company_id}/${doc_type}-${randomUUID()}.${ext}`;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { error: upErr } = await admin.storage.from("documents").upload(path, bytes, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+      if (upErr) return { ok: false, error: "Dosya yüklenemedi: " + upErr.message };
+      row.storage_path = path;
+      row.original_name = file.name;
+    }
+
+    const { error } = await admin.from("company_documents").upsert(row, { onConflict: "company_id,doc_type" });
+    if (error) return { ok: false, error: error.message };
+
+    // Belge veriliş tarihlerini firma kartına da yansıt (belgelerde kullanılır)
+    if (issue_date && doc_type === "sanayi_sicil") await admin.from("companies").update({ industry_reg_date: issue_date }).eq("id", company_id);
+    if (issue_date && doc_type === "tse_hyb") await admin.from("companies").update({ hyb_date: issue_date }).eq("id", company_id);
+
+    revalidatePath("/admin/musteriler");
+    return { ok: true, message: "Belge kaydedildi." };
   } catch (e: any) {
     return { ok: false, error: e.message };
   }
