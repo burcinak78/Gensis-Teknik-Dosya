@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createEngineer, updateEngineer, deleteEngineer, uploadEngineerDocument } from "../actions";
 
@@ -55,6 +55,8 @@ export default function MuhendislerClient({
   const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const setDoc = (dt: string, patch: Partial<DocForm>) => setDocForms((s) => ({ ...s, [dt]: { valid_until: "", file: null, ...s[dt], ...patch } }));
+  const formRef = useRef<HTMLFormElement>(null);
+  const scrollToForm = () => setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
 
   const docsByEng = useMemo(() => {
     const m: Record<string, Record<string, Doc>> = {};
@@ -100,9 +102,9 @@ export default function MuhendislerClient({
       address: e.address ?? "", phone: e.phone ?? "",
     });
     initDocForms(e.id, e.discipline ?? "makine");
-    setMsg(null);
+    setMsg(null); scrollToForm();
   }
-  function yeni() { setEditId(null); setForm({ ...blank }); initDocForms(null, "makine"); setMsg(null); }
+  function yeni() { setEditId(null); setForm({ ...blank }); initDocForms(null, "makine"); setMsg(null); scrollToForm(); }
 
   async function submit(ev: React.FormEvent) {
     ev.preventDefault();
@@ -182,7 +184,7 @@ export default function MuhendislerClient({
       </div>
 
       {/* Bilgiler (sol) + Belgeler (sağ) — tek Kaydet */}
-      <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <form ref={formRef} onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start scroll-mt-6">
         {/* Sol: bilgiler */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">

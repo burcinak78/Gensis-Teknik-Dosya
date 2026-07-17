@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument } from "../actions";
 
@@ -48,6 +48,8 @@ export default function MusterilerClient({
   const [busy, setBusy] = useState(false);
   const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const formRef = useRef<HTMLFormElement>(null);
+  const scrollToForm = () => setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   const setDoc = (dt: string, patch: Partial<DocForm>) => setDocForms((s) => ({ ...s, [dt]: { issue_date: "", valid_until: "", file: null, ...s[dt], ...patch } }));
 
   const docsByComp = useMemo(() => {
@@ -91,9 +93,9 @@ export default function MusterilerClient({
       registered_brand: c.registered_brand ?? "", city: c.city ?? "", phone: c.phone ?? "",
       mobile_phone: c.mobile_phone ?? "", industry_reg_no: c.industry_reg_no ?? "", address: c.address ?? "",
     });
-    initDocForms(c.id); setMsg(null);
+    initDocForms(c.id); setMsg(null); scrollToForm();
   }
-  function newCompany() { setEditId(null); setForm({ ...BLANK }); initDocForms(null); setMsg(null); }
+  function newCompany() { setEditId(null); setForm({ ...BLANK }); initDocForms(null); setMsg(null); scrollToForm(); }
 
   async function sil() {
     if (!editId) return;
@@ -170,7 +172,7 @@ export default function MusterilerClient({
       </div>
 
       {/* Bilgiler (sol) + Belgeler (sağ) — tek Kaydet */}
-      <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <form ref={formRef} onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start scroll-mt-6">
         {/* Sol: bilgiler */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
