@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 
   const { data: row } = await supabase
     .from("proje_onay")
-    .select("*, companies(short_name, legal_name, address, city), provinces(name), districts(name), makine:engineers!makine_muhendis_id(full_name, chamber_reg_no), elektrik:engineers!elektrik_muhendis_id(full_name, chamber_reg_no)")
+    .select("*, companies(short_name, legal_name, address, city), provinces(name), districts(name), makine:engineers!makine_muhendis_id(full_name, chamber_reg_no, address, phone), elektrik:engineers!elektrik_muhendis_id(full_name, chamber_reg_no, address, phone)")
     .eq("id", id)
     .single();
   if (!row) return new Response("Kayıt bulunamadı veya yetkiniz yok.", { status: 404 });
@@ -66,8 +66,8 @@ export async function GET(req: NextRequest) {
     beyan_hizi: inp.beyan_hizi_txt || r.beyan_hizi,
     durak_sayisi: r.durak_sayisi,
     muh: {
-      makine: { ad: r.makine?.full_name, oda_sicil: r.makine?.chamber_reg_no },
-      elektrik: { ad: r.elektrik?.full_name, oda_sicil: r.elektrik?.chamber_reg_no },
+      makine: { ad: r.makine?.full_name, oda_sicil: r.makine?.chamber_reg_no, adres: r.makine?.address, telefon: r.makine?.phone },
+      elektrik: { ad: r.elektrik?.full_name, oda_sicil: r.elektrik?.chamber_reg_no, adres: r.elektrik?.address, telefon: r.elektrik?.phone },
     },
     projeTuru: "ASANSÖR",
   };

@@ -99,9 +99,10 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
       <Text style={st.formSub}>{unvan}</Text>
       <View style={st.fBox}>
         <FSection>PROJE MÜELLİFİ</FSection>
-        <FRow l="Adı Soyadı" val={m?.ad} />
-        <FRow l="Unvanı" val={unvan} />
         <FRow l="Oda Sicil No" val={m?.oda_sicil} />
+        <FRow l="Unvanı" val={unvan} />
+        <FRow l="Adresi" val={m?.adres} />
+        <FRow l="Telefonu" val={m?.telefon} />
         <FSection>MÜELLİFLİĞİ ÜSTLENİLEN PROJE</FSection>
         <FRow l="İl / İlçe" val={[d.il, d.belediye].filter(Boolean).join(" / ")} />
         <FRow l="İlgili İdare" val={d.belediye ? `${v(d.belediye)} Belediyesi` : ""} />
@@ -119,13 +120,19 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
         deprem, yangın, enerji verimliliği, asansör gibi ilgili tüm mevzuat hükümlerine uygun olarak
         hazırlandığını taahhüt ederim.
       </Text>
-      <View style={{ marginTop: 24, width: "55%", alignSelf: "flex-end" }}>
-        <Text style={{ fontSize: 8.6, fontWeight: "bold", textAlign: "center", marginBottom: 3 }}>Proje Müellifi</Text>
-        <View style={st.fBox}>
-          <FRow l="Adı-Soyadı" val={m?.ad} />
-          <FRow l="Unvanı" val={unvanKisa} />
-          <FRow l="Oda Sic.No" val={m?.oda_sicil} />
-          <FRow l="İmza" val="" />
+      <View style={{ marginTop: 30, alignSelf: "flex-end", width: "60%" }}>
+        <Text style={{ fontSize: 9.5, fontWeight: "bold", textAlign: "center", marginBottom: 8 }}>Proje Müellifi</Text>
+        <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+          <View style={{ marginRight: 16, alignItems: "flex-end" }}>
+            <Text style={{ fontSize: 9, fontWeight: "bold", marginBottom: 6 }}>{unvanKisa}</Text>
+            <Text style={{ fontSize: 9, marginBottom: 6 }}>{v(m?.ad)}</Text>
+            <Text style={{ fontSize: 9 }}>Oda Sicil No: {v(m?.oda_sicil)}</Text>
+          </View>
+          <View style={{ minWidth: 68 }}>
+            <Text style={{ fontSize: 9, marginBottom: 6 }}>Adı-Soyadı</Text>
+            <Text style={{ fontSize: 9, marginBottom: 6 }}>Ünvanı</Text>
+            <Text style={{ fontSize: 9 }}>İmza</Text>
+          </View>
         </View>
       </View>
       <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>

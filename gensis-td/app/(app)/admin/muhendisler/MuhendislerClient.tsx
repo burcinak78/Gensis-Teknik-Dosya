@@ -6,6 +6,7 @@ import { createEngineer, updateEngineer, deleteEngineer } from "../actions";
 
 type Engineer = {
   id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null;
+  address: string | null; phone: string | null;
   companies?: { short_name: string } | null;
 };
 type Company = { id: string; short_name: string };
@@ -15,7 +16,7 @@ export default function MuhendislerClient({
   engineers, companies, defaultCompanyId,
 }: { engineers: Engineer[]; companies: Company[]; defaultCompanyId: string }) {
   const router = useRouter();
-  const blank = { full_name: "", discipline: "makine", chamber_reg_no: "", company_id: defaultCompanyId };
+  const blank = { full_name: "", discipline: "makine", chamber_reg_no: "", company_id: defaultCompanyId, address: "", phone: "" };
   const [q, setQ] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({ ...blank });
@@ -35,6 +36,7 @@ export default function MuhendislerClient({
     setForm({
       full_name: e.full_name ?? "", discipline: e.discipline ?? "makine",
       chamber_reg_no: e.chamber_reg_no ?? "", company_id: e.company_id ?? "",
+      address: e.address ?? "", phone: e.phone ?? "",
     });
     setMsg(null);
   }
@@ -108,6 +110,14 @@ export default function MuhendislerClient({
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Oda Sicil No</label>
             <input value={form.chamber_reg_no} onChange={(e) => set("chamber_reg_no", e.target.value)} className={inp} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Adres</label>
+            <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inp} placeholder="Mühendisin açık adresi" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Telefon</label>
+            <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inp} placeholder="Örn. 0 224 441 96 65" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Bağlı Şirket</label>

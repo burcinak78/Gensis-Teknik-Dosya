@@ -8,7 +8,7 @@ export default async function MuhendislerPage() {
   const [{ data: engineers }, { data: companies }] = await Promise.all([
     supabase
       .from("engineers")
-      .select("id, full_name, discipline, chamber_reg_no, company_id, companies(short_name)")
+      .select("id, full_name, discipline, chamber_reg_no, company_id, address, phone, companies(short_name)")
       .order("full_name")
       .limit(2000),
     supabase.from("companies").select("id, short_name").order("short_name").limit(2000),

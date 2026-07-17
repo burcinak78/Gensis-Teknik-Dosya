@@ -187,7 +187,7 @@ export async function createEquipmentModel(form: {
 
 // ---------- Yeni Mühendis (Proje Müellifi) ----------
 export async function createEngineer(form: {
-  full_name: string; discipline: string; chamber_reg_no: string; company_id: string;
+  full_name: string; discipline: string; chamber_reg_no: string; company_id: string; address?: string; phone?: string;
 }): Promise<Result> {
   try {
     await assertAdmin();
@@ -201,6 +201,8 @@ export async function createEngineer(form: {
       title,
       chamber_reg_no: form.chamber_reg_no || null,
       company_id: form.company_id || null,
+      address: form.address || null,
+      phone: form.phone || null,
       is_active: true,
     });
     if (error) return { ok: false, error: error.message };
@@ -213,7 +215,7 @@ export async function createEngineer(form: {
 
 // ---------- Mühendis Güncelle ----------
 export async function updateEngineer(id: string, form: {
-  full_name: string; discipline: string; chamber_reg_no: string; company_id: string;
+  full_name: string; discipline: string; chamber_reg_no: string; company_id: string; address?: string; phone?: string;
 }): Promise<Result> {
   try {
     await assertAdmin();
@@ -227,6 +229,8 @@ export async function updateEngineer(id: string, form: {
       title,
       chamber_reg_no: form.chamber_reg_no || null,
       company_id: form.company_id || null,
+      address: form.address || null,
+      phone: form.phone || null,
     }).eq("id", id);
     if (error) return { ok: false, error: error.message };
     revalidatePath("/admin/muhendisler");
