@@ -204,7 +204,7 @@ export default function MuhendislerClient({
             <div className="space-y-3">
               {(BELGE_TIPLERI[form.discipline] || []).map((t) => (
                 <BelgeSatiri
-                  key={t.key}
+                  key={`${editId}-${t.key}`}
                   engineerId={editId}
                   docType={t.key}
                   ad={t.ad}
