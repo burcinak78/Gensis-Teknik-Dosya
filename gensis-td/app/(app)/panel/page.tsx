@@ -32,11 +32,15 @@ export default async function PanelPage() {
   return (
     <div>
       <div className="px-8 pt-6 pb-4">
-        <Link href="/yeni" className="gs-btn text-sm font-bold px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5">
-          <span className="material-symbols-rounded text-[18px]">add</span> Yeni Teknik Dosya
-        </Link>
-        <h1 className="text-[24px] font-extrabold tracking-tight mt-4">Teknik Dosyalar</h1>
-        <p className="text-sm text-slate-500">Oluşturulan teknik dosyalarınız ve durumları.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-[24px] font-extrabold tracking-tight">Teknik Dosyalar</h1>
+            <p className="text-sm text-slate-500">Oluşturulan teknik dosyalarınız ve durumları.</p>
+          </div>
+          <Link href="/yeni" className="gs-btn text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5">
+            <span className="material-symbols-rounded text-[18px]">add</span> Yeni Teknik Dosya
+          </Link>
+        </div>
       </div>
 
       <div className="px-8 pb-8 gs-fade">
