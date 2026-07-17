@@ -68,6 +68,28 @@ export async function updateCompany(id: string, form: Record<string, string>): P
   }
 }
 
+// ---------- Müşteri Sil ----------
+export async function deleteCompany(id: string): Promise<Result> {
+  try {
+    await assertAdmin();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    const admin = createAdminClient();
+    const { count: pc } = await admin.from("projects").select("*", { count: "exact", head: true }).eq("company_id", id);
+    if ((pc ?? 0) > 0) return { ok: false, error: "Bu firmanın teknik dosyaları var; silmeden önce onları kaldırın." };
+    const { count: oc } = await admin.from("proje_onay").select("*", { count: "exact", head: true }).eq("company_id", id);
+    if ((oc ?? 0) > 0) return { ok: false, error: "Bu firmanın proje onay dosyaları var; silinemez." };
+    // bağlı referansları çöz (FK engellemesin)
+    await admin.from("engineers").update({ company_id: null }).eq("company_id", id);
+    await admin.from("profiles").update({ company_id: null }).eq("company_id", id);
+    const { error } = await admin.from("companies").delete().eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/musteriler");
+    return { ok: true, message: "Müşteri silindi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // Gensis (operatör) firmasını bul/oluştur — personel kullanıcılar buna bağlanır
 async function ensureGensisCompany(admin: ReturnType<typeof createAdminClient>): Promise<string | null> {
   const { data: g } = await admin.from("companies").select("id").ilike("short_name", "gensis").maybeSingle();

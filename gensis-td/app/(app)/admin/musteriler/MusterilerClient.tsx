@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createCompany, updateCompany, uploadCompanyDocument } from "../actions";
+import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument } from "../actions";
 
 type Company = {
   id: string; short_name: string; legal_name: string | null; address: string | null;
@@ -95,6 +95,16 @@ export default function MusterilerClient({
   }
   function newCompany() { setEditId(null); setForm({ ...BLANK }); initDocForms(null); setMsg(null); }
 
+  async function sil() {
+    if (!editId) return;
+    if (!confirm(`"${form.short_name}" müşterisini silmek istiyor musunuz?`)) return;
+    setBusy(true); setMsg(null);
+    const res = await deleteCompany(editId);
+    setBusy(false);
+    if (res.ok) { newCompany(); router.refresh(); }
+    else setMsg({ ok: false, text: res.error });
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setMsg(null);
@@ -127,6 +137,12 @@ export default function MusterilerClient({
 
   return (
     <div className="space-y-6">
+      <div>
+        <button type="button" onClick={newCompany} className="gs-btn text-sm font-bold px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5">
+          <span className="material-symbols-rounded text-[18px]">add</span> Yeni Müşteri Oluştur
+        </button>
+      </div>
+
       {/* Liste */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
         <div className="p-3 border-b border-slate-100">
@@ -178,9 +194,16 @@ export default function MusterilerClient({
             <div className="col-span-2"><L>Adres</L><input className={inp} value={form.address} onChange={(e) => set("address", e.target.value)} /></div>
           </div>
           {msg && <div className={`mt-3 text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
-          <button disabled={busy} className="mt-4 bg-brand hover:bg-brand-dark text-white font-bold text-sm px-5 py-2.5 rounded-lg disabled:opacity-50">
-            {busy ? "Kaydediliyor…" : editId ? "Değişiklikleri Kaydet" : "Müşteriyi Kaydet"}
-          </button>
+          <div className="mt-4 flex items-center gap-2">
+            <button disabled={busy} className="bg-brand hover:bg-brand-dark text-white font-bold text-sm px-5 py-2.5 rounded-lg disabled:opacity-50">
+              {busy ? "Kaydediliyor…" : editId ? "Değişiklikleri Kaydet" : "Müşteriyi Kaydet"}
+            </button>
+            {editId && (
+              <button type="button" onClick={sil} disabled={busy} className="text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg disabled:opacity-50">
+                Müşteri Sil
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Sağ: belgeler */}
