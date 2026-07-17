@@ -258,6 +258,58 @@ export async function deleteEngineer(id: string): Promise<Result> {
   }
 }
 
+// ---------- Mühendis Belgesi Yükle / Güncelle (dosya + geçerlilik) ----------
+export async function uploadEngineerDocument(formData: FormData): Promise<Result> {
+  try {
+    await assertAdmin();
+    const engineer_id = String(formData.get("engineer_id") || "");
+    const doc_type = String(formData.get("doc_type") || "");
+    const valid_until = String(formData.get("valid_until") || "") || null;
+    const file = formData.get("file") as File | null;
+    if (!engineer_id || !doc_type) return { ok: false, error: "Eksik bilgi." };
+
+    const admin = createAdminClient();
+    const row: Record<string, any> = { engineer_id, doc_type, valid_until };
+
+    if (file && file.size > 0) {
+      const ext = (file.name.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "") || "pdf";
+      const path = `muhendis/${engineer_id}/${doc_type}-${randomUUID()}.${ext}`;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { error: upErr } = await admin.storage.from("documents").upload(path, bytes, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+      if (upErr) return { ok: false, error: "Dosya yüklenemedi: " + upErr.message };
+      row.storage_path = path;
+      row.original_name = file.name;
+    }
+
+    const { error } = await admin.from("engineer_documents").upsert(row, { onConflict: "engineer_id,doc_type" });
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/muhendisler");
+    return { ok: true, message: "Belge kaydedildi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Mühendis Belgesi Sil ----------
+export async function deleteEngineerDocument(id: string): Promise<Result> {
+  try {
+    await assertAdmin();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    const admin = createAdminClient();
+    const { data: doc } = await admin.from("engineer_documents").select("storage_path").eq("id", id).maybeSingle();
+    if (doc?.storage_path) await admin.storage.from("documents").remove([doc.storage_path]);
+    const { error } = await admin.from("engineer_documents").delete().eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/muhendisler");
+    return { ok: true, message: "Belge silindi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // ---------- Ekipman-Model Güncelle (isim + sertifika bağla) ----------
 export async function updateEquipmentModel(form: {
   id: string; name: string; certificate_id: string;
