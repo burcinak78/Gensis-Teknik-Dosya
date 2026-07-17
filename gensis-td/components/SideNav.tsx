@@ -8,9 +8,8 @@ type Item = { href: string; label: string; icon: string; match: (p: string) => b
 export default function SideNav({ isAdmin }: { isAdmin: boolean }) {
   const path = usePathname();
   const items: Item[] = [
-    { href: "/panel", label: "Panel", icon: "dashboard", match: (p) => p === "/panel" || p.startsWith("/panel/") },
     { href: "/proje-onay", label: "Proje Onay Dosyası", icon: "fact_check", match: (p) => p.startsWith("/proje-onay") },
-    { href: "/yeni", label: "Yeni Teknik Dosya", icon: "note_add", match: (p) => p === "/yeni" },
+    { href: "/panel", label: "Asansör Teknik Dosyası", icon: "note_add", match: (p) => p === "/panel" || p.startsWith("/panel/") || p === "/yeni" },
   ];
   if (isAdmin) items.push({ href: "/admin", label: "Yönetim", icon: "admin_panel_settings", match: (p) => p.startsWith("/admin") });
 
@@ -20,7 +19,7 @@ export default function SideNav({ isAdmin }: { isAdmin: boolean }) {
         const active = it.match(path);
         return (
           <Link
-            key={it.href}
+            key={it.label}
             href={it.href}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
               active ? "text-navy" : "text-[#5b6472] hover:bg-[#eef1f7]"
