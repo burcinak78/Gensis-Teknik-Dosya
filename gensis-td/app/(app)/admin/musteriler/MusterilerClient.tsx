@@ -2,29 +2,30 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument } from "../actions";
+import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument, deleteCompanyDocument } from "../actions";
 
 type Company = {
   id: string; short_name: string; legal_name: string | null; address: string | null;
   phone: string | null; mobile_phone: string | null; city: string | null;
-  authorized_person: string | null; registered_brand: string | null; industry_reg_no: string | null;
+  authorized_person: string | null; registered_brand: string | null; industry_reg_no: string | null; ce_module: string | null;
 };
-type Doc = { id: string; company_id: string; doc_type: string; original_name: string | null; issue_date: string | null; valid_until: string | null; belge_no: string | null };
-type DocForm = { issue_date: string; valid_until: string; file: File | null };
+type Doc = { id: string; company_id: string; doc_type: string; original_name: string | null; issue_date: string | null; valid_until: string | null; belge_no: string | null; notified_body_id: string | null };
+type NB = { id: string; identity_no: string | null; name: string };
+type Row = { uid: string; id?: string; belge_no: string; issue_date: string; valid_until: string; notified_body_id: string; file: File | null; original_name?: string | null };
+type DocsState = { sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_tasarim: Row[]; ce_b: Row[] };
 
 const BLANK: Record<string, string> = {
   short_name: "", legal_name: "", authorized_person: "", registered_brand: "",
   city: "", phone: "", mobile_phone: "", industry_reg_no: "", address: "",
 };
-const BELGE_TIPLERI = [
-  { key: "sanayi_sicil", ad: "Sanayi Sicil Belgesi" },
-  { key: "tse_hyb", ad: "TSE HYB Belgesi" },
-];
 const BADGE: Record<string, string> = {
   green: "bg-green-50 text-green-700", amber: "bg-amber-50 text-amber-700",
   red: "bg-red-50 text-red-600", slate: "bg-slate-100 text-slate-500",
 };
 const RANK: Record<string, number> = { red: 3, amber: 2, green: 1, slate: 0 };
+const uid = () => (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+const emptyRow = (): Row => ({ uid: uid(), belge_no: "", issue_date: "", valid_until: "", notified_body_id: "", file: null });
+const emptyDocs = (): DocsState => ({ sanayi_sicil: emptyRow(), tse_hyb: emptyRow(), ce_h1: emptyRow(), ce_e: emptyRow(), ce_tasarim: [], ce_b: [] });
 
 function belgeDurum(validUntil: string | null | undefined, hasFile: boolean): { t: string; c: string } {
   if (!validUntil) return hasFile ? { t: "Tarihsiz", c: "slate" } : { t: "Yok", c: "slate" };
@@ -34,15 +35,18 @@ function belgeDurum(validUntil: string | null | undefined, hasFile: boolean): { 
   if (d < in30) return { t: "1 aydan az", c: "amber" };
   return { t: "Geçerli", c: "green" };
 }
+const rowHasContent = (r: Row) => !!(r.file || r.belge_no.trim() || r.issue_date || r.valid_until || r.notified_body_id || r.original_name);
 
 export default function MusterilerClient({
-  companies, provinces, documents,
-}: { companies: Company[]; provinces: string[]; documents: Doc[] }) {
+  companies, provinces, documents, notifiedBodies,
+}: { companies: Company[]; provinces: string[]; documents: Doc[]; notifiedBodies: NB[] }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({ ...BLANK });
-  const [docForms, setDocForms] = useState<Record<string, DocForm>>({});
+  const [ceModule, setCeModule] = useState("H1");
+  const [docs, setDocs] = useState<DocsState>(emptyDocs());
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [docKey, setDocKey] = useState(0);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -50,25 +54,32 @@ export default function MusterilerClient({
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const formRef = useRef<HTMLFormElement>(null);
   const scrollToForm = () => setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
-  const setDoc = (dt: string, patch: Partial<DocForm>) => setDocForms((s) => ({ ...s, [dt]: { issue_date: "", valid_until: "", file: null, ...s[dt], ...patch } }));
+
+  const rowFromDoc = (d: Doc): Row => ({ uid: uid(), id: d.id, belge_no: d.belge_no ?? "", issue_date: d.issue_date ?? "", valid_until: d.valid_until ?? "", notified_body_id: d.notified_body_id ?? "", file: null, original_name: d.original_name });
+  function buildDocs(compId: string): DocsState {
+    const all = documents.filter((d) => d.company_id === compId);
+    const one = (t: string) => { const d = all.find((x) => x.doc_type === t); return d ? rowFromDoc(d) : emptyRow(); };
+    const many = (t: string) => all.filter((x) => x.doc_type === t).map(rowFromDoc);
+    return { sanayi_sicil: one("sanayi_sicil"), tse_hyb: one("tse_hyb"), ce_h1: one("ce_h1"), ce_e: one("ce_e"), ce_tasarim: many("ce_tasarim"), ce_b: many("ce_b") };
+  }
+  const setSingle = (t: keyof DocsState, patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: { ...(s[t] as Row), ...patch } }));
+  const setListItem = (t: "ce_tasarim" | "ce_b", i: number, patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: (s[t]).map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
+  const addListItem = (t: "ce_tasarim" | "ce_b") => setDocs((s) => ({ ...s, [t]: [...s[t], emptyRow()] }));
+  const removeListItem = (t: "ce_tasarim" | "ce_b", i: number) => setDocs((s) => {
+    const row = s[t][i];
+    if (row?.id) setDeletedIds((d) => [...d, row.id!]);
+    return { ...s, [t]: s[t].filter((_, j) => j !== i) };
+  });
 
   const docsByComp = useMemo(() => {
-    const m: Record<string, Record<string, Doc>> = {};
-    for (const d of documents) { (m[d.company_id] ||= {})[d.doc_type] = d; }
+    const m: Record<string, Doc[]> = {};
+    for (const d of documents) (m[d.company_id] ||= []).push(d);
     return m;
   }, [documents]);
-
   function compDurum(id: string): { t: string; c: string } {
-    const map = docsByComp[id] || {};
-    let worst = { t: "Belge yok", c: "slate" };
-    let any = false;
-    for (const t of BELGE_TIPLERI) {
-      const d = map[t.key];
-      if (!d) continue;
-      any = true;
-      const st = belgeDurum(d.valid_until, !!d.original_name);
-      if (RANK[st.c] > RANK[worst.c]) worst = st;
-    }
+    const arr = docsByComp[id] || [];
+    let worst = { t: "Belge yok", c: "slate" }; let any = false;
+    for (const d of arr) { any = true; const st = belgeDurum(d.valid_until, !!d.original_name); if (RANK[st.c] > RANK[worst.c]) worst = st; }
     if (any && worst.c === "slate") worst = { t: "Yüklendi", c: "green" };
     return worst;
   }
@@ -79,13 +90,6 @@ export default function MusterilerClient({
     return companies.filter((c) => c.short_name.toLocaleLowerCase("tr").includes(s) || (c.legal_name ?? "").toLocaleLowerCase("tr").includes(s));
   }, [q, companies]);
 
-  function initDocForms(compId: string | null) {
-    const map = compId ? (docsByComp[compId] || {}) : {};
-    const out: Record<string, DocForm> = {};
-    for (const t of BELGE_TIPLERI) out[t.key] = { issue_date: map[t.key]?.issue_date ?? "", valid_until: map[t.key]?.valid_until ?? "", file: null };
-    setDocForms(out); setDocKey((k) => k + 1);
-  }
-
   function selectCompany(c: Company) {
     setEditId(c.id);
     setForm({
@@ -93,9 +97,13 @@ export default function MusterilerClient({
       registered_brand: c.registered_brand ?? "", city: c.city ?? "", phone: c.phone ?? "",
       mobile_phone: c.mobile_phone ?? "", industry_reg_no: c.industry_reg_no ?? "", address: c.address ?? "",
     });
-    initDocForms(c.id); setMsg(null); scrollToForm();
+    setCeModule(c.ce_module || "H1");
+    setDocs(buildDocs(c.id)); setDeletedIds([]); setDocKey((k) => k + 1); setMsg(null); scrollToForm();
   }
-  function newCompany() { setEditId(null); setForm({ ...BLANK }); initDocForms(null); setMsg(null); scrollToForm(); }
+  function newCompany() {
+    setEditId(null); setForm({ ...BLANK }); setCeModule("H1");
+    setDocs(emptyDocs()); setDeletedIds([]); setDocKey((k) => k + 1); setMsg(null); scrollToForm();
+  }
 
   async function sil() {
     if (!editId) return;
@@ -103,38 +111,51 @@ export default function MusterilerClient({
     setBusy(true); setMsg(null);
     const res = await deleteCompany(editId);
     setBusy(false);
-    if (res.ok) { newCompany(); router.refresh(); }
-    else setMsg({ ok: false, text: res.error });
+    if (res.ok) { newCompany(); router.refresh(); } else setMsg({ ok: false, text: res.error });
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setMsg(null);
-    const res = editId ? await updateCompany(editId, form) : await createCompany(form);
+    const payload = { ...form, ce_module: ceModule };
+    const res = editId ? await updateCompany(editId, payload) : await createCompany(payload);
     if (!res.ok) { setBusy(false); setMsg({ ok: false, text: res.error }); return; }
     const compId = editId || res.id!;
 
-    let docErr: string | null = null;
-    for (const t of BELGE_TIPLERI) {
-      const df = docForms[t.key];
-      if (!df) continue;
-      const ex = docsByComp[compId]?.[t.key];
-      const changed = !!df.file || (df.issue_date && df.issue_date !== (ex?.issue_date ?? "")) || (df.valid_until && df.valid_until !== (ex?.valid_until ?? ""));
-      if (!changed) continue;
-      const fd = new FormData();
-      fd.set("company_id", compId); fd.set("doc_type", t.key);
-      fd.set("issue_date", df.issue_date); fd.set("valid_until", df.valid_until);
-      if (df.file) fd.set("file", df.file);
-      const r = await uploadCompanyDocument(fd);
-      if (!r.ok) docErr = r.error;
+    for (const id of deletedIds) await deleteCompanyDocument(id);
+
+    type Job = { type: string; row: Row; save: (p: Partial<Row>) => void };
+    const jobs: Job[] = [
+      { type: "sanayi_sicil", row: docs.sanayi_sicil, save: (p) => setSingle("sanayi_sicil", p) },
+      { type: "tse_hyb", row: docs.tse_hyb, save: (p) => setSingle("tse_hyb", p) },
+    ];
+    if (ceModule === "H1") {
+      jobs.push({ type: "ce_h1", row: docs.ce_h1, save: (p) => setSingle("ce_h1", p) });
+      docs.ce_tasarim.forEach((r, i) => jobs.push({ type: "ce_tasarim", row: r, save: (p) => setListItem("ce_tasarim", i, p) }));
+    } else {
+      docs.ce_b.forEach((r, i) => jobs.push({ type: "ce_b", row: r, save: (p) => setListItem("ce_b", i, p) }));
+      jobs.push({ type: "ce_e", row: docs.ce_e, save: (p) => setSingle("ce_e", p) });
     }
 
-    setBusy(false);
+    let docErr: string | null = null;
+    for (const job of jobs) {
+      if (!rowHasContent(job.row)) continue;
+      const fd = new FormData();
+      fd.set("company_id", compId); fd.set("doc_type", job.type);
+      if (job.row.id) fd.set("doc_id", job.row.id);
+      fd.set("belge_no", job.row.belge_no); fd.set("issue_date", job.row.issue_date);
+      fd.set("valid_until", job.row.valid_until); fd.set("notified_body_id", job.row.notified_body_id);
+      if (job.row.file) fd.set("file", job.row.file);
+      const r = await uploadCompanyDocument(fd);
+      if (r.ok) job.save({ id: (r as any).id ?? job.row.id, file: null });
+      else docErr = r.error;
+    }
+
+    setBusy(false); setDeletedIds([]); setDocKey((k) => k + 1);
     if (docErr) setMsg({ ok: false, text: "Müşteri kaydedildi, belge hatası: " + docErr });
     else setMsg({ ok: true, text: editId ? "Kaydedildi." : "Müşteri ve belgeler kaydedildi." });
     router.refresh();
     if (!editId) newCompany();
-    else { setDocForms((s) => { const o: Record<string, DocForm> = {}; for (const k in s) o[k] = { ...s[k], file: null }; return o; }); setDocKey((k) => k + 1); }
   }
 
   return (
@@ -173,7 +194,7 @@ export default function MusterilerClient({
 
       {/* Bilgiler (sol) + Belgeler (sağ) — tek Kaydet */}
       <form ref={formRef} onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start scroll-mt-6">
-        {/* Sol: bilgiler */}
+        {/* Sol */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold">{editId ? "Müşteri Düzenle" : "Yeni Müşteri"}</h2>
@@ -209,23 +230,49 @@ export default function MusterilerClient({
         </div>
 
         {/* Sağ: belgeler */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5">
-          <h2 className="font-bold mb-1">Belgeler</h2>
-          <p className="text-xs text-slate-400 mb-3">Dosya, veriliş ve geçerlilik tarihini gir; alttaki <b>Kaydet</b> ile müşteriyle birlikte yüklenir. 1 aydan az kalınca sarı, dolunca kırmızı.</p>
-          <div className="space-y-3">
-            {BELGE_TIPLERI.map((t) => (
-              <BelgeSatiri
-                key={`${editId || "new"}-${t.key}-${docKey}`}
-                ad={t.ad}
-                existingDoc={editId ? docsByComp[editId]?.[t.key] : undefined}
-                issueDate={docForms[t.key]?.issue_date ?? ""}
-                validUntil={docForms[t.key]?.valid_until ?? ""}
-                file={docForms[t.key]?.file ?? null}
-                onIssue={(v) => setDoc(t.key, { issue_date: v })}
-                onValid={(v) => setDoc(t.key, { valid_until: v })}
-                onFile={(f) => setDoc(t.key, { file: f })}
-              />
-            ))}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+          <div>
+            <h2 className="font-bold">Belgeler</h2>
+            <p className="text-xs text-slate-400">Dosya + tarihleri gir; alttaki <b>Kaydet</b> ile müşteriyle birlikte yüklenir. 1 aydan az kalınca sarı, dolunca kırmızı.</p>
+          </div>
+
+          <DocRow ad="Sanayi Sicil Belgesi" row={docs.sanayi_sicil} nbs={notifiedBodies} onChange={(p) => setSingle("sanayi_sicil", p)} rk={`${docKey}-sanayi`} />
+          <DocRow ad="TSE HYB Belgesi" row={docs.tse_hyb} nbs={notifiedBodies} onChange={(p) => setSingle("tse_hyb", p)} rk={`${docKey}-hyb`} />
+
+          {/* CE Belgeleri */}
+          <div className="border border-brand/20 bg-brand-light/40 rounded-xl p-3">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-sm font-bold text-brand">CE Belgeleri</span>
+              <div className="flex gap-1">
+                {["H1", "B"].map((m) => (
+                  <button key={m} type="button" onClick={() => setCeModule(m)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold border ${ceModule === m ? "bg-brand text-white border-transparent" : "bg-white border-slate-200 text-slate-600"}`}>
+                    Mod {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {ceModule === "H1" ? (
+              <div className="space-y-3">
+                <DocRow ad="Mod H1 Belgesi" row={docs.ce_h1} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setSingle("ce_h1", p)} rk={`${docKey}-h1`} />
+                <div className="text-xs font-semibold text-slate-600">Tasarım İnceleme Belgeleri</div>
+                {docs.ce_tasarim.map((r, i) => (
+                  <DocRow key={r.uid} ad={`Tasarım İnceleme ${i + 1}`} row={r} nbs={notifiedBodies} showBelgeNo showNb
+                    onChange={(p) => setListItem("ce_tasarim", i, p)} onRemove={() => removeListItem("ce_tasarim", i)} rk={`${r.uid}`} />
+                ))}
+                <button type="button" onClick={() => addListItem("ce_tasarim")} className="text-xs font-semibold text-brand hover:underline">+ Tasarım İnceleme Ekle</button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {docs.ce_b.map((r, i) => (
+                  <DocRow key={r.uid} ad={`Mod B Belgesi ${i + 1}`} row={r} nbs={notifiedBodies} showBelgeNo showNb
+                    onChange={(p) => setListItem("ce_b", i, p)} onRemove={() => removeListItem("ce_b", i)} rk={`${r.uid}`} />
+                ))}
+                <button type="button" onClick={() => addListItem("ce_b")} className="text-xs font-semibold text-brand hover:underline">+ Mod B Ekle</button>
+                <DocRow ad="Mod E Belgesi" row={docs.ce_e} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setSingle("ce_e", p)} rk={`${docKey}-e`} />
+              </div>
+            )}
           </div>
         </div>
       </form>
@@ -233,39 +280,65 @@ export default function MusterilerClient({
   );
 }
 
-function BelgeSatiri({
-  ad, existingDoc, issueDate, validUntil, file, onIssue, onValid, onFile,
+function DocRow({
+  ad, row, nbs, showBelgeNo, showNb, onChange, onRemove, rk,
 }: {
-  ad: string; existingDoc?: Doc; issueDate: string; validUntil: string; file: File | null;
-  onIssue: (v: string) => void; onValid: (v: string) => void; onFile: (f: File | null) => void;
+  ad: string; row: Row; nbs: NB[]; showBelgeNo?: boolean; showNb?: boolean;
+  onChange: (p: Partial<Row>) => void; onRemove?: () => void; rk: string;
 }) {
-  const durum = belgeDurum(validUntil, !!existingDoc?.original_name || !!file);
+  const durum = belgeDurum(row.valid_until, !!row.original_name || !!row.file);
+  const nb = nbs.find((n) => n.id === row.notified_body_id);
+  const dinp = "w-full text-xs px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
   return (
     <div className="border border-slate-100 rounded-xl p-3">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-semibold text-slate-800">{ad}</span>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${BADGE[durum.c]}`}>{durum.t}</span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${BADGE[durum.c]}`}>{durum.t}</span>
+          {onRemove && <button type="button" onClick={onRemove} className="text-xs text-red-500 hover:underline">Sil</button>}
+        </div>
       </div>
-      {existingDoc?.original_name && (
+      {row.id && row.original_name && (
         <div className="mb-2 text-xs">
-          <a href={`/api/belge/musteri?id=${existingDoc.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
-            <span className="material-symbols-rounded text-[15px]">description</span>{existingDoc.original_name}
+          <a href={`/api/belge/musteri?id=${row.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
+            <span className="material-symbols-rounded text-[15px]">description</span>{row.original_name}
           </a>
+        </div>
+      )}
+      {showBelgeNo && (
+        <div className="mb-2">
+          <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Belge No</label>
+          <input value={row.belge_no} onChange={(e) => onChange({ belge_no: e.target.value })} className={dinp} />
         </div>
       )}
       <div className="grid grid-cols-2 gap-2 mb-2">
         <div>
           <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Veriliş Tarihi</label>
-          <input type="date" value={issueDate} onChange={(e) => onIssue(e.target.value)} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-brand" />
+          <input type="date" value={row.issue_date} onChange={(e) => onChange({ issue_date: e.target.value })} className={dinp} />
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Geçerlilik Tarihi</label>
-          <input type="date" value={validUntil} onChange={(e) => onValid(e.target.value)} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-brand" />
+          <input type="date" value={row.valid_until} onChange={(e) => onChange({ valid_until: e.target.value })} className={dinp} />
         </div>
       </div>
-      <input type="file" onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+      {showNb && (
+        <div className="grid grid-cols-[1fr_90px] gap-2 mb-2">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Onaylanmış Kuruluş</label>
+            <select value={row.notified_body_id} onChange={(e) => onChange({ notified_body_id: e.target.value })} className={dinp}>
+              <option value="">Seçiniz…</option>
+              {nbs.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Kuruluş No</label>
+            <input value={nb?.identity_no ?? ""} disabled className={dinp + " bg-slate-100"} />
+          </div>
+        </div>
+      )}
+      <input key={rk} type="file" onChange={(e) => onChange({ file: e.target.files?.[0] ?? null })}
         className="text-xs w-full file:mr-2 file:text-xs file:font-semibold file:border-0 file:bg-brand-light file:text-brand file:px-2 file:py-1 file:rounded-md" />
-      {file && <div className="mt-1 text-xs text-slate-500">Yeni: {file.name}</div>}
+      {row.file && <div className="mt-1 text-xs text-slate-500">Yeni: {row.file.name}</div>}
     </div>
   );
 }
