@@ -9,6 +9,7 @@ export default function SideNav({ isAdmin }: { isAdmin: boolean }) {
   const path = usePathname();
   const items: Item[] = [
     { href: "/panel", label: "Panel", icon: "dashboard", match: (p) => p === "/panel" || p.startsWith("/panel/") },
+    { href: "/proje-onay", label: "Proje Onay Dosyası", icon: "fact_check", match: (p) => p.startsWith("/proje-onay") },
     { href: "/yeni", label: "Yeni Teknik Dosya", icon: "note_add", match: (p) => p === "/yeni" },
   ];
   if (isAdmin) items.push({ href: "/admin", label: "Yönetim", icon: "admin_panel_settings", match: (p) => p.startsWith("/admin") });
