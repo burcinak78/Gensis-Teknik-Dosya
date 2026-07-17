@@ -11,6 +11,7 @@ type Engineer = {
 };
 type Company = { id: string; short_name: string };
 type Doc = { id: string; engineer_id: string; doc_type: string; original_name: string | null; valid_until: string | null };
+type DocForm = { valid_until: string; file: File | null };
 
 const BRANS: Record<string, string> = { makine: "Makine Mühendisi", elektrik: "Elektrik Mühendisi" };
 const BELGE_TIPLERI: Record<string, { key: string; ad: string }[]> = {
@@ -47,10 +48,13 @@ export default function MuhendislerClient({
   const [q, setQ] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({ ...blank });
+  const [docForms, setDocForms] = useState<Record<string, DocForm>>({});
+  const [docKey, setDocKey] = useState(0);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const setDoc = (dt: string, patch: Partial<DocForm>) => setDocForms((s) => ({ ...s, [dt]: { valid_until: "", file: null, ...s[dt], ...patch } }));
 
   const docsByEng = useMemo(() => {
     const m: Record<string, Record<string, Doc>> = {};
@@ -58,7 +62,6 @@ export default function MuhendislerClient({
     return m;
   }, [documents]);
 
-  // mühendisin belge durumu (en kötü) — liste rozeti
   function engDurum(e: Engineer): { t: string; c: string } {
     const map = docsByEng[e.id] || {};
     const tipler = BELGE_TIPLERI[e.discipline] || [];
@@ -81,6 +84,14 @@ export default function MuhendislerClient({
     return engineers.filter((e) => e.full_name.toLocaleLowerCase("tr").includes(s));
   }, [q, engineers]);
 
+  function initDocForms(engId: string | null, discipline: string) {
+    const map = engId ? (docsByEng[engId] || {}) : {};
+    const out: Record<string, DocForm> = {};
+    for (const t of BELGE_TIPLERI[discipline] || []) out[t.key] = { valid_until: map[t.key]?.valid_until ?? "", file: null };
+    setDocForms(out);
+    setDocKey((k) => k + 1);
+  }
+
   function edit(e: Engineer) {
     setEditId(e.id);
     setForm({
@@ -88,18 +99,42 @@ export default function MuhendislerClient({
       chamber_reg_no: e.chamber_reg_no ?? "", company_id: e.company_id ?? "",
       address: e.address ?? "", phone: e.phone ?? "",
     });
+    initDocForms(e.id, e.discipline ?? "makine");
     setMsg(null);
   }
-  function yeni() { setEditId(null); setForm({ ...blank }); setMsg(null); }
+  function yeni() { setEditId(null); setForm({ ...blank }); initDocForms(null, "makine"); setMsg(null); }
 
   async function submit(ev: React.FormEvent) {
     ev.preventDefault();
     setBusy(true); setMsg(null);
     const res = editId ? await updateEngineer(editId, form as any) : await createEngineer(form as any);
+    if (!res.ok) { setBusy(false); setMsg({ ok: false, text: res.error }); return; }
+    const engId = editId || res.id!;
+
+    // staged belgeleri yükle (yalnız değişenler)
+    const tipler = BELGE_TIPLERI[form.discipline] || [];
+    let docErr: string | null = null;
+    for (const t of tipler) {
+      const df = docForms[t.key];
+      if (!df) continue;
+      const existing = docsByEng[engId]?.[t.key];
+      const changed = !!df.file || (df.valid_until && df.valid_until !== (existing?.valid_until ?? ""));
+      if (!changed) continue;
+      const fd = new FormData();
+      fd.set("engineer_id", engId); fd.set("doc_type", t.key); fd.set("valid_until", df.valid_until);
+      if (df.file) fd.set("file", df.file);
+      const r = await uploadEngineerDocument(fd);
+      if (!r.ok) docErr = r.error;
+    }
+
     setBusy(false);
-    if (res.ok) { setMsg({ ok: true, text: res.message ?? "Kaydedildi." }); router.refresh(); if (!editId) setForm({ ...blank }); }
-    else setMsg({ ok: false, text: res.error });
+    if (docErr) { setMsg({ ok: false, text: "Mühendis kaydedildi, belge hatası: " + docErr }); }
+    else setMsg({ ok: true, text: editId ? "Kaydedildi." : "Mühendis ve belgeler kaydedildi." });
+    router.refresh();
+    if (!editId) yeni();
+    else { setDocForms((s) => { const o: Record<string, DocForm> = {}; for (const k in s) o[k] = { ...s[k], file: null }; return o; }); setDocKey((k) => k + 1); }
   }
+
   async function sil() {
     if (!editId) return;
     if (!confirm(`"${form.full_name}" mühendisini silmek istiyor musunuz?`)) return;
@@ -109,6 +144,8 @@ export default function MuhendislerClient({
     if (res.ok) { yeni(); router.refresh(); }
     else setMsg({ ok: false, text: res.error });
   }
+
+  const docTipleri = BELGE_TIPLERI[form.discipline] || [];
 
   return (
     <div className="space-y-6">
@@ -144,9 +181,10 @@ export default function MuhendislerClient({
         </table>
       </div>
 
-      {/* Düzenle (sol) + Belgeler (sağ) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <form onSubmit={submit} className="bg-white border border-slate-200 rounded-2xl p-5 h-fit">
+      {/* Bilgiler (sol) + Belgeler (sağ) — tek Kaydet */}
+      <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Sol: bilgiler */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold">{editId ? "Mühendis Düzenle" : "Yeni Mühendis (Proje Müellifi)"}</h2>
             {editId && <button type="button" onClick={yeni} className="text-xs font-semibold text-brand hover:underline">+ Yeni</button>}
@@ -158,7 +196,7 @@ export default function MuhendislerClient({
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Branş *</label>
-              <select value={form.discipline} onChange={(e) => set("discipline", e.target.value)} className={inp}>
+              <select value={form.discipline} onChange={(e) => { set("discipline", e.target.value); initDocForms(editId, e.target.value); }} className={inp}>
                 <option value="makine">Makine Mühendisi</option>
                 <option value="elektrik">Elektrik Mühendisi</option>
               </select>
@@ -186,7 +224,7 @@ export default function MuhendislerClient({
           {msg && <div className={`mt-3 text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
           <div className="mt-4 flex items-center gap-2">
             <button disabled={busy} className="bg-brand hover:bg-brand-dark text-white font-bold text-sm px-5 py-2.5 rounded-lg disabled:opacity-50">
-              {busy ? "Kaydediliyor…" : editId ? "Değişiklikleri Kaydet" : "Mühendis Ekle"}
+              {busy ? "Kaydediliyor…" : editId ? "Değişiklikleri Kaydet" : "Mühendisi Kaydet"}
             </button>
             {editId && (
               <button type="button" onClick={sil} disabled={busy} className="text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg disabled:opacity-50">
@@ -194,80 +232,58 @@ export default function MuhendislerClient({
               </button>
             )}
           </div>
-        </form>
+        </div>
 
-        {/* Belgeler (yalnız düzenlemede) */}
-        {editId ? (
-          <div className="bg-white border border-slate-200 rounded-2xl p-5">
-            <h2 className="font-bold mb-1">Belgeler</h2>
-            <p className="text-xs text-slate-400 mb-3">Dosya seç, geçerlilik tarihi gir ve yükle. Geçerliliğe 1 aydan az kalınca sarı, dolunca kırmızı gösterilir.</p>
-            <div className="space-y-3">
-              {(BELGE_TIPLERI[form.discipline] || []).map((t) => (
-                <BelgeSatiri
-                  key={`${editId}-${t.key}`}
-                  engineerId={editId}
-                  docType={t.key}
-                  ad={t.ad}
-                  doc={docsByEng[editId]?.[t.key]}
-                  onSaved={() => router.refresh()}
-                />
-              ))}
-            </div>
+        {/* Sağ: belgeler */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5">
+          <h2 className="font-bold mb-1">Belgeler</h2>
+          <p className="text-xs text-slate-400 mb-3">Dosya ve geçerlilik tarihini gir; alttaki <b>Kaydet</b> ile mühendisle birlikte yüklenir. 1 aydan az kalınca sarı, dolunca kırmızı.</p>
+          <div className="space-y-3">
+            {docTipleri.map((t) => (
+              <BelgeSatiri
+                key={`${editId || "new"}-${t.key}-${docKey}`}
+                ad={t.ad}
+                existingDoc={editId ? docsByEng[editId]?.[t.key] : undefined}
+                validUntil={docForms[t.key]?.valid_until ?? ""}
+                file={docForms[t.key]?.file ?? null}
+                onDate={(v) => setDoc(t.key, { valid_until: v })}
+                onFile={(f) => setDoc(t.key, { file: f })}
+              />
+            ))}
           </div>
-        ) : (
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-sm text-slate-500">
-            Belgeleri yüklemek için önce mühendisi kaydedip listeden <b>Düzenle</b>'ye tıklayın.
-          </div>
-        )}
-      </div>
+        </div>
+      </form>
     </div>
   );
 }
 
 function BelgeSatiri({
-  engineerId, docType, ad, doc, onSaved,
-}: { engineerId: string; docType: string; ad: string; doc?: Doc; onSaved: () => void }) {
-  const [validUntil, setValidUntil] = useState(doc?.valid_until ?? "");
-  const [file, setFile] = useState<File | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const durum = belgeDurum(validUntil, !!doc?.original_name || !!file);
-
-  async function save() {
-    setBusy(true); setMsg(null);
-    const fd = new FormData();
-    fd.set("engineer_id", engineerId); fd.set("doc_type", docType); fd.set("valid_until", validUntil);
-    if (file) fd.set("file", file);
-    const res = await uploadEngineerDocument(fd);
-    setBusy(false);
-    if (res.ok) { setMsg({ ok: true, text: "Kaydedildi." }); setFile(null); onSaved(); }
-    else setMsg({ ok: false, text: res.error });
-  }
-
+  ad, existingDoc, validUntil, file, onDate, onFile,
+}: {
+  ad: string; existingDoc?: Doc; validUntil: string; file: File | null;
+  onDate: (v: string) => void; onFile: (f: File | null) => void;
+}) {
+  const durum = belgeDurum(validUntil, !!existingDoc?.original_name || !!file);
   return (
     <div className="border border-slate-100 rounded-xl p-3">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-semibold text-slate-800">{ad}</span>
         <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${BADGE[durum.c]}`}>{durum.t}</span>
       </div>
-      {doc?.original_name && (
+      {existingDoc?.original_name && (
         <div className="mb-2 text-xs">
-          <a href={`/api/belge/muhendis?id=${doc.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
-            <span className="material-symbols-rounded text-[15px]">description</span>{doc.original_name}
+          <a href={`/api/belge/muhendis?id=${existingDoc.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
+            <span className="material-symbols-rounded text-[15px]">description</span>{existingDoc.original_name}
           </a>
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)}
+        <input type="date" value={validUntil} onChange={(e) => onDate(e.target.value)}
           className="text-xs px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-brand" />
-        <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        <input type="file" onChange={(e) => onFile(e.target.files?.[0] ?? null)}
           className="text-xs flex-1 min-w-[120px] file:mr-2 file:text-xs file:font-semibold file:border-0 file:bg-brand-light file:text-brand file:px-2 file:py-1 file:rounded-md" />
-        <button type="button" onClick={save} disabled={busy}
-          className="text-xs font-bold bg-brand hover:bg-brand-dark text-white px-3 py-1.5 rounded-lg disabled:opacity-50">
-          {busy ? "…" : "Yükle"}
-        </button>
       </div>
-      {msg && <div className={`mt-2 text-xs ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</div>}
+      {file && <div className="mt-1 text-xs text-slate-500">Yeni: {file.name}</div>}
     </div>
   );
 }

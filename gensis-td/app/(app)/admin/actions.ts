@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export type Result = { ok: true; message?: string } | { ok: false; error: string };
+export type Result = { ok: true; message?: string; id?: string } | { ok: false; error: string };
 
 async function assertAdmin() {
   const supabase = createClient();
@@ -195,7 +195,7 @@ export async function createEngineer(form: {
     if (!["makine", "elektrik"].includes(form.discipline)) return { ok: false, error: "Branş seçin." };
     const admin = createAdminClient();
     const title = form.discipline === "makine" ? "Mak.Müh." : "Elk.Müh.";
-    const { error } = await admin.from("engineers").insert({
+    const { data, error } = await admin.from("engineers").insert({
       full_name: form.full_name,
       discipline: form.discipline,
       title,
@@ -204,10 +204,10 @@ export async function createEngineer(form: {
       address: form.address || null,
       phone: form.phone || null,
       is_active: true,
-    });
-    if (error) return { ok: false, error: error.message };
+    }).select("id").single();
+    if (error || !data) return { ok: false, error: error?.message ?? "Mühendis eklenemedi." };
     revalidatePath("/admin/muhendisler");
-    return { ok: true, message: "Mühendis eklendi." };
+    return { ok: true, message: "Mühendis eklendi.", id: data.id };
   } catch (e: any) {
     return { ok: false, error: e.message };
   }
