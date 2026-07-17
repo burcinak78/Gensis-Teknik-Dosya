@@ -12,7 +12,8 @@ type Company = {
 type Doc = { id: string; company_id: string; doc_type: string; original_name: string | null; issue_date: string | null; valid_until: string | null; belge_no: string | null; notified_body_id: string | null };
 type NB = { id: string; identity_no: string | null; name: string };
 type Row = { uid: string; id?: string; belge_no: string; issue_date: string; valid_until: string; notified_body_id: string; file: File | null; original_name?: string | null };
-type DocsState = { sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_tasarim: Row[]; ce_b: Row[] };
+type DocsState = { sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_tasarim: Row[]; ce_b: Row[]; ce_b_eki: Row[] };
+type ListKey = "ce_tasarim" | "ce_b" | "ce_b_eki";
 
 const BLANK: Record<string, string> = {
   short_name: "", legal_name: "", authorized_person: "", registered_brand: "",
@@ -25,7 +26,7 @@ const BADGE: Record<string, string> = {
 const RANK: Record<string, number> = { red: 3, amber: 2, green: 1, slate: 0 };
 const uid = () => (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 const emptyRow = (): Row => ({ uid: uid(), belge_no: "", issue_date: "", valid_until: "", notified_body_id: "", file: null });
-const emptyDocs = (): DocsState => ({ sanayi_sicil: emptyRow(), tse_hyb: emptyRow(), ce_h1: emptyRow(), ce_e: emptyRow(), ce_tasarim: [], ce_b: [] });
+const emptyDocs = (): DocsState => ({ sanayi_sicil: emptyRow(), tse_hyb: emptyRow(), ce_h1: emptyRow(), ce_e: emptyRow(), ce_tasarim: [], ce_b: [], ce_b_eki: [] });
 
 function belgeDurum(validUntil: string | null | undefined, hasFile: boolean): { t: string; c: string } {
   if (!validUntil) return hasFile ? { t: "Tarihsiz", c: "slate" } : { t: "Yok", c: "slate" };
@@ -60,12 +61,12 @@ export default function MusterilerClient({
     const all = documents.filter((d) => d.company_id === compId);
     const one = (t: string) => { const d = all.find((x) => x.doc_type === t); return d ? rowFromDoc(d) : emptyRow(); };
     const many = (t: string) => all.filter((x) => x.doc_type === t).map(rowFromDoc);
-    return { sanayi_sicil: one("sanayi_sicil"), tse_hyb: one("tse_hyb"), ce_h1: one("ce_h1"), ce_e: one("ce_e"), ce_tasarim: many("ce_tasarim"), ce_b: many("ce_b") };
+    return { sanayi_sicil: one("sanayi_sicil"), tse_hyb: one("tse_hyb"), ce_h1: one("ce_h1"), ce_e: one("ce_e"), ce_tasarim: many("ce_tasarim"), ce_b: many("ce_b"), ce_b_eki: many("ce_b_eki") };
   }
   const setSingle = (t: keyof DocsState, patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: { ...(s[t] as Row), ...patch } }));
-  const setListItem = (t: "ce_tasarim" | "ce_b", i: number, patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: (s[t]).map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
-  const addListItem = (t: "ce_tasarim" | "ce_b") => setDocs((s) => ({ ...s, [t]: [...s[t], emptyRow()] }));
-  const removeListItem = (t: "ce_tasarim" | "ce_b", i: number) => setDocs((s) => {
+  const setListItem = (t: ListKey, i: number, patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: (s[t]).map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
+  const addListItem = (t: ListKey) => setDocs((s) => ({ ...s, [t]: [...s[t], emptyRow()] }));
+  const removeListItem = (t: ListKey, i: number) => setDocs((s) => {
     const row = s[t][i];
     if (row?.id) setDeletedIds((d) => [...d, row.id!]);
     return { ...s, [t]: s[t].filter((_, j) => j !== i) };
@@ -134,6 +135,7 @@ export default function MusterilerClient({
       docs.ce_tasarim.forEach((r, i) => jobs.push({ type: "ce_tasarim", row: r, save: (p) => setListItem("ce_tasarim", i, p) }));
     } else {
       docs.ce_b.forEach((r, i) => jobs.push({ type: "ce_b", row: r, save: (p) => setListItem("ce_b", i, p) }));
+      docs.ce_b_eki.forEach((r, i) => jobs.push({ type: "ce_b_eki", row: r, save: (p) => setListItem("ce_b_eki", i, p) }));
       jobs.push({ type: "ce_e", row: docs.ce_e, save: (p) => setSingle("ce_e", p) });
     }
 
@@ -270,6 +272,14 @@ export default function MusterilerClient({
                     onChange={(p) => setListItem("ce_b", i, p)} onRemove={() => removeListItem("ce_b", i)} rk={`${r.uid}`} />
                 ))}
                 <button type="button" onClick={() => addListItem("ce_b")} className="text-xs font-semibold text-brand hover:underline">+ Mod B Ekle</button>
+
+                <div className="text-xs font-semibold text-slate-600 pt-1">Mod B Belgesi Ekleri</div>
+                {docs.ce_b_eki.map((r, i) => (
+                  <DocRow key={r.uid} ad={`Mod B Belgesi Eki ${i + 1}`} row={r} nbs={notifiedBodies} showBelgeNo showNb hideDates
+                    onChange={(p) => setListItem("ce_b_eki", i, p)} onRemove={() => removeListItem("ce_b_eki", i)} rk={`${r.uid}`} />
+                ))}
+                <button type="button" onClick={() => addListItem("ce_b_eki")} className="text-xs font-semibold text-brand hover:underline">+ Mod B Eki Ekle</button>
+
                 <DocRow ad="Mod E Belgesi" row={docs.ce_e} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setSingle("ce_e", p)} rk={`${docKey}-e`} />
               </div>
             )}
@@ -281,12 +291,14 @@ export default function MusterilerClient({
 }
 
 function DocRow({
-  ad, row, nbs, showBelgeNo, showNb, onChange, onRemove, rk,
+  ad, row, nbs, showBelgeNo, showNb, hideDates, onChange, onRemove, rk,
 }: {
-  ad: string; row: Row; nbs: NB[]; showBelgeNo?: boolean; showNb?: boolean;
+  ad: string; row: Row; nbs: NB[]; showBelgeNo?: boolean; showNb?: boolean; hideDates?: boolean;
   onChange: (p: Partial<Row>) => void; onRemove?: () => void; rk: string;
 }) {
-  const durum = belgeDurum(row.valid_until, !!row.original_name || !!row.file);
+  const durum = hideDates
+    ? (row.original_name || row.file ? { t: "Yüklendi", c: "green" } : { t: "Yok", c: "slate" })
+    : belgeDurum(row.valid_until, !!row.original_name || !!row.file);
   const nb = nbs.find((n) => n.id === row.notified_body_id);
   const dinp = "w-full text-xs px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
   return (
@@ -311,16 +323,18 @@ function DocRow({
           <input value={row.belge_no} onChange={(e) => onChange({ belge_no: e.target.value })} className={dinp} />
         </div>
       )}
-      <div className="grid grid-cols-2 gap-2 mb-2">
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Veriliş Tarihi</label>
-          <input type="date" value={row.issue_date} onChange={(e) => onChange({ issue_date: e.target.value })} className={dinp} />
+      {!hideDates && (
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Veriliş Tarihi</label>
+            <input type="date" value={row.issue_date} onChange={(e) => onChange({ issue_date: e.target.value })} className={dinp} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Geçerlilik Tarihi</label>
+            <input type="date" value={row.valid_until} onChange={(e) => onChange({ valid_until: e.target.value })} className={dinp} />
+          </div>
         </div>
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Geçerlilik Tarihi</label>
-          <input type="date" value={row.valid_until} onChange={(e) => onChange({ valid_until: e.target.value })} className={dinp} />
-        </div>
-      </div>
+      )}
       {showNb && (
         <div className="grid grid-cols-[1fr_90px] gap-2 mb-2">
           <div>
