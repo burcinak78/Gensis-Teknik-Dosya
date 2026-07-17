@@ -107,33 +107,25 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
         <FRow l="Projenin Türü" val={c.projeTuru} />
       </View>
       <Text style={{ fontSize: 8.6, marginTop: 10, textAlign: "justify", lineHeight: 1.5 }}>
-        Yukarıdaki bilgilere sahip projenin müellifliğini üstlendiğimi; 6235 sayılı Türk Mühendis ve
-        Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında söz konusu
-        işi yapmaya yasal olarak yetkili olduğumu ve müellifliğim önünde herhangi bir kısıtlılık
-        bulunmadığını; yukarıdaki bilgilere sahip yapıya ilişkin hazırlanan projenin imar, yapı,
-        deprem, yangın, enerji verimliliği, asansör gibi ilgili tüm mevzuat hükümlerine uygun olarak
-        hazırlandığını taahhüt ederim.
+        Yukarıdaki bilgilere sahip projenin müellifliğini üstlenmemde 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında süreli veya süresiz olarak mesleki faaliyet haklarımda herhangi bir kısıtlılık bulunmadığını, Yukarıdaki bilgilere sahp yapıya ilişkin hazırlanacak tüm projelerde, 3194 sayılı Kanun ve deprem, yangın,enerji verimliliği,asansör gibi ilgili tüm mevzuat hükümlerini eksiksiz uygulayacağımı taahhüt ederim.
       </Text>
       <View style={{ marginTop: 30, alignSelf: "flex-end", width: "60%" }}>
-        <Text style={{ fontSize: 9.5, fontWeight: "bold", textAlign: "center", marginBottom: 8 }}>Proje Müellifi</Text>
         <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-          <View style={{ marginRight: 16, alignItems: "flex-end" }}>
-            <Text style={{ fontSize: 9, fontWeight: "bold", marginBottom: 6 }}>{unvanKisa}</Text>
-            <Text style={{ fontSize: 9, marginBottom: 6 }}>{v(m?.ad)}</Text>
+          <View style={{ marginRight: 16, alignItems: "center" }}>
+            <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 6 }}>Proje Müellifi</Text>
+            <Text style={{ fontSize: 9, fontWeight: "bold", marginBottom: 5 }}>{unvanKisa}</Text>
+            <Text style={{ fontSize: 9, marginBottom: 5 }}>{v(m?.ad)}</Text>
             <Text style={{ fontSize: 9 }}>Oda Sicil No: {v(m?.oda_sicil)}</Text>
           </View>
-          <View style={{ minWidth: 68 }}>
-            <Text style={{ fontSize: 9, marginBottom: 6 }}>Adı-Soyadı</Text>
-            <Text style={{ fontSize: 9, marginBottom: 6 }}>Ünvanı</Text>
+          <View style={{ minWidth: 68, paddingTop: 21 }}>
+            <Text style={{ fontSize: 9, marginBottom: 5 }}>Adı-Soyadı</Text>
+            <Text style={{ fontSize: 9, marginBottom: 5 }}>Ünvanı</Text>
             <Text style={{ fontSize: 9 }}>İmza</Text>
           </View>
         </View>
       </View>
       <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
-        Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilir ve haklarında Türk
-        Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına ve 6235 sayılı Türk Mühendis ve
-        Mimar Odaları Birliği Kanunu ile ilgili mevzuat gereği bağlı bulundukları meslek odasına bilgi
-        verilecektir.
+        Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
       </Text>
       <Footer firma={c.fname} />
     </Page>
