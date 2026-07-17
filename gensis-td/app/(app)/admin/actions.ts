@@ -296,8 +296,10 @@ export async function uploadCompanyDocument(formData: FormData): Promise<Result>
     if (!company_id || !doc_type) return { ok: false, error: "Eksik bilgi." };
 
     const doc_id = String(formData.get("doc_id") || "") || null;
+    const sub_type = String(formData.get("sub_type") || "") || null;
+    const parent_id = String(formData.get("parent_id") || "") || null;
     const admin = createAdminClient();
-    const row: Record<string, any> = { company_id, doc_type, belge_no, issue_date, valid_until, notified_body_id };
+    const row: Record<string, any> = { company_id, doc_type, belge_no, issue_date, valid_until, notified_body_id, sub_type, parent_id };
 
     if (file && file.size > 0) {
       const ext = (file.name.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "") || "pdf";

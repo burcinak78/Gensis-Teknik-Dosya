@@ -9,16 +9,22 @@ type Company = {
   phone: string | null; mobile_phone: string | null; city: string | null;
   authorized_person: string | null; registered_brand: string | null; industry_reg_no: string | null; ce_module: string | null;
 };
-type Doc = { id: string; company_id: string; doc_type: string; original_name: string | null; issue_date: string | null; valid_until: string | null; belge_no: string | null; notified_body_id: string | null };
+type Doc = { id: string; company_id: string; doc_type: string; original_name: string | null; issue_date: string | null; valid_until: string | null; belge_no: string | null; notified_body_id: string | null; sub_type: string | null; parent_id: string | null };
 type NB = { id: string; identity_no: string | null; name: string };
 type Row = { uid: string; id?: string; belge_no: string; issue_date: string; valid_until: string; notified_body_id: string; file: File | null; original_name?: string | null };
-type DocsState = { sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_tasarim: Row[]; ce_b: Row[]; ce_b_eki: Row[] };
-type ListKey = "ce_tasarim" | "ce_b" | "ce_b_eki";
+type BRow = Row & { sub_type: string; eki: Row[] };
+type DocsState = { sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_tasarim: Row[]; ce_b: BRow[] };
 
 const BLANK: Record<string, string> = {
   short_name: "", legal_name: "", authorized_person: "", registered_brand: "",
   city: "", phone: "", mobile_phone: "", industry_reg_no: "", address: "",
 };
+const B_TIPLERI = [
+  { v: "mr", ad: "Mod B MR — Elektrikli Makine Daireli" },
+  { v: "mrl", ad: "Mod B MRL — Elektrikli Makine Dairesiz" },
+  { v: "hid_1_1", ad: "Mod B Hidrolik 1/1 Askı" },
+  { v: "hid_2_1", ad: "Mod B Hidrolik 2/1 Askı" },
+];
 const BADGE: Record<string, string> = {
   green: "bg-green-50 text-green-700", amber: "bg-amber-50 text-amber-700",
   red: "bg-red-50 text-red-600", slate: "bg-slate-100 text-slate-500",
@@ -26,7 +32,8 @@ const BADGE: Record<string, string> = {
 const RANK: Record<string, number> = { red: 3, amber: 2, green: 1, slate: 0 };
 const uid = () => (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 const emptyRow = (): Row => ({ uid: uid(), belge_no: "", issue_date: "", valid_until: "", notified_body_id: "", file: null });
-const emptyDocs = (): DocsState => ({ sanayi_sicil: emptyRow(), tse_hyb: emptyRow(), ce_h1: emptyRow(), ce_e: emptyRow(), ce_tasarim: [], ce_b: [], ce_b_eki: [] });
+const emptyBRow = (): BRow => ({ ...emptyRow(), sub_type: "", eki: [] });
+const emptyDocs = (): DocsState => ({ sanayi_sicil: emptyRow(), tse_hyb: emptyRow(), ce_h1: emptyRow(), ce_e: emptyRow(), ce_tasarim: [], ce_b: [] });
 
 function belgeDurum(validUntil: string | null | undefined, hasFile: boolean): { t: string; c: string } {
   if (!validUntil) return hasFile ? { t: "Tarihsiz", c: "slate" } : { t: "Yok", c: "slate" };
@@ -61,15 +68,29 @@ export default function MusterilerClient({
     const all = documents.filter((d) => d.company_id === compId);
     const one = (t: string) => { const d = all.find((x) => x.doc_type === t); return d ? rowFromDoc(d) : emptyRow(); };
     const many = (t: string) => all.filter((x) => x.doc_type === t).map(rowFromDoc);
-    return { sanayi_sicil: one("sanayi_sicil"), tse_hyb: one("tse_hyb"), ce_h1: one("ce_h1"), ce_e: one("ce_e"), ce_tasarim: many("ce_tasarim"), ce_b: many("ce_b"), ce_b_eki: many("ce_b_eki") };
+    const bList: BRow[] = all.filter((x) => x.doc_type === "ce_b").map((d) => ({
+      ...rowFromDoc(d), sub_type: d.sub_type ?? "",
+      eki: all.filter((x) => x.doc_type === "ce_b_eki" && x.parent_id === d.id).map(rowFromDoc),
+    }));
+    return { sanayi_sicil: one("sanayi_sicil"), tse_hyb: one("tse_hyb"), ce_h1: one("ce_h1"), ce_e: one("ce_e"), ce_tasarim: many("ce_tasarim"), ce_b: bList };
   }
-  const setSingle = (t: keyof DocsState, patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: { ...(s[t] as Row), ...patch } }));
-  const setListItem = (t: ListKey, i: number, patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: (s[t]).map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
-  const addListItem = (t: ListKey) => setDocs((s) => ({ ...s, [t]: [...s[t], emptyRow()] }));
-  const removeListItem = (t: ListKey, i: number) => setDocs((s) => {
-    const row = s[t][i];
-    if (row?.id) setDeletedIds((d) => [...d, row.id!]);
-    return { ...s, [t]: s[t].filter((_, j) => j !== i) };
+  const setSingle = (t: "sanayi_sicil" | "tse_hyb" | "ce_h1" | "ce_e", patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: { ...s[t], ...patch } }));
+  const setTasarim = (i: number, patch: Partial<Row>) => setDocs((s) => ({ ...s, ce_tasarim: s.ce_tasarim.map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
+  const addTasarim = () => setDocs((s) => ({ ...s, ce_tasarim: [...s.ce_tasarim, emptyRow()] }));
+  const removeTasarim = (i: number) => setDocs((s) => { const r = s.ce_tasarim[i]; if (r?.id) setDeletedIds((d) => [...d, r.id!]); return { ...s, ce_tasarim: s.ce_tasarim.filter((_, j) => j !== i) }; });
+  // Mod B (tip + kendine bağlı ekler)
+  const setB = (i: number, patch: Partial<BRow>) => setDocs((s) => ({ ...s, ce_b: s.ce_b.map((b, j) => (j === i ? { ...b, ...patch } : b)) }));
+  const addB = () => setDocs((s) => ({ ...s, ce_b: [...s.ce_b, emptyBRow()] }));
+  const removeB = (i: number) => setDocs((s) => {
+    const b = s.ce_b[i]; const ids = [b.id, ...b.eki.map((e) => e.id)].filter(Boolean) as string[];
+    if (ids.length) setDeletedIds((d) => [...d, ...ids]);
+    return { ...s, ce_b: s.ce_b.filter((_, j) => j !== i) };
+  });
+  const setBEki = (i: number, j: number, patch: Partial<Row>) => setDocs((s) => ({ ...s, ce_b: s.ce_b.map((b, bi) => (bi === i ? { ...b, eki: b.eki.map((e, ej) => (ej === j ? { ...e, ...patch } : e)) } : b)) }));
+  const addBEki = (i: number) => setDocs((s) => ({ ...s, ce_b: s.ce_b.map((b, bi) => (bi === i ? { ...b, eki: [...b.eki, emptyRow()] } : b)) }));
+  const removeBEki = (i: number, j: number) => setDocs((s) => {
+    const e = s.ce_b[i].eki[j]; if (e?.id) setDeletedIds((d) => [...d, e.id!]);
+    return { ...s, ce_b: s.ce_b.map((b, bi) => (bi === i ? { ...b, eki: b.eki.filter((_, ej) => ej !== j) } : b)) };
   });
 
   const docsByComp = useMemo(() => {
@@ -125,35 +146,48 @@ export default function MusterilerClient({
 
     for (const id of deletedIds) await deleteCompanyDocument(id);
 
-    type Job = { type: string; row: Row; save: (p: Partial<Row>) => void };
-    const jobs: Job[] = [
-      { type: "sanayi_sicil", row: docs.sanayi_sicil, save: (p) => setSingle("sanayi_sicil", p) },
-      { type: "tse_hyb", row: docs.tse_hyb, save: (p) => setSingle("tse_hyb", p) },
-    ];
-    if (ceModule === "H1") {
-      jobs.push({ type: "ce_h1", row: docs.ce_h1, save: (p) => setSingle("ce_h1", p) });
-      docs.ce_tasarim.forEach((r, i) => jobs.push({ type: "ce_tasarim", row: r, save: (p) => setListItem("ce_tasarim", i, p) }));
-    } else {
-      docs.ce_b.forEach((r, i) => jobs.push({ type: "ce_b", row: r, save: (p) => setListItem("ce_b", i, p) }));
-      docs.ce_b_eki.forEach((r, i) => jobs.push({ type: "ce_b_eki", row: r, save: (p) => setListItem("ce_b_eki", i, p) }));
-      jobs.push({ type: "ce_e", row: docs.ce_e, save: (p) => setSingle("ce_e", p) });
-    }
-
     let docErr: string | null = null;
-    for (const job of jobs) {
-      if (!rowHasContent(job.row)) continue;
+    // tek belge yükle → id yakalanmış satırı döndür
+    async function up(type: string, row: Row, extra?: { sub_type?: string; parent_id?: string }): Promise<Row> {
       const fd = new FormData();
-      fd.set("company_id", compId); fd.set("doc_type", job.type);
-      if (job.row.id) fd.set("doc_id", job.row.id);
-      fd.set("belge_no", job.row.belge_no); fd.set("issue_date", job.row.issue_date);
-      fd.set("valid_until", job.row.valid_until); fd.set("notified_body_id", job.row.notified_body_id);
-      if (job.row.file) fd.set("file", job.row.file);
+      fd.set("company_id", compId); fd.set("doc_type", type);
+      if (row.id) fd.set("doc_id", row.id);
+      fd.set("belge_no", row.belge_no); fd.set("issue_date", row.issue_date);
+      fd.set("valid_until", row.valid_until); fd.set("notified_body_id", row.notified_body_id);
+      if (extra?.sub_type != null) fd.set("sub_type", extra.sub_type);
+      if (extra?.parent_id != null) fd.set("parent_id", extra.parent_id);
+      if (row.file) fd.set("file", row.file);
       const r = await uploadCompanyDocument(fd);
-      if (r.ok) job.save({ id: (r as any).id ?? job.row.id, file: null });
-      else docErr = r.error;
+      if (r.ok) return { ...row, id: (r as any).id ?? row.id, file: null };
+      docErr = r.error; return { ...row, file: null };
     }
 
-    setBusy(false); setDeletedIds([]); setDocKey((k) => k + 1);
+    const nd = emptyDocs();
+    nd.sanayi_sicil = rowHasContent(docs.sanayi_sicil) ? await up("sanayi_sicil", docs.sanayi_sicil) : { ...docs.sanayi_sicil, file: null };
+    nd.tse_hyb = rowHasContent(docs.tse_hyb) ? await up("tse_hyb", docs.tse_hyb) : { ...docs.tse_hyb, file: null };
+
+    if (ceModule === "H1") {
+      nd.ce_h1 = rowHasContent(docs.ce_h1) ? await up("ce_h1", docs.ce_h1) : { ...docs.ce_h1, file: null };
+      nd.ce_tasarim = [];
+      for (const r of docs.ce_tasarim) nd.ce_tasarim.push(rowHasContent(r) ? await up("ce_tasarim", r) : { ...r, file: null });
+      nd.ce_b = docs.ce_b;
+    } else {
+      nd.ce_b = [];
+      for (const b of docs.ce_b) {
+        const bHas = rowHasContent(b) || !!b.sub_type;
+        const savedB = bHas ? await up("ce_b", b, { sub_type: b.sub_type }) : { ...b, file: null };
+        const parentId = savedB.id;
+        const savedEki: Row[] = [];
+        for (const e of b.eki) {
+          if ((e.file || e.id) && parentId) savedEki.push(await up("ce_b_eki", e, { parent_id: parentId }));
+          else savedEki.push({ ...e, file: null });
+        }
+        nd.ce_b.push({ ...(savedB as Row), sub_type: b.sub_type, eki: savedEki });
+      }
+      nd.ce_e = rowHasContent(docs.ce_e) ? await up("ce_e", docs.ce_e) : { ...docs.ce_e, file: null };
+    }
+
+    setBusy(false); setDocs(nd); setDeletedIds([]); setDocKey((k) => k + 1);
     if (docErr) setMsg({ ok: false, text: "Müşteri kaydedildi, belge hatası: " + docErr });
     else setMsg({ ok: true, text: editId ? "Kaydedildi." : "Müşteri ve belgeler kaydedildi." });
     router.refresh();
@@ -241,7 +275,6 @@ export default function MusterilerClient({
           <DocRow ad="Sanayi Sicil Belgesi" row={docs.sanayi_sicil} nbs={notifiedBodies} onChange={(p) => setSingle("sanayi_sicil", p)} rk={`${docKey}-sanayi`} />
           <DocRow ad="TSE HYB Belgesi" row={docs.tse_hyb} nbs={notifiedBodies} onChange={(p) => setSingle("tse_hyb", p)} rk={`${docKey}-hyb`} />
 
-          {/* CE Belgeleri */}
           <div className="border border-brand/20 bg-brand-light/40 rounded-xl p-3">
             <div className="flex items-center gap-3 mb-2">
               <span className="text-sm font-bold text-brand">CE Belgeleri</span>
@@ -261,25 +294,37 @@ export default function MusterilerClient({
                 <div className="text-xs font-semibold text-slate-600">Tasarım İnceleme Belgeleri</div>
                 {docs.ce_tasarim.map((r, i) => (
                   <DocRow key={r.uid} ad={`Tasarım İnceleme ${i + 1}`} row={r} nbs={notifiedBodies} showBelgeNo showNb
-                    onChange={(p) => setListItem("ce_tasarim", i, p)} onRemove={() => removeListItem("ce_tasarim", i)} rk={`${r.uid}`} />
+                    onChange={(p) => setTasarim(i, p)} onRemove={() => removeTasarim(i)} rk={r.uid} />
                 ))}
-                <button type="button" onClick={() => addListItem("ce_tasarim")} className="text-xs font-semibold text-brand hover:underline">+ Tasarım İnceleme Ekle</button>
+                <button type="button" onClick={addTasarim} className="text-xs font-semibold text-brand hover:underline">+ Tasarım İnceleme Ekle</button>
               </div>
             ) : (
               <div className="space-y-3">
-                {docs.ce_b.map((r, i) => (
-                  <DocRow key={r.uid} ad={`Mod B Belgesi ${i + 1}`} row={r} nbs={notifiedBodies} showBelgeNo showNb
-                    onChange={(p) => setListItem("ce_b", i, p)} onRemove={() => removeListItem("ce_b", i)} rk={`${r.uid}`} />
+                {docs.ce_b.map((b, i) => (
+                  <div key={b.uid} className="border border-slate-200 rounded-xl p-3 space-y-2 bg-white">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-800">Mod B Belgesi {i + 1}</span>
+                      <button type="button" onClick={() => removeB(i)} className="text-xs text-red-500 hover:underline">Sil</button>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Mod B Belge Tipi</label>
+                      <select value={b.sub_type} onChange={(e) => setB(i, { sub_type: e.target.value })} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-brand">
+                        <option value="">Seçiniz…</option>
+                        {B_TIPLERI.map((t) => <option key={t.v} value={t.v}>{t.ad}</option>)}
+                      </select>
+                    </div>
+                    <DocRow ad="Belge Bilgileri" row={b} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setB(i, p)} rk={b.uid} />
+                    <div className="pl-3 border-l-2 border-brand/20 space-y-2">
+                      <div className="text-[11px] font-semibold text-slate-500">Bu Mod B'ye ait ekler (sadece dosya)</div>
+                      {b.eki.map((e, j) => (
+                        <DocRow key={e.uid} ad={`Ek ${j + 1}`} row={e} nbs={[]} hideDates onlyFile
+                          onChange={(p) => setBEki(i, j, p)} onRemove={() => removeBEki(i, j)} rk={e.uid} />
+                      ))}
+                      <button type="button" onClick={() => addBEki(i)} className="text-xs font-semibold text-brand hover:underline">+ Ek Ekle</button>
+                    </div>
+                  </div>
                 ))}
-                <button type="button" onClick={() => addListItem("ce_b")} className="text-xs font-semibold text-brand hover:underline">+ Mod B Ekle</button>
-
-                <div className="text-xs font-semibold text-slate-600 pt-1">Mod B Belgesi Ekleri</div>
-                {docs.ce_b_eki.map((r, i) => (
-                  <DocRow key={r.uid} ad={`Mod B Belgesi Eki ${i + 1}`} row={r} nbs={notifiedBodies} showBelgeNo showNb hideDates
-                    onChange={(p) => setListItem("ce_b_eki", i, p)} onRemove={() => removeListItem("ce_b_eki", i)} rk={`${r.uid}`} />
-                ))}
-                <button type="button" onClick={() => addListItem("ce_b_eki")} className="text-xs font-semibold text-brand hover:underline">+ Mod B Eki Ekle</button>
-
+                <button type="button" onClick={addB} className="text-xs font-semibold text-brand hover:underline">+ Mod B Ekle</button>
                 <DocRow ad="Mod E Belgesi" row={docs.ce_e} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setSingle("ce_e", p)} rk={`${docKey}-e`} />
               </div>
             )}
@@ -291,12 +336,12 @@ export default function MusterilerClient({
 }
 
 function DocRow({
-  ad, row, nbs, showBelgeNo, showNb, hideDates, onChange, onRemove, rk,
+  ad, row, nbs, showBelgeNo, showNb, hideDates, onlyFile, onChange, onRemove, rk,
 }: {
-  ad: string; row: Row; nbs: NB[]; showBelgeNo?: boolean; showNb?: boolean; hideDates?: boolean;
+  ad: string; row: Row; nbs: NB[]; showBelgeNo?: boolean; showNb?: boolean; hideDates?: boolean; onlyFile?: boolean;
   onChange: (p: Partial<Row>) => void; onRemove?: () => void; rk: string;
 }) {
-  const durum = hideDates
+  const durum = (hideDates || onlyFile)
     ? (row.original_name || row.file ? { t: "Yüklendi", c: "green" } : { t: "Yok", c: "slate" })
     : belgeDurum(row.valid_until, !!row.original_name || !!row.file);
   const nb = nbs.find((n) => n.id === row.notified_body_id);
@@ -317,13 +362,13 @@ function DocRow({
           </a>
         </div>
       )}
-      {showBelgeNo && (
+      {!onlyFile && showBelgeNo && (
         <div className="mb-2">
           <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Belge No</label>
           <input value={row.belge_no} onChange={(e) => onChange({ belge_no: e.target.value })} className={dinp} />
         </div>
       )}
-      {!hideDates && (
+      {!onlyFile && !hideDates && (
         <div className="grid grid-cols-2 gap-2 mb-2">
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Veriliş Tarihi</label>
@@ -335,7 +380,7 @@ function DocRow({
           </div>
         </div>
       )}
-      {showNb && (
+      {!onlyFile && showNb && (
         <div className="grid grid-cols-[1fr_90px] gap-2 mb-2">
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Onaylanmış Kuruluş</label>

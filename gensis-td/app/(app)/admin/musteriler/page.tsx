@@ -12,7 +12,7 @@ export default async function MusterilerPage() {
       .order("short_name")
       .limit(1000),
     supabase.from("provinces").select("name").order("name"),
-    supabase.from("company_documents").select("id, company_id, doc_type, original_name, issue_date, valid_until, belge_no, notified_body_id").limit(5000),
+    supabase.from("company_documents").select("id, company_id, doc_type, original_name, issue_date, valid_until, belge_no, notified_body_id, sub_type, parent_id").limit(5000),
     supabase.from("notified_bodies").select("id, identity_no, name").order("name"),
   ]);
 
