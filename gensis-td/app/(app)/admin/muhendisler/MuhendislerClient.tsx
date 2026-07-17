@@ -111,9 +111,9 @@ export default function MuhendislerClient({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-      {/* Liste */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden h-fit">
+    <div className="space-y-6">
+      {/* Liste (tam genişlik) */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
         <div className="p-3 border-b border-slate-100">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Mühendis adından ara…" className={inp} />
         </div>
@@ -144,8 +144,8 @@ export default function MuhendislerClient({
         </table>
       </div>
 
-      {/* Form */}
-      <div className="space-y-4">
+      {/* Düzenle (sol) + Belgeler (sağ) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <form onSubmit={submit} className="bg-white border border-slate-200 rounded-2xl p-5 h-fit">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold">{editId ? "Mühendis Düzenle" : "Yeni Mühendis (Proje Müellifi)"}</h2>
