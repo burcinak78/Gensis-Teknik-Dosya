@@ -2,6 +2,7 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { TEKNIK_DOSYA_BELGELERI } from "./belgeler";
 import { KULLANIM_KLAVUZU, BAKIM_KLAVUZU, SON_KONTROL } from "./belge_icerik";
+import { KULLANIM_KLAVUZU_HID, BAKIM_KLAVUZU_HID } from "./belge_icerik_hidrolik";
 
 // Birleşik Teknik Dosya — belgeleri tek PDF'te birleştirir VEYA tek belge üretir (only).
 // Veri = project_render_context (jsonb). Font 'Roboto' route'ta register edilir.
@@ -102,7 +103,7 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
         <FRow l="Yapı Adresi" val={c.d.montaj_adresi} />
         <FRow l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
         <FRow l="Yapı Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
-        <FRow l="Projenin Türü" val="ELEKTRİKLİ ASANSÖR" />
+        <FRow l="Projenin Türü" val={c.projeTuru} />
       </View>
       <Text style={{ fontSize: 8.6, marginTop: 10, textAlign: "justify", lineHeight: 1.5 }}>
         Yukarıdaki bilgilere sahip projenin müellifliğini üstlendiğimi; 6235 sayılı Türk Mühendis ve
@@ -198,7 +199,13 @@ function buildCtx(data: any) {
   const kisi = d.kisi_sayisi ?? kap.kisi;
   const adaParsel = [inp.ada, inp.parsel].filter(Boolean).join(" / ");
   const eqEntries = Object.entries(ekipman);
-  return { d, firma, modul, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries };
+  // asansör tipine göre belge dallanması
+  const isHid = inp.asansor_tipi === "hidrolik";
+  const tahrikTuru = isHid ? "HİDROLİK ENDİREKT TAHRİK" : "ELEKTRİKLİ DİREKT TAHRİK";
+  const projeTuru = isHid ? "HİDROLİK ASANSÖR" : "ELEKTRİKLİ ASANSÖR";
+  const asansorTuru = isHid ? "Hidrolik Yük Asansörü" : "Elektrikli İnsan Asansörü";
+  const garantiSinif = isHid ? "SINIF IV" : "SINIF I";
+  return { d, firma, modul, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, tahrikTuru, projeTuru, asansorTuru, garantiSinif };
 }
 
 // Her belge için render fonksiyonu (code -> Page)
@@ -298,7 +305,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <FRow l="ASANSÖRÜN MARKASI" val={c.firma.tescilli_marka} />
           <FRow l="ASANSÖRÜN SERİ NUMARASI" val={c.inp.asansor_seri_no} />
           <FRow l="ASANSÖRÜN İMAL YILI" val={c.d.imal_yili} />
-          <FRow l="ASANSÖRÜN TAHRİK TÜRÜ" val="ELEKTRİKLİ DİREKT TAHRİK" />
+          <FRow l="ASANSÖRÜN TAHRİK TÜRÜ" val={c.tahrikTuru} />
           <FRow l="ASANSÖRÜN HIZI" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} />
           <FRow l="ASANSÖRÜN KAPASİTESİ VEYA BEYAN YÜKÜ" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : ""} />
           <FRow l="ASANSÖRÜN DURAK SAYISI" val={c.d.durak_adedi} />
@@ -357,9 +364,9 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FRow l="TARİHİ" val="" />
         <FRow l="SAYISI" val="" />
         <FSection>MALIN</FSection>
-        <FRow l="CİNSİ" val="ELEKTRİKLİ DİREKT TAHRİK" />
+        <FRow l="CİNSİ" val={c.tahrikTuru} />
         <FRow l="MARKASI" val={c.firma.tescilli_marka} />
-        <FRow l="MODELİ" val="SINIF I" />
+        <FRow l="MODELİ" val={c.garantiSinif} />
         <FRow l="SERİ NUMARASI" val={c.inp.asansor_seri_no} />
         <FRow l="TESLİM TARİHİ" val={c.tarih} />
         <FRow l="TESLİM ADRESİ" val={c.d.montaj_adresi} />
@@ -430,7 +437,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     <Page key="yazili_beyanname" size="A4" style={st.page}>
       <DocHead firma={c.firma} title="BEYANNAME" />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
-      <R l="Asansörün Tipi" val="ELEKTRİKLİ DİREKT TAHRİK" />
+      <R l="Asansörün Tipi" val={c.tahrikTuru} />
       <R l="Yapım Yılı" val={c.d.imal_yili} />
       <R l="Seyir Mesafesi" val={c.inp.seyir_mesafesi ? `${c.inp.seyir_mesafesi} m` : undefined} />
       <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg` : undefined} />
@@ -459,13 +466,23 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     <Page key="teknik_komponent" size="A4" style={st.page}>
       <DocHead firma={c.firma} title="ASANSÖR TEKNİK ÖZELLİKLERİ & GÜVENLİK EKİPMANLARI LİSTESİ" />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
-      <R l="Asansörün Tipi" val="Elektrikli İnsan Asansörü" />
+      <R l="Asansörün Tipi" val={c.asansorTuru} />
       <R l="Yapım Yılı" val={c.d.imal_yili} />
       <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg` : undefined} />
       <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
       <R l="Kat / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
       <R l="Kat Kapısı" val={c.inp.kat_kapisi} />
       <R l="Askı Tipi" val={c.inp.aski_tipi} />
+      {c.isHid ? (
+        <>
+          <R l="Ünite / Motor Bilgisi" val={c.inp.unite_bilgisi} />
+          <R l="Piston Ölçüleri" val={c.inp.piston_olculeri ? `${c.inp.piston_olculeri} mm` : undefined} />
+          <R l="Piston Yeri" val={c.inp.piston_yeri} />
+          <R l="Debi" val={c.inp.debi ? `${c.inp.debi} l/d` : undefined} />
+        </>
+      ) : (
+        <R l="Motor Gücü" val={c.inp.motor_gucu ? `${c.inp.motor_gucu} kW` : undefined} />
+      )}
       <Text style={st.sec}>Güvenlik Ekipmanları</Text>
       {c.eqEntries.length === 0 ? (
         <Text style={{ color: "#9ca3af" }}>Seçili ekipman yok.</Text>
@@ -512,13 +529,24 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       </Text>
       <Text style={st.p}>
         {v(c.d.montaj_adresi)} adresinde, {v(c.inp.pafta)} pafta {v(c.inp.ada)} ada {v(c.inp.parsel)} parsel
-        sayılı yerde bulunan elektrik motorunun fenni ve teknik şartlara uygun olarak kullanılacağını beyan ederiz.
+        sayılı yerde bulunan {c.isHid ? "hidrolik ünitesinin" : "elektrik motorunun"} fenni ve teknik şartlara uygun olarak kullanılacağını beyan ederiz.
       </Text>
-      <Text style={st.sec}>Motorun Özellikleri</Text>
-      <R l="Motor Markası" val={c.ekipman.motor?.marka} />
-      <R l="Motor Modeli" val={c.ekipman.motor?.model} />
-      <R l="Motor Seri No" val={c.ekipman.motor?.seri_no || c.inp.motor_seri_no} />
-      <R l="Motor Gücü" val={c.inp.motor_gucu ? `${c.inp.motor_gucu} kW` : undefined} />
+      <Text style={st.sec}>{c.isHid ? "Ünite / Piston Özellikleri" : "Motorun Özellikleri"}</Text>
+      {c.isHid ? (
+        <>
+          <R l="Ünite / Motor Bilgisi" val={c.inp.unite_bilgisi} />
+          <R l="Piston Ölçüleri" val={c.inp.piston_olculeri ? `${c.inp.piston_olculeri} mm` : undefined} />
+          <R l="Piston Yeri" val={c.inp.piston_yeri} />
+          <R l="Debi" val={c.inp.debi ? `${c.inp.debi} l/d` : undefined} />
+        </>
+      ) : (
+        <>
+          <R l="Motor Markası" val={c.ekipman.motor?.marka} />
+          <R l="Motor Modeli" val={c.ekipman.motor?.model} />
+          <R l="Motor Seri No" val={c.ekipman.motor?.seri_no || c.inp.motor_seri_no} />
+          <R l="Motor Gücü" val={c.inp.motor_gucu ? `${c.inp.motor_gucu} kW` : undefined} />
+        </>
+      )}
       <Text style={{ marginTop: 16, textAlign: "right" }}>SAYGILARIMIZLA</Text>
       <Footer firma={c.fname} />
     </Page>
@@ -649,7 +677,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   kullanim_klavuzu: (c) => (
     <Page key="kullanim_klavuzu" size="A4" style={st.page} wrap>
       <DocHead firma={c.firma} title="ASANSÖR KULLANIM KILAVUZU" />
-      {KULLANIM_KLAVUZU.map((t, i) => (
+      {(c.isHid ? KULLANIM_KLAVUZU_HID : KULLANIM_KLAVUZU).map((t, i) => (
         <View key={i} style={st.klvItem} wrap={false}>
           <Text style={st.klvNo}>{i + 1}.</Text>
           <Text style={st.klvText}>{t}</Text>
@@ -662,7 +690,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   bakim_klavuzu: (c) => (
     <Page key="bakim_klavuzu" size="A4" style={st.page} wrap>
       <DocHead firma={c.firma} title="ASANSÖR BAKIM KILAVUZU" />
-      {BAKIM_KLAVUZU.map((t, i) => (
+      {(c.isHid ? BAKIM_KLAVUZU_HID : BAKIM_KLAVUZU).map((t, i) => (
         <View key={i} style={st.klvItem} wrap={false}>
           <Text style={st.klvNo}>{i + 1}.</Text>
           <Text style={st.klvText}>{t}</Text>
