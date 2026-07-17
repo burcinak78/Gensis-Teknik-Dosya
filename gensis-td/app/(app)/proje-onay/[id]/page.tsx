@@ -28,9 +28,9 @@ export default async function ProjeOnayDetayPage({ params }: { params: { id: str
   const hiz = row.input_data?.beyan_hizi_txt || row.beyan_hizi;
 
   const belgeler = [
-    { ad: "Avan Proje Onay Dilekçesi", href: `/api/pdf/avan-proje-dilekce?id=${row.id}`, hazir: true },
-    { ad: "Makine Mühendisi Taahhütnamesi", href: "#", hazir: false },
-    { ad: "Elektrik Mühendisi Taahhütnamesi", href: "#", hazir: false },
+    { ad: "Avan Proje Onay Dilekçesi", href: `/api/pdf/proje-onay?id=${row.id}&doc=dilekce`, hazir: true },
+    { ad: "Makine Mühendisi Taahhütnamesi", href: `/api/pdf/proje-onay?id=${row.id}&doc=makine_taahhut`, hazir: !!row.makine_muhendis_id },
+    { ad: "Elektrik Mühendisi Taahhütnamesi", href: `/api/pdf/proje-onay?id=${row.id}&doc=elektrik_taahhut`, hazir: !!row.elektrik_muhendis_id },
   ];
 
   return (
@@ -48,7 +48,13 @@ export default async function ProjeOnayDetayPage({ params }: { params: { id: str
       <div className="px-8 py-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 max-w-5xl gs-fade">
         {/* Belgeler */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 h-fit">
-          <h2 className="font-bold mb-3">Belgeler</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold">Belgeler</h2>
+            <a href={`/api/pdf/proje-onay?id=${row.id}&doc=hepsi`} target="_blank" rel="noreferrer"
+              className="gs-btn text-xs font-bold px-3 py-2 rounded-lg inline-flex items-center gap-1.5">
+              <span className="material-symbols-rounded text-[16px]">download</span> Tümünü indir (PDF)
+            </a>
+          </div>
           <div className="space-y-2">
             {belgeler.map((b) => (
               <div key={b.ad} className="flex items-center justify-between border border-slate-100 rounded-xl px-4 py-3">
@@ -64,7 +70,7 @@ export default async function ProjeOnayDetayPage({ params }: { params: { id: str
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-slate-400">Mühendis taahhütnameleri ve toplu PDF bir sonraki aşamada eklenecek.</p>
+          <p className="mt-3 text-xs text-slate-400">Taahhütnameler, seçili proje müellifi mühendislerle üretilir. Mühendis seçilmemişse ilgili belge pasif olur.</p>
         </div>
 
         {/* Özet */}
