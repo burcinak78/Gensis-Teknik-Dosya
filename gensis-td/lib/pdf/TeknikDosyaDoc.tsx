@@ -220,7 +220,12 @@ function teknikKomponentPage(c: any) {
   const katSeri: string[] = Array.isArray(kk.seri_list) ? kk.seri_list.map((x: any) => (x == null ? "" : String(x))) : [];
   const durak = Number(c.d.durak_adedi || 0) || katSeri.length;
   const n = Math.max(durak, katSeri.length, 1);
-  const katlar = Array.from({ length: n }, (_, i) => ({ ad: `${i + 1}.KAT`, seri: katSeri[i] || "" }));
+  // Kat etiketleri: veri girişindeki kat listesi (B/Z/1..) varsa onu kullan
+  const katAdlari: string[] = Array.isArray(c.inp.kat_listesi) ? c.inp.kat_listesi.map((x: any) => String(x)) : [];
+  const katlar = Array.from({ length: n }, (_, i) => ({
+    ad: katAdlari[i] ? `${katAdlari[i]}` : `${i + 1}.KAT`,
+    seri: katSeri[i] || "",
+  }));
   // Kabin kapı kilidi: giriş başına ayrı seri no (kat kilidiyle aynı mantık)
   const kbk = eq.kabin_kilidi || {};
   const girisSeri: string[] = Array.isArray(kbk.seri_list) ? kbk.seri_list.map((x: any) => (x == null ? "" : String(x))) : [];
@@ -247,7 +252,7 @@ function teknikKomponentPage(c: any) {
       <Text style={st.kTitle}>ASANSÖR TEKNİK ÖZELLİKLERİ &amp; GÜVENLİK EKİPMANLARI LİSTESİ</Text>
 
       <KInfo l="ASANSÖR SERİ NO" val={c.inp.asansor_seri_no} />
-      <KInfo l="ASANSÖRÜN TİPİ" val={c.asansorTuru} />
+      <KInfo l="ASANSÖRÜN TİPİ" val={c.inp.asansor_sinifi || c.asansorTuru} />
       <KInfo l="YAPIM YILI" val={c.d.imal_yili} />
       <KInfo l="SEYİR MESAFESİ" val={c.inp.seyir_mesafesi} unit="m." />
       <KInfo l="BEYAN YÜKÜ" val={c.d.beyan_yuku_kg} unit="Kg." />
@@ -257,20 +262,26 @@ function teknikKomponentPage(c: any) {
 
       <KSection>KAT KAPILARI</KSection>
       <KInfo sub l="Tipi" val={c.inp.kat_kapisi} />
-      <KInfo sub l="Ebatlar" val={ebat(c.inp.kat_kapi_genislik, c.inp.kat_kapi_yukseklik)} unit="mm." />
+      <KInfo sub l="Ebatlar" val={ebat(c.inp.kapi_genislik, c.inp.kapi_yukseklik)} unit="mm." />
 
       <KSection>KABİN</KSection>
       <KInfo sub l="Ebatları" val={ebat(c.inp.kabin_genislik, c.inp.kabin_derinlik)} unit="mm." />
-      <KInfo sub l="Ağırlığı" val={c.kap?.kabin_agirlik} unit="Kg." />
+      <KInfo sub l="Ağırlığı" val={c.inp.kabin_agirligi || c.kap?.kabin_agirlik} unit="Kg." />
 
-      <KSection>KARŞI AĞIRLIK</KSection>
-      <KInfo sub l="Yeri" val={c.inp.karsi_agirlik_yeri} />
-      <KInfo sub l="Ağırlığı" val={c.kap?.karsi_agirlik} unit="Kg." />
+      {!c.isHid && (
+        <>
+          <KSection>KARŞI AĞIRLIK</KSection>
+          <KInfo sub l="Yeri" val={c.inp.karsi_agirlik_yeri} />
+          <KInfo sub l="Ağırlığı" val={c.inp.karsi_agirlik_agirligi || c.kap?.karsi_agirlik} unit="Kg." />
+        </>
+      )}
 
       {c.isHid ? (
         <>
           <KSection>ÜNİTE / PİSTON</KSection>
-          <KInfo sub l="Ünite / Motor" val={c.inp.unite_bilgisi} />
+          <KInfo sub l="Motor / Ünite Markası" val={c.inp.motor_marka} />
+          <KInfo sub l="Motor Gücü" val={c.inp.motor_gucu} unit="kW" />
+          <KInfo sub l="Ünite Bilgisi" val={c.inp.unite_bilgisi} />
           <KInfo sub l="Piston Ölçüleri" val={c.inp.piston_olculeri} unit="mm." />
           <KInfo sub l="Piston Yeri" val={c.inp.piston_yeri} />
           <KInfo sub l="Debi" val={c.inp.debi} unit="l/d" />

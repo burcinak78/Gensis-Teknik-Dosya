@@ -33,6 +33,9 @@ export type InitialData = {
   pafta: string; ada: string; parsel: string; yapiSahibi: string; yapiSahibiAdresi: string;
   asansorSeriNo: string; asansorKimlikNo: string; seyirMesafesi: string; motorGucu: string;
   asansorTipi: string; pistonOlculeri: string; pistonYeri: string; debi: string; uniteBilgisi: string;
+  asansorSinifi: string; kapiGenislik: string; kapiYukseklik: string;
+  kabinGenislik: string; kabinDerinlik: string; kabinAgirligi: string; karsiAgirlikYeri: string;
+  motorMarka: string; baslangicKat: string; araKatlar: { after: string; label: string }[];
   makineMuhId: string; elektrikMuhId: string;
   equip: EquipInit;
 };
@@ -55,6 +58,39 @@ const MULTI_SERI: Record<string, { count: "durak" | "giris"; label: string }> = 
   kabin_kilidi: { count: "giris", label: "Giriş" },
 };
 const empty = (x: any) => x === "" || x === null || x === undefined;
+
+const ASANSOR_SINIFLARI = [
+  "Sınıf I: İnsan Asansörü",
+  "Sınıf II: İnsan + Yük Asansörü",
+  "Sınıf III: Sedye Asansörü",
+  "Sınıf IV: Yük Asansörü",
+  "Sınıf V: Servis (Monşarj) Asansörü",
+  "Sınıf VI: Hızı 2,5 m/s Fazla Olan",
+];
+const KAPI_TIPLERI = ["Otomatik Merkezi", "Teleskopik Sağ", "Teleskopik Sol", "Manuel"];
+const ASKI_TIPLERI = ["1/1", "2/1", "4/1"];
+const PISTON_YERLERI = ["Tek Piston SAĞ", "Tek Piston SOL", "Tek Piston ARKA", "Çift Piston"];
+const KARSI_AGIRLIK_YERLERI = ["Sağ", "Sol", "Arka"];
+// Kat başlangıcı: bodrumlar → zemin → 1. kat
+const KAT_BASLANGIC = ["-5B", "-4B", "-3B", "-2B", "-1B", "Z", "1"];
+const RANGE_4 = [1, 2, 3, 4];
+
+// Başlangıç katı + kat adedine göre kat etiketlerini üretir (ör. -2B + 6 → -2B,-1B,Z,1,2,3)
+function buildFloors(start: string, count: number): string[] {
+  const out: string[] = [];
+  if (!start || !count || count < 1) return out;
+  const base = KAT_BASLANGIC.slice(0, KAT_BASLANGIC.indexOf("Z") + 1); // -5B..Z
+  const i0 = base.indexOf(start);
+  if (i0 >= 0) {
+    for (let i = i0; i < base.length && out.length < count; i++) out.push(base[i]);
+    let n = 1;
+    while (out.length < count) out.push(String(n++));
+  } else {
+    let n = parseInt(start, 10) || 1;
+    while (out.length < count) out.push(String(n++));
+  }
+  return out;
+}
 
 export default function DataEntryWizard(props: Props) {
   const router = useRouter();
@@ -95,6 +131,19 @@ export default function DataEntryWizard(props: Props) {
   const [pistonYeri, setPistonYeri] = useState(init?.pistonYeri ?? "");
   const [debi, setDebi] = useState(init?.debi ?? "");
   const [uniteBilgisi, setUniteBilgisi] = useState(init?.uniteBilgisi ?? "");
+  // yeni alanlar
+  const [asansorSinifi, setAsansorSinifi] = useState(init?.asansorSinifi ?? "");
+  const [kapiGenislik, setKapiGenislik] = useState(init?.kapiGenislik ?? "");
+  const [kapiYukseklik, setKapiYukseklik] = useState(init?.kapiYukseklik ?? "");
+  const [kabinGenislik, setKabinGenislik] = useState(init?.kabinGenislik ?? "");
+  const [kabinDerinlik, setKabinDerinlik] = useState(init?.kabinDerinlik ?? "");
+  const [kabinAgirligi, setKabinAgirligi] = useState(init?.kabinAgirligi ?? "");
+  const [karsiAgirlikYeri, setKarsiAgirlikYeri] = useState(init?.karsiAgirlikYeri ?? "");
+  const [motorMarka, setMotorMarka] = useState(init?.motorMarka ?? "");
+  const [baslangicKat, setBaslangicKat] = useState(init?.baslangicKat ?? "Z");
+  const [araKatlar, setAraKatlar] = useState<{ after: string; label: string }[]>(init?.araKatlar ?? []);
+  const [araKatAfter, setAraKatAfter] = useState("");
+  const [araKatLabel, setAraKatLabel] = useState("ASMA KAT");
   // proje müellifi mühendisler — default Gensis'e atanmış olanlar (düzenlemede kayıtlı olan)
   const gMak = props.engineers.find((e) => e.discipline === "makine" && e.company_id === props.gensisCompanyId);
   const gElk = props.engineers.find((e) => e.discipline === "elektrik" && e.company_id === props.gensisCompanyId);
@@ -135,17 +184,36 @@ export default function DataEntryWizard(props: Props) {
   // asansör tipine göre geçerli ekipman kategorileri (drive_type: both/elektrik/hidrolik)
   const isHid = asansorTipi === "hidrolik";
   const applicableCats = props.categories.filter((c) => !c.drive_type || c.drive_type === "both" || c.drive_type === asansorTipi);
+  // Kat listesi: başlangıç katı + kat adedi, ara katlar eklenmiş hali
+  const baseFloors = useMemo(() => buildFloors(baslangicKat, Number(katAdedi || 0)), [baslangicKat, katAdedi]);
+  const katListesi = useMemo(() => {
+    const out = [...baseFloors];
+    for (const m of araKatlar) {
+      const i = out.indexOf(m.after);
+      if (i >= 0) out.splice(i + 1, 0, m.label);
+    }
+    return out;
+  }, [baseFloors, araKatlar]);
+  // Karşı ağırlık = kabin ağırlığı + beyan yükü / 2
+  const karsiAgirlik = useMemo(() => {
+    const k = Number(String(kabinAgirligi).replace(",", ".")) || 0;
+    const b = beyanYuku === "" ? 0 : Number(beyanYuku);
+    if (!k && !b) return "";
+    return String(Math.round(k + b / 2));
+  }, [kabinAgirligi, beyanYuku]);
+
   // tahrik tipine göre değişen zorunlu alanlar
   const driveReq: Record<string, any> = isHid
-    ? { pistonOlculeri, pistonYeri, debi, uniteBilgisi }
-    : { motorGucu };
+    ? { pistonOlculeri, pistonYeri, debi, uniteBilgisi, motorMarka, motorGucu }
+    : { motorGucu, karsiAgirlikYeri };
 
   // zorunlu alanlar
   const requiredMap: Record<string, any> = {
     companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId, binaAdi, montajAdresi, provinceId, districtId,
     pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi, beyanYuku, beyanHizi, katAdedi,
     durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo,
-    seyirMesafesi, ...driveReq,
+    seyirMesafesi, asansorSinifi, baslangicKat, kapiGenislik, kapiYukseklik,
+    kabinGenislik, kabinDerinlik, kabinAgirligi, ...driveReq,
   };
   // Ekipman kartları: tampon iki ayrı seçim (kabin / ağırlık) — aynı marka listesi, farklı slot
   const equipCards = applicableCats.flatMap((c) =>
@@ -186,7 +254,7 @@ export default function DataEntryWizard(props: Props) {
   const stepFieldMap: Record<number, Record<string, any>> = {
     0: { companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId },
     1: { binaAdi, montajAdresi, provinceId, districtId, pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi },
-    2: { beyanYuku, beyanHizi, katAdedi, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo, seyirMesafesi, ...driveReq },
+    2: { asansorSinifi, beyanYuku, beyanHizi, katAdedi, baslangicKat, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, kapiGenislik, kapiYukseklik, kabinGenislik, kabinDerinlik, kabinAgirligi, asansorSeriNo, asansorKimlikNo, seyirMesafesi, ...driveReq },
   };
   function stepMissing(i: number): number {
     if (i === 3) return equipCards.filter((card) => eqIncomplete(card)).length;
@@ -280,6 +348,12 @@ export default function DataEntryWizard(props: Props) {
         seyir_mesafesi: seyirMesafesi, motor_gucu: motorGucu, giris_sayisi: girisSayisi,
         asansor_tipi: asansorTipi,
         piston_olculeri: pistonOlculeri, piston_yeri: pistonYeri, debi: debi, unite_bilgisi: uniteBilgisi,
+        asansor_sinifi: asansorSinifi,
+        kapi_genislik: kapiGenislik, kapi_yukseklik: kapiYukseklik,
+        kabin_genislik: kabinGenislik, kabin_derinlik: kabinDerinlik,
+        kabin_agirligi: kabinAgirligi, karsi_agirlik_yeri: karsiAgirlikYeri, karsi_agirlik_agirligi: karsiAgirlik,
+        motor_marka: motorMarka,
+        baslangic_kat: baslangicKat, ara_katlar: araKatlar, kat_listesi: katListesi,
       },
       equipment,
     };
@@ -373,9 +447,9 @@ export default function DataEntryWizard(props: Props) {
 
           {step === 0 && (
             <Section title="Firma seçimi" desc="Tüm alanlar zorunludur. Firmayı seçince bilgileri otomatik gelir.">
-              <Field label="Asansör Tipi *">
+              <Field label="Teknik Dosya Türü *">
                 <div className="flex gap-2">
-                  {[{ v: "elektrik", t: "Elektrikli" }, { v: "hidrolik", t: "Hidrolik" }].map((o) => (
+                  {[{ v: "elektrik", t: "Elektrikli TD" }, { v: "hidrolik", t: "Hidrolik TD" }].map((o) => (
                     <button key={o.v} type="button" onClick={() => setAsansorTipi(o.v)}
                       className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-bold border transition-colors ${asansorTipi === o.v ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
                       style={asansorTipi === o.v ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)", boxShadow: "0 4px 12px rgba(30,42,91,.22)" } : undefined}>
@@ -453,6 +527,12 @@ export default function DataEntryWizard(props: Props) {
           {step === 2 && (
             <Section title="Asansör teknik bilgileri" desc="Tüm alanlar zorunludur. Kişi sayısı beyan yüküne göre otomatik gelir.">
               <div className="grid grid-cols-2 gap-4">
+                <Field label="Asansör Tipi (Sınıf) *" full>
+                  <select className={"inp" + ec(asansorSinifi)} value={asansorSinifi} onChange={(e) => setAsansorSinifi(e.target.value)}>
+                    <option value="">Seçiniz…</option>
+                    {ASANSOR_SINIFLARI.map((x) => <option key={x} value={x}>{x}</option>)}
+                  </select>
+                </Field>
                 <Field label="Beyan Yükü (kg) *">
                   <select className={"inp" + ec(beyanYuku)} value={beyanYuku} onChange={(e) => setBeyanYuku(e.target.value ? Number(e.target.value) : "")}>
                     <option value="">Seçiniz…</option>
@@ -477,24 +557,42 @@ export default function DataEntryWizard(props: Props) {
                     {RANGE_100.filter((n) => !katAdedi || n <= Number(katAdedi)).map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </Field>
-                <Field label="Giriş Sayısı *">
+                <Field label="Giriş Sayısı * (en fazla 4)">
                   <select className={"inp" + ec(girisSayisi)} value={girisSayisi} onChange={(e) => setGirisSayisi(e.target.value)}>
                     <option value="">Seçiniz…</option>
-                    {RANGE_100.map((n) => <option key={n} value={n}>{n}</option>)}
+                    {RANGE_4.map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </Field>
                 <Field label="Askı Tipi *">
                   <select className={"inp" + ec(askiTipi)} value={askiTipi} onChange={(e) => setAskiTipi(e.target.value)}>
                     <option value="">Seçiniz…</option>
-                    {(lookupGroups["aski_tipi"] ?? ["1/1", "1/2", "2/1"]).map((x) => <option key={x} value={x}>{x}</option>)}
+                    {ASKI_TIPLERI.map((x) => <option key={x} value={x}>{x}</option>)}
                   </select>
                 </Field>
-                <Field label="Kat Kapısı *">
+                <Field label="Kapı Tipi *">
                   <select className={"inp" + ec(katKapisi)} value={katKapisi} onChange={(e) => setKatKapisi(e.target.value)}>
                     <option value="">Seçiniz…</option>
-                    {(lookupGroups["kat_kapisi"] ?? ["Otomatik Merkezi", "Otomatik Yandan"]).map((x) => <option key={x} value={x}>{x}</option>)}
+                    {KAPI_TIPLERI.map((x) => <option key={x} value={x}>{x}</option>)}
                   </select>
                 </Field>
+                <Field label="Kapı Genişliği (mm) *"><input className={"inp" + ec(kapiGenislik)} value={kapiGenislik} onChange={(e) => setKapiGenislik(e.target.value)} placeholder="Örn. 900" /></Field>
+                <Field label="Kapı Yüksekliği (mm) *"><input className={"inp" + ec(kapiYukseklik)} value={kapiYukseklik} onChange={(e) => setKapiYukseklik(e.target.value)} placeholder="Örn. 2000" /></Field>
+                <Field label="Kabin Genişliği (mm) *"><input className={"inp" + ec(kabinGenislik)} value={kabinGenislik} onChange={(e) => setKabinGenislik(e.target.value)} placeholder="Örn. 1350" /></Field>
+                <Field label="Kabin Derinliği (mm) *"><input className={"inp" + ec(kabinDerinlik)} value={kabinDerinlik} onChange={(e) => setKabinDerinlik(e.target.value)} placeholder="Örn. 1400" /></Field>
+                <Field label="Kabin Ağırlığı (kg) *"><input className={"inp" + ec(kabinAgirligi)} value={kabinAgirligi} onChange={(e) => setKabinAgirligi(e.target.value)} placeholder="Örn. 700" /></Field>
+                {!isHid && (
+                  <>
+                    <Field label="Karşı Ağırlığın Yeri *">
+                      <select className={"inp" + ec(karsiAgirlikYeri)} value={karsiAgirlikYeri} onChange={(e) => setKarsiAgirlikYeri(e.target.value)}>
+                        <option value="">Seçiniz…</option>
+                        {KARSI_AGIRLIK_YERLERI.map((x) => <option key={x} value={x}>{x}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Karşı Ağırlık (kg) — otomatik">
+                      <input className="inp bg-slate-100" value={karsiAgirlik} disabled />
+                    </Field>
+                  </>
+                )}
                 <Field label="Asansör Seri No *"><input className={"inp" + ec(asansorSeriNo)} value={asansorSeriNo} onChange={(e) => setAsansorSeriNo(e.target.value)} /></Field>
                 <Field label="Asansör Kimlik No *"><input className={"inp" + ec(asansorKimlikNo)} value={asansorKimlikNo} onChange={(e) => setAsansorKimlikNo(e.target.value)} /></Field>
                 <Field label="Seyir Mesafesi (m) *"><input className={"inp" + ec(seyirMesafesi)} value={seyirMesafesi} onChange={(e) => setSeyirMesafesi(e.target.value)} /></Field>
@@ -502,17 +600,83 @@ export default function DataEntryWizard(props: Props) {
                   <Field label="Motor Gücü (kW) *"><input className={"inp" + ec(motorGucu)} value={motorGucu} onChange={(e) => setMotorGucu(e.target.value)} /></Field>
                 ) : (
                   <>
-                    <Field label="Ünite / Motor Bilgisi *"><input className={"inp" + ec(uniteBilgisi)} value={uniteBilgisi} onChange={(e) => setUniteBilgisi(e.target.value)} placeholder="Marka / güç" /></Field>
-                    <Field label="Piston Ölçüleri (mm) *"><input className={"inp" + ec(pistonOlculeri)} value={pistonOlculeri} onChange={(e) => setPistonOlculeri(e.target.value)} placeholder="Örn. 165x8x4700" /></Field>
+                    <Field label="Motor / Ünite Markası *"><input className={"inp" + ec(motorMarka)} value={motorMarka} onChange={(e) => setMotorMarka(e.target.value)} /></Field>
+                    <Field label="Motor Gücü (kW) *"><input className={"inp" + ec(motorGucu)} value={motorGucu} onChange={(e) => setMotorGucu(e.target.value)} /></Field>
+                    <Field label="Ünite / Motor Bilgisi *"><input className={"inp" + ec(uniteBilgisi)} value={uniteBilgisi} onChange={(e) => setUniteBilgisi(e.target.value)} placeholder="Ek bilgi" /></Field>
+                    <Field label="Piston Ölçüleri (mm) *" full>
+                      <input className={"inp" + ec(pistonOlculeri)} value={pistonOlculeri} onChange={(e) => setPistonOlculeri(e.target.value)} placeholder="Örn. 165 x 8 x 4700" />
+                      <p className="text-xs text-slate-500 mt-1">Piston Çapı × Et Kalınlığı × Piston Boyu olarak giriş yapınız.</p>
+                    </Field>
                     <Field label="Piston Yeri *">
                       <select className={"inp" + ec(pistonYeri)} value={pistonYeri} onChange={(e) => setPistonYeri(e.target.value)}>
                         <option value="">Seçiniz…</option>
-                        <option value="Tek Piston">Tek Piston</option>
-                        <option value="Çift Piston">Çift Piston</option>
+                        {PISTON_YERLERI.map((x) => <option key={x} value={x}>{x}</option>)}
                       </select>
                     </Field>
                     <Field label="Debi (l/d) *"><input className={"inp" + ec(debi)} value={debi} onChange={(e) => setDebi(e.target.value)} placeholder="Örn. 380" /></Field>
                   </>
+                )}
+              </div>
+
+              {/* Kat listesi */}
+              <div className="mt-5 bg-white border border-slate-200 rounded-xl p-4">
+                <div className="font-bold mb-1">Kat Listesi</div>
+                <p className="text-xs text-slate-400 mb-3">Başlangıç katı ve kat adedine göre otomatik oluşur; gerekirse ara kat ekleyebilirsiniz.</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Başlangıç Katı *">
+                    <select className={"inp" + ec(baslangicKat)} value={baslangicKat} onChange={(e) => setBaslangicKat(e.target.value)}>
+                      <option value="">Seçiniz…</option>
+                      {KAT_BASLANGIC.map((x) => <option key={x} value={x}>{x}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Toplam Kat">
+                    <input className="inp bg-slate-100" value={katListesi.length ? `${katListesi.length} kat` : ""} disabled />
+                  </Field>
+                </div>
+
+                {katListesi.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {katListesi.map((k, i) => (
+                      <span key={`${k}-${i}`} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${araKatlar.some((m) => m.label === k) ? "bg-amber-50 text-amber-700" : "bg-brand-light text-brand"}`}>{k}</span>
+                    ))}
+                  </div>
+                )}
+
+                {baseFloors.length > 0 && (
+                  <div className="mt-4 border-t border-slate-100 pt-3">
+                    <div className="text-xs font-semibold text-slate-600 mb-2">Ara Kat Ekle</div>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Hangi katın üstüne?</label>
+                        <select value={araKatAfter} onChange={(e) => setAraKatAfter(e.target.value)}
+                          className="text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand">
+                          <option value="">Seçiniz…</option>
+                          {katListesi.slice(0, -1).map((k, i) => (
+                            <option key={`${k}-${i}`} value={k}>{k} ile {katListesi[i + 1]} arası</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Ara Kat Adı</label>
+                        <input value={araKatLabel} onChange={(e) => setAraKatLabel(e.target.value)}
+                          className="text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand w-36" />
+                      </div>
+                      <button type="button"
+                        onClick={() => { if (araKatAfter && araKatLabel.trim()) { setAraKatlar((a) => [...a, { after: araKatAfter, label: araKatLabel.trim() }]); setAraKatAfter(""); } }}
+                        className="text-sm font-bold bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg">+ Ekle</button>
+                    </div>
+                    {araKatlar.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {araKatlar.map((m, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs text-slate-600">
+                            <span className="font-semibold">{m.label}</span>
+                            <span className="text-slate-400">({m.after} üstüne)</span>
+                            <button type="button" onClick={() => setAraKatlar((a) => a.filter((_, j) => j !== i))} className="text-red-500 hover:underline">kaldır</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </Section>
@@ -654,8 +818,8 @@ export default function DataEntryWizard(props: Props) {
 function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
   return (<div><h1 className="text-xl font-extrabold mb-1">{title}</h1>{desc && <p className="text-slate-500 text-sm mb-4">{desc}</p>}<div className="space-y-3">{children}</div></div>);
 }
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (<div><label className="block text-xs font-semibold text-slate-700 mb-1.5">{label}</label>{children}</div>);
+function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+  return (<div className={full ? "col-span-2" : undefined}><label className="block text-xs font-semibold text-slate-700 mb-1.5">{label}</label>{children}</div>);
 }
 function AutoRow({ k, v }: { k: string; v?: string | null }) {
   return (<div className="flex justify-between gap-3 py-1.5 border-b border-dashed border-slate-200 last:border-0 text-sm"><span className="text-slate-500">{k}</span><span className="font-semibold text-right">{v || "—"}</span></div>);
