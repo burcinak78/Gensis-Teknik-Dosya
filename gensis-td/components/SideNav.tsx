@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type Item = { href: string; label: string; icon: string; match: (p: string) => boolean };
+type Item = { href: string; label: string; icon: string; match: (p: string) => boolean; badge?: number };
 
-export default function SideNav({ isAdmin }: { isAdmin: boolean }) {
+export default function SideNav({ isAdmin, bildirimCount = 0 }: { isAdmin: boolean; bildirimCount?: number }) {
   const path = usePathname();
   const items: Item[] = [
-    { href: "/bildirimler", label: "Bildirimler", icon: "notifications", match: (p) => p.startsWith("/bildirimler") },
+    { href: "/bildirimler", label: "Bildirimler", icon: "notifications", match: (p) => p.startsWith("/bildirimler"), badge: bildirimCount },
     { href: "/proje-onay", label: "Proje Onay Dosyası", icon: "fact_check", match: (p) => p.startsWith("/proje-onay") },
     { href: "/panel", label: "Asansör Teknik Dosyası", icon: "note_add", match: (p) => p === "/panel" || p.startsWith("/panel/") || p === "/yeni" },
   ];
@@ -31,6 +31,11 @@ export default function SideNav({ isAdmin }: { isAdmin: boolean }) {
               {it.icon}
             </span>
             {it.label}
+            {!!it.badge && it.badge > 0 && (
+              <span className="ml-auto min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-red-500 text-white text-[11px] font-bold leading-none">
+                {it.badge > 99 ? "99+" : it.badge}
+              </span>
+            )}
           </Link>
         );
       })}
