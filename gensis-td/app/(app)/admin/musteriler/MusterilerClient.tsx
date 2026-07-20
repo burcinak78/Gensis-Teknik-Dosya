@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument, deleteCompanyDocument } from "../actions";
 
 type Company = {
@@ -62,6 +62,12 @@ export default function MusterilerClient({
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const formRef = useRef<HTMLFormElement>(null);
   const scrollToForm = () => setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const id = searchParams.get("edit");
+    if (id) { const c = companies.find((x) => x.id === id); if (c) selectCompany(c); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const rowFromDoc = (d: Doc): Row => ({ uid: uid(), id: d.id, belge_no: d.belge_no ?? "", issue_date: d.issue_date ?? "", valid_until: d.valid_until ?? "", notified_body_id: d.notified_body_id ?? "", file: null, original_name: d.original_name });
   function buildDocs(compId: string): DocsState {

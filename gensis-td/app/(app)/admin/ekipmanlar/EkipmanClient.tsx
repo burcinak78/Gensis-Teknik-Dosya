@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createEquipmentModel, updateEquipmentModel, createCertificate, createNotifiedBody } from "../actions";
 
 type Cat = { id: string; name: string };
@@ -54,6 +54,12 @@ export default function EkipmanClient({
   const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
   const formRef = useRef<HTMLFormElement>(null);
   const scrollToForm = () => setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const id = searchParams.get("edit");
+    if (id) { const m = models.find((x) => x.id === id); const b = m ? brands.find((x) => x.id === m.brand_id) : null; if (m && b) startEdit(m, b); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const certById = useMemo(() => new Map(certificates.map((c) => [c.id, c])), [certificates]);
   const fileByCert = useMemo(() => new Map(certFiles.map((f) => [f.certificate_id, f.original_name])), [certFiles]);

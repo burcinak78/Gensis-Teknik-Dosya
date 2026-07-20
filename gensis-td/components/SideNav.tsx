@@ -8,6 +8,7 @@ type Item = { href: string; label: string; icon: string; match: (p: string) => b
 export default function SideNav({ isAdmin }: { isAdmin: boolean }) {
   const path = usePathname();
   const items: Item[] = [
+    { href: "/bildirimler", label: "Bildirimler", icon: "notifications", match: (p) => p.startsWith("/bildirimler") },
     { href: "/proje-onay", label: "Proje Onay Dosyası", icon: "fact_check", match: (p) => p.startsWith("/proje-onay") },
     { href: "/panel", label: "Asansör Teknik Dosyası", icon: "note_add", match: (p) => p === "/panel" || p.startsWith("/panel/") || p === "/yeni" },
   ];

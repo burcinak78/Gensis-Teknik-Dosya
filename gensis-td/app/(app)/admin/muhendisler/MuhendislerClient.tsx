@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createEngineer, updateEngineer, deleteEngineer, uploadEngineerDocument } from "../actions";
 
 type Engineer = {
@@ -57,6 +57,12 @@ export default function MuhendislerClient({
   const setDoc = (dt: string, patch: Partial<DocForm>) => setDocForms((s) => ({ ...s, [dt]: { valid_until: "", file: null, ...s[dt], ...patch } }));
   const formRef = useRef<HTMLFormElement>(null);
   const scrollToForm = () => setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const id = searchParams.get("edit");
+    if (id) { const e = engineers.find((x) => x.id === id); if (e) edit(e); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const docsByEng = useMemo(() => {
     const m: Record<string, Record<string, Doc>> = {};
