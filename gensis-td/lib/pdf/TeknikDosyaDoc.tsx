@@ -154,6 +154,17 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
 const vb = (x: any) => (x !== undefined && x !== null && String(x).trim() !== "" ? String(x) : "");
 const ebat = (a: any, b: any) => (vb(a) && vb(b) ? `${vb(a)} x ${vb(b)}` : "");
 
+// Hücreye sığmayan uzun metinlerde (sertifika/seri no) fontu otomatik küçült.
+// A4 içerik genişliği ≈ 535pt; sütun yüzdesine göre kalan alana göre ölçekler.
+const fitFs = (s: any, widthPct: number, base = 6.4, min = 4.2) => {
+  const txt = vb(s);
+  if (!txt) return base;
+  const contentW = 535 * (widthPct / 100) - 5;
+  const est = txt.length * base * 0.5; // ortalama karakter genişliği ≈ 0.5em
+  if (est <= contentW) return base;
+  return Math.max(min, (base * contentW) / est);
+};
+
 function KInfo({ l, val, unit, sub }: { l: string; val?: any; unit?: string; sub?: boolean }) {
   const s = vb(val);
   return (
@@ -175,25 +186,29 @@ function KBlok({ ad, e, alt }: { ad: string; e: any; alt: { ad: string; seri: st
   return (
     <View style={[st.kRow, { borderBottomWidth: 0.6, borderColor: "#334155" }]}>
       <View style={[st.kCol, { width: KW.ad, justifyContent: "center", paddingHorizontal: 2 }]}>
-        <Text style={{ fontSize: 6.4 }}>{ad}</Text>
+        <Text style={{ fontSize: fitFs(ad, 26) }}>{ad}</Text>
       </View>
       <View style={[st.kCol, { width: KW.kat }]}>
-        {alt.map((k, i) => <Text key={i} style={[st.kSubC, i === son ? { borderBottomWidth: 0 } : {}]}>{k.ad}</Text>)}
+        {alt.map((k, i) => (
+          <Text key={i} style={[st.kSubC, { fontSize: fitFs(k.ad, 8) }, i === son ? { borderBottomWidth: 0 } : {}]}>{k.ad}</Text>
+        ))}
       </View>
       <View style={[st.kCol, { width: KW.marka, justifyContent: "center", paddingHorizontal: 2 }]}>
-        <Text style={{ fontSize: 6.4 }}>{vb(e?.marka)}</Text>
+        <Text style={{ fontSize: fitFs(e?.marka, 14) }}>{vb(e?.marka)}</Text>
       </View>
       <View style={[st.kCol, { width: KW.tip, justifyContent: "center", paddingHorizontal: 2 }]}>
-        <Text style={{ fontSize: 6.4 }}>{vb(e?.model)}</Text>
+        <Text style={{ fontSize: fitFs(e?.model, 14) }}>{vb(e?.model)}</Text>
       </View>
       <View style={[st.kCol, { width: KW.seri }]}>
-        {alt.map((k, i) => <Text key={i} style={[st.kSubC, i === son ? { borderBottomWidth: 0 } : {}]}>{k.seri}</Text>)}
+        {alt.map((k, i) => (
+          <Text key={i} style={[st.kSubC, { fontSize: fitFs(k.seri, 14) }, i === son ? { borderBottomWidth: 0 } : {}]}>{k.seri}</Text>
+        ))}
       </View>
       <View style={[st.kCol, { width: KW.sert, justifyContent: "center", paddingHorizontal: 2 }]}>
-        <Text style={{ fontSize: 6.4 }}>{vb(e?.sertifika_no)}</Text>
+        <Text style={{ fontSize: fitFs(e?.sertifika_no, 12) }}>{vb(e?.sertifika_no)}</Text>
       </View>
       <View style={{ width: KW.kur, justifyContent: "center", paddingHorizontal: 2 }}>
-        <Text style={{ fontSize: 6.4 }}>{kurulus}</Text>
+        <Text style={{ fontSize: fitFs(kurulus, 12) }}>{kurulus}</Text>
       </View>
     </View>
   );
@@ -285,12 +300,12 @@ function teknikKomponentPage(c: any) {
 
         {satirlar.map(([ad, e], i) => (
           <View style={st.kRow} key={i}>
-            <Text style={[st.kC, { width: "34%" }]}>{ad}</Text>
-            <Text style={[st.kC, { width: KW.marka }]}>{vb(e?.marka)}</Text>
-            <Text style={[st.kC, { width: KW.tip }]}>{vb(e?.model)}</Text>
-            <Text style={[st.kC, { width: KW.seri }]}>{vb(e?.seri_no)}</Text>
-            <Text style={[st.kC, { width: KW.sert }]}>{vb(e?.sertifika_no)}</Text>
-            <Text style={[st.kC, { width: KW.kur }]}>{kurulus(e)}</Text>
+            <Text style={[st.kC, { width: "34%", fontSize: fitFs(ad, 34) }]}>{ad}</Text>
+            <Text style={[st.kC, { width: KW.marka, fontSize: fitFs(e?.marka, 14) }]}>{vb(e?.marka)}</Text>
+            <Text style={[st.kC, { width: KW.tip, fontSize: fitFs(e?.model, 14) }]}>{vb(e?.model)}</Text>
+            <Text style={[st.kC, { width: KW.seri, fontSize: fitFs(e?.seri_no, 14) }]}>{vb(e?.seri_no)}</Text>
+            <Text style={[st.kC, { width: KW.sert, fontSize: fitFs(e?.sertifika_no, 12) }]}>{vb(e?.sertifika_no)}</Text>
+            <Text style={[st.kC, { width: KW.kur, fontSize: fitFs(kurulus(e), 12) }]}>{kurulus(e)}</Text>
           </View>
         ))}
       </View>
