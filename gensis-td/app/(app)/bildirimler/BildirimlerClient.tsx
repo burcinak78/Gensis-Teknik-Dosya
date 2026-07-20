@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 
 type Musteri = { id: string; companyId: string; firma: string; docType: string; belgeNo: string | null; valid_until: string };
@@ -103,23 +104,30 @@ export default function BildirimlerClient({
 }
 
 function Grup({ baslik, adet, cols, children }: { baslik: string; adet: number; cols: string[]; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="gs-card rounded-[18px] overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[#e5e9f0] bg-slate-50">
+      <button type="button" onClick={() => setOpen((o) => !o)}
+        className={`w-full flex items-center justify-between px-5 py-3 bg-slate-50 hover:bg-slate-100 ${open ? "border-b border-[#e5e9f0]" : ""}`}>
         <span className="font-bold text-sm">{baslik}</span>
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${adet ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-400"}`}>{adet}</span>
-      </div>
-      {adet === 0 ? (
-        <div className="px-5 py-4 text-sm text-slate-400">Dikkat gerektiren belge yok.</div>
-      ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-[11px] font-bold text-[#64748b] uppercase tracking-wide">
-              {cols.map((c, i) => <th key={i} className={`px-5 py-2 ${i === cols.length - 1 ? "text-right" : ""}`}>{c}</th>)}
-            </tr>
-          </thead>
-          <tbody>{children}</tbody>
-        </table>
+        <span className="flex items-center gap-2">
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${adet ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-400"}`}>{adet}</span>
+          <span className="material-symbols-rounded text-[18px] text-slate-400">{open ? "expand_less" : "expand_more"}</span>
+        </span>
+      </button>
+      {open && (
+        adet === 0 ? (
+          <div className="px-5 py-4 text-sm text-slate-400">Dikkat gerektiren belge yok.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[11px] font-bold text-[#64748b] uppercase tracking-wide">
+                {cols.map((c, i) => <th key={i} className={`px-5 py-2 ${i === cols.length - 1 ? "text-right" : ""}`}>{c}</th>)}
+              </tr>
+            </thead>
+            <tbody>{children}</tbody>
+          </table>
+        )
       )}
     </div>
   );
