@@ -64,10 +64,10 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
   const inp = (project.input_data ?? {}) as Record<string, any>;
 
   // Ekipmanları wizard formatına çevir (kategori başına tek slot)
+  // anahtar: "<kategoriId>|<slot>" (tampon kabin/agirlik ayrımı için)
   const equip: InitialData["equip"] = {};
   for (const e of (equipRes.data ?? []) as any[]) {
-    if (e.slot && e.slot !== "main" && equip[e.category_id]) continue;
-    equip[e.category_id] = {
+    equip[`${e.category_id}|${e.slot || "main"}`] = {
       brandId: e.brand_id ?? undefined,
       modelId: e.model_id ?? undefined,
       seriNo: e.seri_no ?? undefined,

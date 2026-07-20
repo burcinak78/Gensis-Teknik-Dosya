@@ -67,7 +67,25 @@ const st = StyleSheet.create({
   tcell: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, color: "#111827", borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#94a3b8" },
   tcellTall: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, minHeight: 20, borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#94a3b8" },
   ckbox: { width: 11, height: 11, borderWidth: 0.9, borderColor: "#334155", borderRadius: 2, marginRight: 8 },
+
+  // Teknik & Komponent Listesi (Excel birebir, tek sayfa)
+  kPage: { fontFamily: "Roboto", fontSize: 8, color: "#111827", paddingTop: 26, paddingHorizontal: 30, paddingBottom: 30, lineHeight: 1.2 },
+  kTitle: { textAlign: "center", fontWeight: "bold", fontSize: 11, color: "#0f172a", marginBottom: 8 },
+  kInfoRow: { flexDirection: "row", paddingVertical: 0.8 },
+  kLbl: { width: "26%", fontSize: 7.6, fontWeight: "bold", color: "#1f2937" },
+  kSep: { width: "3%", fontSize: 7.6 },
+  kVal: { flex: 1, fontSize: 7.6, color: "#111827" },
+  kSub: { width: "26%", fontSize: 7.6, color: "#1f2937", paddingLeft: 10 },
+  kTbl: { borderTopWidth: 0.6, borderLeftWidth: 0.6, borderColor: "#334155", marginTop: 7 },
+  kRow: { flexDirection: "row" },
+  kH: { fontSize: 6, fontWeight: "bold", backgroundColor: "#e5e9f0", color: "#0f172a", paddingVertical: 3, paddingHorizontal: 2, borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#334155", textAlign: "center" },
+  kC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#334155" },
+  kCol: { borderRightWidth: 0.6, borderColor: "#334155" },
+  kSubC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, borderBottomWidth: 0.6, borderColor: "#334155" },
 });
+
+// Teknik & Komponent tablosu kolon genişlikleri (Excel ile aynı sıra)
+const KW = { ad: "26%", kat: "8%", marka: "14%", tip: "14%", seri: "14%", sert: "12%", kur: "12%" };
 
 // Resmi form yardımcıları
 function FRow({ l, val }: { l: string; val?: any }) {
@@ -127,6 +145,144 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
       <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
         Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
       </Text>
+      <Footer firma={c.fname} />
+    </Page>
+  );
+}
+
+// ---- Teknik & Komponent Listesi (Excel '10-Teknik &Komponent Listesi' formatı, tek sayfa) ----
+const vb = (x: any) => (x !== undefined && x !== null && String(x).trim() !== "" ? String(x) : "");
+const ebat = (a: any, b: any) => (vb(a) && vb(b) ? `${vb(a)} x ${vb(b)}` : "");
+
+function KInfo({ l, val, unit, sub }: { l: string; val?: any; unit?: string; sub?: boolean }) {
+  const s = vb(val);
+  return (
+    <View style={st.kInfoRow}>
+      <Text style={sub ? st.kSub : st.kLbl}>{l}</Text>
+      <Text style={st.kSep}>:</Text>
+      <Text style={st.kVal}>{s ? (unit ? `${s} ${unit}` : s) : ""}</Text>
+    </View>
+  );
+}
+function KSection({ children }: { children: any }) {
+  return <Text style={{ fontSize: 7.8, fontWeight: "bold", marginTop: 3 }}>{children}</Text>;
+}
+
+function teknikKomponentPage(c: any) {
+  const eq = c.ekipman || {};
+  const kk = eq.kapi_kilidi || {};
+  const katSeri: string[] = Array.isArray(kk.seri_list) ? kk.seri_list.map((x: any) => (x == null ? "" : String(x))) : [];
+  const durak = Number(c.d.durak_adedi || 0) || katSeri.length;
+  const n = Math.max(durak, katSeri.length, 1);
+  const katlar = Array.from({ length: n }, (_, i) => ({ ad: `${i + 1}.KAT`, seri: katSeri[i] || "" }));
+  const aski = String(c.inp.aski_tipi || "").trim();
+  // Yukarı yön aşırı hızlanma: askı 1/1 ise fren bloğu, 2/1/4/1 ise makine motoru
+  const yukari = aski.startsWith("1/1") ? (eq.fren_blogu || {}) : (eq.motor || {});
+  const kurulus = (e: any) => [e?.kurulus_no, e?.onaylanmis_kurulus].filter(Boolean).join(" ");
+  const satirlar: [string, any][] = [
+    ["Kabin Kapısı Kilitleme Tertibatı", eq.kabin_kilidi],
+    ["Aşırı Hız Sınırlayıcı Tertibat", eq.hiz_regulatoru],
+    ["Kabin Güvenlik Tertibatı", eq.fren_blogu],
+    ["Kabin Tamponu", eq.tampon_kabin || eq.tampon],
+    ["Ağırlık Tamponu", eq.tampon_agirlik],
+    ["Elektronik Aksam İçeren Güvenlik Tertibatı", eq.kumanda],
+    ["Yukarı Yön Aşırı Hızlanma Önleme Tertibat", yukari],
+  ];
+  const son = katlar.length - 1;
+
+  return (
+    <Page key="teknik_komponent" size="A4" style={st.kPage}>
+      <Text style={st.kTitle}>ASANSÖR TEKNİK ÖZELLİKLERİ &amp; GÜVENLİK EKİPMANLARI LİSTESİ</Text>
+
+      <KInfo l="ASANSÖR SERİ NO" val={c.inp.asansor_seri_no} />
+      <KInfo l="ASANSÖRÜN TİPİ" val={c.asansorTuru} />
+      <KInfo l="YAPIM YILI" val={c.d.imal_yili} />
+      <KInfo l="SEYİR MESAFESİ" val={c.inp.seyir_mesafesi} unit="m." />
+      <KInfo l="BEYAN YÜKÜ" val={c.d.beyan_yuku_kg} unit="Kg." />
+      <KInfo l="BEYAN HIZI" val={c.d.beyan_hizi} unit="m/s" />
+      <KInfo l="KAT ADEDİ" val={c.d.kat_adedi} />
+      <KInfo l="DURAK ADEDİ" val={c.d.durak_adedi} />
+
+      <KSection>KAT KAPILARI</KSection>
+      <KInfo sub l="Tipi" val={c.inp.kat_kapisi} />
+      <KInfo sub l="Ebatlar" val={ebat(c.inp.kat_kapi_genislik, c.inp.kat_kapi_yukseklik)} unit="mm." />
+
+      <KSection>KABİN</KSection>
+      <KInfo sub l="Ebatları" val={ebat(c.inp.kabin_genislik, c.inp.kabin_derinlik)} unit="mm." />
+      <KInfo sub l="Ağırlığı" val={c.kap?.kabin_agirlik} unit="Kg." />
+
+      <KSection>KARŞI AĞIRLIK</KSection>
+      <KInfo sub l="Yeri" val={c.inp.karsi_agirlik_yeri} />
+      <KInfo sub l="Ağırlığı" val={c.kap?.karsi_agirlik} unit="Kg." />
+
+      {c.isHid ? (
+        <>
+          <KSection>ÜNİTE / PİSTON</KSection>
+          <KInfo sub l="Ünite / Motor" val={c.inp.unite_bilgisi} />
+          <KInfo sub l="Piston Ölçüleri" val={c.inp.piston_olculeri} unit="mm." />
+          <KInfo sub l="Piston Yeri" val={c.inp.piston_yeri} />
+          <KInfo sub l="Debi" val={c.inp.debi} unit="l/d" />
+        </>
+      ) : (
+        <>
+          <KSection>MAKİNE – MOTOR</KSection>
+          <KInfo sub l="Markası" val={[eq.motor?.marka, eq.motor?.model].filter(Boolean).join(" ")} />
+          <KInfo sub l="Gücü" val={c.inp.motor_gucu} unit="kW" />
+          <KInfo sub l="Seri No" val={eq.motor?.seri_no} />
+        </>
+      )}
+
+      <View style={st.kTbl}>
+        <View style={st.kRow}>
+          <Text style={[st.kH, { width: "34%" }]}>KULLANILAN GÜVENLİK KOMPONENTİ</Text>
+          <Text style={[st.kH, { width: KW.marka }]}>MARKASI</Text>
+          <Text style={[st.kH, { width: KW.tip }]}>TİPİ</Text>
+          <Text style={[st.kH, { width: KW.seri }]}>SERİ NO</Text>
+          <Text style={[st.kH, { width: KW.sert }]}>SERTİFİKA NO</Text>
+          <Text style={[st.kH, { width: KW.kur }]}>VEREN ONAYLANMIŞ KURULUŞ</Text>
+        </View>
+
+        {/* Durak Kapısı Kilitleme Tertibatı — kat kat seri no, diğer sütunlar birleşik */}
+        <View style={[st.kRow, { borderBottomWidth: 0.6, borderColor: "#334155" }]}>
+          <View style={[st.kCol, { width: KW.ad, justifyContent: "center", paddingHorizontal: 2 }]}>
+            <Text style={{ fontSize: 6.4 }}>Durak Kapısı Kilitleme Tertibatı</Text>
+          </View>
+          <View style={[st.kCol, { width: KW.kat }]}>
+            {katlar.map((k, i) => (
+              <Text key={i} style={[st.kSubC, i === son ? { borderBottomWidth: 0 } : {}]}>{k.ad}</Text>
+            ))}
+          </View>
+          <View style={[st.kCol, { width: KW.marka, justifyContent: "center", paddingHorizontal: 2 }]}>
+            <Text style={{ fontSize: 6.4 }}>{vb(kk.marka)}</Text>
+          </View>
+          <View style={[st.kCol, { width: KW.tip, justifyContent: "center", paddingHorizontal: 2 }]}>
+            <Text style={{ fontSize: 6.4 }}>{vb(kk.model)}</Text>
+          </View>
+          <View style={[st.kCol, { width: KW.seri }]}>
+            {katlar.map((k, i) => (
+              <Text key={i} style={[st.kSubC, i === son ? { borderBottomWidth: 0 } : {}]}>{k.seri}</Text>
+            ))}
+          </View>
+          <View style={[st.kCol, { width: KW.sert, justifyContent: "center", paddingHorizontal: 2 }]}>
+            <Text style={{ fontSize: 6.4 }}>{vb(kk.sertifika_no)}</Text>
+          </View>
+          <View style={{ width: KW.kur, justifyContent: "center", paddingHorizontal: 2 }}>
+            <Text style={{ fontSize: 6.4 }}>{kurulus(kk)}</Text>
+          </View>
+        </View>
+
+        {satirlar.map(([ad, e], i) => (
+          <View style={st.kRow} key={i}>
+            <Text style={[st.kC, { width: "34%" }]}>{ad}</Text>
+            <Text style={[st.kC, { width: KW.marka }]}>{vb(e?.marka)}</Text>
+            <Text style={[st.kC, { width: KW.tip }]}>{vb(e?.model)}</Text>
+            <Text style={[st.kC, { width: KW.seri }]}>{vb(e?.seri_no)}</Text>
+            <Text style={[st.kC, { width: KW.sert }]}>{vb(e?.sertifika_no)}</Text>
+            <Text style={[st.kC, { width: KW.kur }]}>{kurulus(e)}</Text>
+          </View>
+        ))}
+      </View>
+
       <Footer firma={c.fname} />
     </Page>
   );
@@ -461,63 +617,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     </Page>
   ),
 
-  teknik_komponent: (c) => (
-    <Page key="teknik_komponent" size="A4" style={st.page}>
-      <DocHead firma={c.firma} title="ASANSÖR TEKNİK ÖZELLİKLERİ & GÜVENLİK EKİPMANLARI LİSTESİ" />
-      <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
-      <R l="Asansörün Tipi" val={c.asansorTuru} />
-      <R l="Yapım Yılı" val={c.d.imal_yili} />
-      <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg` : undefined} />
-      <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
-      <R l="Kat / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
-      <R l="Kat Kapısı" val={c.inp.kat_kapisi} />
-      <R l="Askı Tipi" val={c.inp.aski_tipi} />
-      {c.isHid ? (
-        <>
-          <R l="Ünite / Motor Bilgisi" val={c.inp.unite_bilgisi} />
-          <R l="Piston Ölçüleri" val={c.inp.piston_olculeri ? `${c.inp.piston_olculeri} mm` : undefined} />
-          <R l="Piston Yeri" val={c.inp.piston_yeri} />
-          <R l="Debi" val={c.inp.debi ? `${c.inp.debi} l/d` : undefined} />
-        </>
-      ) : (
-        <R l="Motor Gücü" val={c.inp.motor_gucu ? `${c.inp.motor_gucu} kW` : undefined} />
-      )}
-      <Text style={st.sec}>Güvenlik Ekipmanları</Text>
-      {c.eqEntries.length === 0 ? (
-        <Text style={{ color: "#9ca3af" }}>Seçili ekipman yok.</Text>
-      ) : (
-        <View style={st.tbl}>
-          <View style={st.trow}>
-            <Text style={[st.thcell, { width: "20%" }]}>Marka</Text>
-            <Text style={[st.thcell, { width: "26%" }]}>Tip</Text>
-            <Text style={[st.thcell, { width: "20%" }]}>Model</Text>
-            <Text style={[st.thcell, { width: "17%" }]}>Seri No</Text>
-            <Text style={[st.thcell, { width: "17%" }]}>Sert No</Text>
-          </View>
-          {c.eqEntries.flatMap(([code, e]) => {
-            const list = Array.isArray(e?.seri_list)
-              ? (e.seri_list as any[]).map((s) => (s == null ? "" : String(s))).filter((s) => s.trim())
-              : null;
-            // çoklu seri no'lu ekipman (kapı kilidi / kabin kapı kilidi) → her seri ayrı satır
-            if (list && list.length) {
-              const suf = code === "kabin_kilidi" ? "Giriş" : "Kat";
-              return list.map((s, i) => ({ e, key: code + "_" + i, tip: `${CAT_LABEL[code] || code} (${suf} ${i + 1})`, seri: s }));
-            }
-            return [{ e, key: code, tip: CAT_LABEL[code] || code, seri: e?.seri_no || "" }];
-          }).map((row) => (
-            <View style={st.trow} key={row.key}>
-              <Text style={[st.tcell, { width: "20%" }]}>{row.e?.marka || "—"}</Text>
-              <Text style={[st.tcell, { width: "26%" }]}>{row.tip}</Text>
-              <Text style={[st.tcell, { width: "20%" }]}>{row.e?.model || "—"}</Text>
-              <Text style={[st.tcell, { width: "17%" }]}>{row.seri}</Text>
-              <Text style={[st.tcell, { width: "17%" }]}>{row.e?.sertifika_no || ""}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-      <Footer firma={c.fname} />
-    </Page>
-  ),
+  teknik_komponent: (c) => teknikKomponentPage(c),
 
   motor_beyannamesi: (c) => (
     <Page key="motor_beyannamesi" size="A4" style={st.page}>

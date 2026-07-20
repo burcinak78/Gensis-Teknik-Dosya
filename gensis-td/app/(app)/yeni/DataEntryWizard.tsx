@@ -147,18 +147,26 @@ export default function DataEntryWizard(props: Props) {
     durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo,
     seyirMesafesi, ...driveReq,
   };
+  // Ekipman kartları: tampon iki ayrı seçim (kabin / ağırlık) — aynı marka listesi, farklı slot
+  const equipCards = applicableCats.flatMap((c) =>
+    c.code === "tampon"
+      ? [
+          { key: `${c.id}|kabin`, catId: c.id, slot: "kabin", code: c.code, label: "Kabin Tamponu" },
+          { key: `${c.id}|agirlik`, catId: c.id, slot: "agirlik", code: c.code, label: "Ağırlık Tamponu" },
+        ]
+      : [{ key: `${c.id}|main`, catId: c.id, slot: "main", code: c.code, label: c.name }]
+  );
   // kategori her kat/giriş için ayrı seri no istiyorsa kaç adet? (0 = tekli)
-  const multiCountFor = (catId: string) => {
-    const cat = props.categories.find((c) => c.id === catId);
-    const cfg = cat ? MULTI_SERI[cat.code] : undefined;
+  const multiCountForCode = (code: string) => {
+    const cfg = MULTI_SERI[code];
     if (!cfg) return 0;
     return cfg.count === "durak" ? Number(durakAdedi || 0) : Number(girisSayisi || 0);
   };
   // ekipman: marka + model + seri no dolu değilse eksik sayılır
-  const eqIncomplete = (catId: string) => {
-    const s = equip[catId];
+  const eqIncomplete = (card: { key: string; code: string }) => {
+    const s = equip[card.key];
     if (!s?.modelId) return true;
-    const n = multiCountFor(catId);
+    const n = multiCountForCode(card.code);
     if (n > 0) {
       const list = s.seriList || [];
       for (let i = 0; i < n; i++) if (!list[i] || !list[i].trim()) return true;
@@ -167,7 +175,7 @@ export default function DataEntryWizard(props: Props) {
     return !s?.seriNo || !s.seriNo.trim();
   };
   const missingText = Object.entries(requiredMap).filter(([, v]) => empty(v)).map(([k]) => k);
-  const missingEquip = applicableCats.filter((cat) => eqIncomplete(cat.id));
+  const missingEquip = equipCards.filter((card) => eqIncomplete(card));
   const isValid = missingText.length === 0 && missingEquip.length === 0;
   const totalMissing = missingText.length + missingEquip.length;
 
@@ -181,7 +189,7 @@ export default function DataEntryWizard(props: Props) {
     2: { beyanYuku, beyanHizi, katAdedi, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo, seyirMesafesi, ...driveReq },
   };
   function stepMissing(i: number): number {
-    if (i === 3) return applicableCats.filter((c) => eqIncomplete(c.id)).length;
+    if (i === 3) return equipCards.filter((card) => eqIncomplete(card)).length;
     const fields = stepFieldMap[i];
     if (!fields) return 0;
     return Object.values(fields).filter(empty).length;
@@ -230,7 +238,7 @@ export default function DataEntryWizard(props: Props) {
     });
   }
 
-  const selectedEquipCount = applicableCats.filter((c) => !eqIncomplete(c.id)).length;
+  const selectedEquipCount = equipCards.filter((card) => !eqIncomplete(card)).length;
 
   async function handleSave() {
     if (!isValid) {
@@ -243,17 +251,18 @@ export default function DataEntryWizard(props: Props) {
     setSaving(true);
     setError(null);
     const equipment = Object.entries(equip)
-      .filter(([catId, val]) => val.modelId && applicableCats.some((c) => c.id === catId))
-      .map(([category_id, val]) => {
+      .filter(([key, val]) => val.modelId && equipCards.some((c) => c.key === key))
+      .map(([key, val]) => {
+        const card = equipCards.find((c) => c.key === key)!;
         const model = props.models.find((m) => m.id === val.modelId);
-        const n = multiCountFor(category_id);
+        const n = multiCountForCode(card.code);
         let seri_no = val.seriNo?.trim() || null;
         let seri_list: string[] | null = null;
         if (n > 0) {
           seri_list = Array.from({ length: n }, (_, i) => (val.seriList?.[i] || "").trim());
           seri_no = seri_list.filter(Boolean).join("; ") || null;
         }
-        return { category_id, slot: "main", brand_id: val.brandId ?? null, model_id: val.modelId ?? null, certificate_id: model?.certificate_id ?? null, seri_no, seri_list };
+        return { category_id: card.catId, slot: card.slot, brand_id: val.brandId ?? null, model_id: val.modelId ?? null, certificate_id: model?.certificate_id ?? null, seri_no, seri_list };
       });
 
     const payload: DraftPayload = {
@@ -512,23 +521,23 @@ export default function DataEntryWizard(props: Props) {
           {step === 3 && (
             <Section title="Kritik ekipmanlar" desc="Tümü zorunludur. Önce marka, sonra model seçin.">
               <div className="space-y-4">
-                {applicableCats.map((cat) => {
-                  const catBrands = props.brands.filter((b) => b.category_id === cat.id);
-                  const sel = equip[cat.id] || {};
+                {equipCards.map((cat) => {
+                  const catBrands = props.brands.filter((b) => b.category_id === cat.catId);
+                  const sel = equip[cat.key] || {};
                   const catModels = sel.brandId ? props.models.filter((m) => m.brand_id === sel.brandId) : [];
                   const model = props.models.find((m) => m.id === sel.modelId);
                   const cert = model?.certificate_id ? certById.get(model.certificate_id) : undefined;
                   const nb = cert?.notified_body_id ? nbById.get(cert.notified_body_id) : undefined;
-                  const eksik = showErrors && eqIncomplete(cat.id);
+                  const eksik = showErrors && eqIncomplete(cat);
                   const multiCfg = MULTI_SERI[cat.code];
-                  const multiN = multiCountFor(cat.id);
+                  const multiN = multiCountForCode(cat.code);
                   return (
-                    <div key={cat.id} className={`bg-white border rounded-xl p-4 ${eksik ? "border-red-400 bg-red-50/40" : "border-slate-200"}`}>
-                      <div className="font-bold mb-2">{cat.name} <span className="text-red-500">*</span></div>
+                    <div key={cat.key} className={`bg-white border rounded-xl p-4 ${eksik ? "border-red-400 bg-red-50/40" : "border-slate-200"}`}>
+                      <div className="font-bold mb-2">{cat.label} <span className="text-red-500">*</span></div>
                       <div className="text-xs font-semibold text-slate-500 mb-1">Marka</div>
                       <div className="flex flex-wrap gap-2 mb-1">
                         {catBrands.map((b) => (
-                          <button key={b.id} onClick={() => pickBrand(cat.id, b.id)}
+                          <button key={b.id} onClick={() => pickBrand(cat.key, b.id)}
                             className={`px-3 py-2 rounded-lg text-sm font-semibold border ${sel.brandId === b.id ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
                             style={sel.brandId === b.id ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)", boxShadow: "0 4px 12px rgba(30,42,91,.22)" } : undefined}>
                             {b.name}
@@ -540,7 +549,7 @@ export default function DataEntryWizard(props: Props) {
                           <div className="text-xs font-bold text-brand mb-2 uppercase tracking-wide">Model seçin</div>
                           <div className="flex flex-wrap gap-2">
                             {catModels.map((m) => (
-                              <button key={m.id} onClick={() => pickModel(cat.id, m.id)}
+                              <button key={m.id} onClick={() => pickModel(cat.key, m.id)}
                                 className={`px-3 py-2 rounded-lg text-sm font-semibold border ${sel.modelId === m.id ? "border-transparent text-white" : "bg-white border-brand/40 text-brand hover:bg-white"}`}
                                 style={sel.modelId === m.id ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)", boxShadow: "0 4px 12px rgba(30,42,91,.22)" } : undefined}>
                                 {m.name}
@@ -568,7 +577,7 @@ export default function DataEntryWizard(props: Props) {
                                   <span className="w-20 shrink-0 text-xs font-semibold text-slate-600">{multiCfg.label} {i + 1}</span>
                                   <input
                                     value={v}
-                                    onChange={(e) => setSeriAt(cat.id, i, e.target.value)}
+                                    onChange={(e) => setSeriAt(cat.key, i, e.target.value)}
                                     placeholder="Seri no"
                                     className={"inp" + (showErrors && !v.trim() ? " !border-red-300 !bg-red-50" : "")}
                                   />
@@ -588,7 +597,7 @@ export default function DataEntryWizard(props: Props) {
                           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Ekipman Seri No *</label>
                           <input
                             value={sel.seriNo ?? ""}
-                            onChange={(e) => setSeriNo(cat.id, e.target.value)}
+                            onChange={(e) => setSeriNo(cat.key, e.target.value)}
                             placeholder="Bu ekipmanın üzerindeki seri numarasını girin"
                             className={"inp" + (showErrors && (!sel.seriNo || !sel.seriNo.trim()) ? " !border-red-300 !bg-red-50" : "")}
                           />
@@ -613,7 +622,7 @@ export default function DataEntryWizard(props: Props) {
                 <SummRow k="Firma" v={company?.short_name} /><SummRow k="Dosya No" v={dosyaNo} />
                 <SummRow k="Bina" v={binaAdi} /><SummRow k="Kapasite" v={beyanYuku ? `${beyanYuku} kg · ${kisi ?? "—"} kişi` : "—"} />
                 <SummRow k="Kat / Durak" v={`${katAdedi || "—"} / ${durakAdedi || "—"}`} />
-                <SummRow k="Seçili ekipman" v={`${selectedEquipCount} / ${applicableCats.length}`} />
+                <SummRow k="Seçili ekipman" v={`${selectedEquipCount} / ${equipCards.length}`} />
               </div>
               {error && <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
             </Section>
@@ -626,7 +635,7 @@ export default function DataEntryWizard(props: Props) {
             <SummRow k="Firma" v={company?.short_name} /><SummRow k="Dosya No" v={dosyaNo} />
             <SummRow k="İl" v={props.provinces.find((p) => p.id === provinceId)?.name} />
             <SummRow k="Kapasite" v={beyanYuku ? `${beyanYuku} kg` : "—"} />
-            <SummRow k="Ekipman" v={`${selectedEquipCount} / ${applicableCats.length}`} />
+            <SummRow k="Ekipman" v={`${selectedEquipCount} / ${equipCards.length}`} />
             <div className={`mt-3 text-xs font-semibold ${isValid ? "text-green-600" : "text-red-500"}`}>
               {isValid ? "✓ Tüm zorunlu alanlar dolu" : `${totalMissing} zorunlu alan eksik`}
             </div>
