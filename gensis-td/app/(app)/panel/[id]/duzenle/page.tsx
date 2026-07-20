@@ -116,7 +116,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     karsiAgirlikYeri: s(inp.karsi_agirlik_yeri),
     motorMarka: s(inp.motor_marka),
     makineDairesi: s(inp.makine_dairesi),
-    katSayisi: s(inp.kat_sayisi) || s(row.kat_adedi),
+    katSayisi: s(inp.kat_sayisi) || s(project.kat_adedi),
     baslangicKat: s(inp.baslangic_kat) || "Z",
     araKatlar: Array.isArray(inp.ara_katlar) ? inp.ara_katlar : [],
     makineMuhId: project.makine_muhendis_id ?? "",
