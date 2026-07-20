@@ -168,6 +168,37 @@ function KSection({ children }: { children: any }) {
   return <Text style={{ fontSize: 7.8, fontWeight: "bold", marginTop: 3 }}>{children}</Text>;
 }
 
+// Çok satırlı komponent bloğu: seri no alt satır satır, diğer sütunlar birleşik
+function KBlok({ ad, e, alt }: { ad: string; e: any; alt: { ad: string; seri: string }[] }) {
+  const son = alt.length - 1;
+  const kurulus = [e?.kurulus_no, e?.onaylanmis_kurulus].filter(Boolean).join(" ");
+  return (
+    <View style={[st.kRow, { borderBottomWidth: 0.6, borderColor: "#334155" }]}>
+      <View style={[st.kCol, { width: KW.ad, justifyContent: "center", paddingHorizontal: 2 }]}>
+        <Text style={{ fontSize: 6.4 }}>{ad}</Text>
+      </View>
+      <View style={[st.kCol, { width: KW.kat }]}>
+        {alt.map((k, i) => <Text key={i} style={[st.kSubC, i === son ? { borderBottomWidth: 0 } : {}]}>{k.ad}</Text>)}
+      </View>
+      <View style={[st.kCol, { width: KW.marka, justifyContent: "center", paddingHorizontal: 2 }]}>
+        <Text style={{ fontSize: 6.4 }}>{vb(e?.marka)}</Text>
+      </View>
+      <View style={[st.kCol, { width: KW.tip, justifyContent: "center", paddingHorizontal: 2 }]}>
+        <Text style={{ fontSize: 6.4 }}>{vb(e?.model)}</Text>
+      </View>
+      <View style={[st.kCol, { width: KW.seri }]}>
+        {alt.map((k, i) => <Text key={i} style={[st.kSubC, i === son ? { borderBottomWidth: 0 } : {}]}>{k.seri}</Text>)}
+      </View>
+      <View style={[st.kCol, { width: KW.sert, justifyContent: "center", paddingHorizontal: 2 }]}>
+        <Text style={{ fontSize: 6.4 }}>{vb(e?.sertifika_no)}</Text>
+      </View>
+      <View style={{ width: KW.kur, justifyContent: "center", paddingHorizontal: 2 }}>
+        <Text style={{ fontSize: 6.4 }}>{kurulus}</Text>
+      </View>
+    </View>
+  );
+}
+
 function teknikKomponentPage(c: any) {
   const eq = c.ekipman || {};
   const kk = eq.kapi_kilidi || {};
@@ -175,12 +206,18 @@ function teknikKomponentPage(c: any) {
   const durak = Number(c.d.durak_adedi || 0) || katSeri.length;
   const n = Math.max(durak, katSeri.length, 1);
   const katlar = Array.from({ length: n }, (_, i) => ({ ad: `${i + 1}.KAT`, seri: katSeri[i] || "" }));
+  // Kabin kapı kilidi: giriş başına ayrı seri no (kat kilidiyle aynı mantık)
+  const kbk = eq.kabin_kilidi || {};
+  const girisSeri: string[] = Array.isArray(kbk.seri_list) ? kbk.seri_list.map((x: any) => (x == null ? "" : String(x))) : [];
+  const girisN = Math.max(Number(c.inp.giris_sayisi || 0) || 0, girisSeri.length);
+  const girisler = girisN > 0
+    ? Array.from({ length: girisN }, (_, i) => ({ ad: `${i + 1}.GİRİŞ`, seri: girisSeri[i] || "" }))
+    : [{ ad: "1.GİRİŞ", seri: vb(kbk.seri_no) }];
   const aski = String(c.inp.aski_tipi || "").trim();
   // Yukarı yön aşırı hızlanma: askı 1/1 ise fren bloğu, 2/1/4/1 ise makine motoru
   const yukari = aski.startsWith("1/1") ? (eq.fren_blogu || {}) : (eq.motor || {});
   const kurulus = (e: any) => [e?.kurulus_no, e?.onaylanmis_kurulus].filter(Boolean).join(" ");
   const satirlar: [string, any][] = [
-    ["Kabin Kapısı Kilitleme Tertibatı", eq.kabin_kilidi],
     ["Aşırı Hız Sınırlayıcı Tertibat", eq.hiz_regulatoru],
     ["Kabin Güvenlik Tertibatı", eq.fren_blogu],
     ["Kabin Tamponu", eq.tampon_kabin || eq.tampon],
@@ -242,34 +279,9 @@ function teknikKomponentPage(c: any) {
           <Text style={[st.kH, { width: KW.kur }]}>VEREN ONAYLANMIŞ KURULUŞ</Text>
         </View>
 
-        {/* Durak Kapısı Kilitleme Tertibatı — kat kat seri no, diğer sütunlar birleşik */}
-        <View style={[st.kRow, { borderBottomWidth: 0.6, borderColor: "#334155" }]}>
-          <View style={[st.kCol, { width: KW.ad, justifyContent: "center", paddingHorizontal: 2 }]}>
-            <Text style={{ fontSize: 6.4 }}>Durak Kapısı Kilitleme Tertibatı</Text>
-          </View>
-          <View style={[st.kCol, { width: KW.kat }]}>
-            {katlar.map((k, i) => (
-              <Text key={i} style={[st.kSubC, i === son ? { borderBottomWidth: 0 } : {}]}>{k.ad}</Text>
-            ))}
-          </View>
-          <View style={[st.kCol, { width: KW.marka, justifyContent: "center", paddingHorizontal: 2 }]}>
-            <Text style={{ fontSize: 6.4 }}>{vb(kk.marka)}</Text>
-          </View>
-          <View style={[st.kCol, { width: KW.tip, justifyContent: "center", paddingHorizontal: 2 }]}>
-            <Text style={{ fontSize: 6.4 }}>{vb(kk.model)}</Text>
-          </View>
-          <View style={[st.kCol, { width: KW.seri }]}>
-            {katlar.map((k, i) => (
-              <Text key={i} style={[st.kSubC, i === son ? { borderBottomWidth: 0 } : {}]}>{k.seri}</Text>
-            ))}
-          </View>
-          <View style={[st.kCol, { width: KW.sert, justifyContent: "center", paddingHorizontal: 2 }]}>
-            <Text style={{ fontSize: 6.4 }}>{vb(kk.sertifika_no)}</Text>
-          </View>
-          <View style={{ width: KW.kur, justifyContent: "center", paddingHorizontal: 2 }}>
-            <Text style={{ fontSize: 6.4 }}>{kurulus(kk)}</Text>
-          </View>
-        </View>
+        {/* Kilitleme tertibatları — seri no kat/giriş bazında satır satır */}
+        <KBlok ad="Durak Kapısı Kilitleme Tertibatı" e={kk} alt={katlar} />
+        <KBlok ad="Kabin Kapısı Kilitleme Tertibatı" e={kbk} alt={girisler} />
 
         {satirlar.map(([ad, e], i) => (
           <View style={st.kRow} key={i}>
