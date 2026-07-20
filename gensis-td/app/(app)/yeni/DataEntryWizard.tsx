@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { saveDraftProject, updateDraftProject, type DraftPayload } from "./actions";
@@ -35,7 +35,8 @@ export type InitialData = {
   asansorTipi: string; pistonOlculeri: string; pistonYeri: string; debi: string; uniteBilgisi: string;
   asansorSinifi: string; kapiGenislik: string; kapiYukseklik: string;
   kabinGenislik: string; kabinDerinlik: string; kabinAgirligi: string; karsiAgirlikYeri: string;
-  motorMarka: string; baslangicKat: string; araKatlar: { after: string; label: string }[];
+  motorMarka: string; makineDairesi: string; katSayisi: string;
+  baslangicKat: string; araKatlar: { after: string; label: string }[];
   makineMuhId: string; elektrikMuhId: string;
   equip: EquipInit;
 };
@@ -140,6 +141,8 @@ export default function DataEntryWizard(props: Props) {
   const [kabinAgirligi, setKabinAgirligi] = useState(init?.kabinAgirligi ?? "");
   const [karsiAgirlikYeri, setKarsiAgirlikYeri] = useState(init?.karsiAgirlikYeri ?? "");
   const [motorMarka, setMotorMarka] = useState(init?.motorMarka ?? "");
+  const [makineDairesi, setMakineDairesi] = useState(init?.makineDairesi ?? "");
+  const [katSayisi, setKatSayisi] = useState(init?.katSayisi ?? "");
   const [baslangicKat, setBaslangicKat] = useState(init?.baslangicKat ?? "Z");
   const [araKatlar, setAraKatlar] = useState<{ after: string; label: string }[]>(init?.araKatlar ?? []);
   const [araKatAfter, setAraKatAfter] = useState("");
@@ -185,7 +188,7 @@ export default function DataEntryWizard(props: Props) {
   const isHid = asansorTipi === "hidrolik";
   const applicableCats = props.categories.filter((c) => !c.drive_type || c.drive_type === "both" || c.drive_type === asansorTipi);
   // Kat listesi: başlangıç katı + kat adedi, ara katlar eklenmiş hali
-  const baseFloors = useMemo(() => buildFloors(baslangicKat, Number(katAdedi || 0)), [baslangicKat, katAdedi]);
+  const baseFloors = useMemo(() => buildFloors(baslangicKat, Number(katSayisi || 0)), [baslangicKat, katSayisi]);
   const katListesi = useMemo(() => {
     const out = [...baseFloors];
     for (const m of araKatlar) {
@@ -194,6 +197,16 @@ export default function DataEntryWizard(props: Props) {
     }
     return out;
   }, [baseFloors, araKatlar]);
+  // Toplam kat adedi kat listesinden otomatik dolar (ara katlar dahil)
+  useEffect(() => {
+    const toplam = katListesi.length;
+    const yeni = toplam ? String(toplam) : "";
+    if (yeni !== katAdedi) {
+      setKatAdedi(yeni);
+      if (durakAdedi && toplam && Number(durakAdedi) > toplam) setDurakAdedi("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [katListesi.length]);
   // Karşı ağırlık = kabin ağırlığı + beyan yükü / 2
   const karsiAgirlik = useMemo(() => {
     const k = Number(String(kabinAgirligi).replace(",", ".")) || 0;
@@ -211,8 +224,8 @@ export default function DataEntryWizard(props: Props) {
   const requiredMap: Record<string, any> = {
     companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId, binaAdi, montajAdresi, provinceId, districtId,
     pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi, beyanYuku, beyanHizi, katAdedi,
-    durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo, asansorKimlikNo,
-    seyirMesafesi, asansorSinifi, baslangicKat, kapiGenislik, kapiYukseklik,
+    durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo,
+    seyirMesafesi, asansorSinifi, makineDairesi, baslangicKat, katSayisi, kapiGenislik, kapiYukseklik,
     kabinGenislik, kabinDerinlik, kabinAgirligi, ...driveReq,
   };
   // Ekipman kartları: tampon iki ayrı seçim (kabin / ağırlık) — aynı marka listesi, farklı slot
@@ -225,6 +238,9 @@ export default function DataEntryWizard(props: Props) {
       : [{ key: `${c.id}|main`, catId: c.id, slot: "main", code: c.code, label: c.name }]
   );
   // kategori her kat/giriş için ayrı seri no istiyorsa kaç adet? (0 = tekli)
+  // Çoklu seri no satır etiketi: kapı kilidinde gerçek kat adı (Z, ASMA KAT, 1…), kabinde giriş no
+  const seriEtiket = (code: string, i: number) =>
+    code === "kapi_kilidi" ? (katListesi[i] || `Kat ${i + 1}`) : `${MULTI_SERI[code]?.label ?? ""} ${i + 1}`;
   const multiCountForCode = (code: string) => {
     const cfg = MULTI_SERI[code];
     if (!cfg) return 0;
@@ -254,7 +270,7 @@ export default function DataEntryWizard(props: Props) {
   const stepFieldMap: Record<number, Record<string, any>> = {
     0: { companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId },
     1: { binaAdi, montajAdresi, provinceId, districtId, pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi },
-    2: { asansorSinifi, beyanYuku, beyanHizi, katAdedi, baslangicKat, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, kapiGenislik, kapiYukseklik, kabinGenislik, kabinDerinlik, kabinAgirligi, asansorSeriNo, asansorKimlikNo, seyirMesafesi, ...driveReq },
+    2: { asansorSinifi, makineDairesi, beyanYuku, beyanHizi, baslangicKat, katSayisi, katAdedi, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, kapiGenislik, kapiYukseklik, kabinGenislik, kabinDerinlik, kabinAgirligi, asansorSeriNo, seyirMesafesi, ...driveReq },
   };
   function stepMissing(i: number): number {
     if (i === 3) return equipCards.filter((card) => eqIncomplete(card)).length;
@@ -352,8 +368,8 @@ export default function DataEntryWizard(props: Props) {
         kapi_genislik: kapiGenislik, kapi_yukseklik: kapiYukseklik,
         kabin_genislik: kabinGenislik, kabin_derinlik: kabinDerinlik,
         kabin_agirligi: kabinAgirligi, karsi_agirlik_yeri: karsiAgirlikYeri, karsi_agirlik_agirligi: karsiAgirlik,
-        motor_marka: motorMarka,
-        baslangic_kat: baslangicKat, ara_katlar: araKatlar, kat_listesi: katListesi,
+        motor_marka: motorMarka, makine_dairesi: makineDairesi,
+        baslangic_kat: baslangicKat, kat_sayisi: katSayisi, ara_katlar: araKatlar, kat_listesi: katListesi,
       },
       equipment,
     };
@@ -528,10 +544,26 @@ export default function DataEntryWizard(props: Props) {
             <Section title="Asansör teknik bilgileri" desc="Tüm alanlar zorunludur. Kişi sayısı beyan yüküne göre otomatik gelir.">
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Asansör Tipi (Sınıf) *" full>
-                  <select className={"inp" + ec(asansorSinifi)} value={asansorSinifi} onChange={(e) => setAsansorSinifi(e.target.value)}>
-                    <option value="">Seçiniz…</option>
-                    {ASANSOR_SINIFLARI.map((x) => <option key={x} value={x}>{x}</option>)}
-                  </select>
+                  <div className="grid grid-cols-3 gap-2">
+                    {ASANSOR_SINIFLARI.map((x) => (
+                      <button key={x} type="button" onClick={() => setAsansorSinifi(x)}
+                        className={`px-3 py-2.5 rounded-lg text-xs font-bold border text-left leading-snug transition-colors ${asansorSinifi === x ? "border-transparent text-white" : `bg-white text-slate-700 hover:border-brand hover:text-brand ${showErrors && !asansorSinifi ? "border-red-300" : "border-slate-200"}`}`}
+                        style={asansorSinifi === x ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)", boxShadow: "0 4px 12px rgba(30,42,91,.22)" } : undefined}>
+                        {x}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+                <Field label="Makine Dairesi *" full>
+                  <div className="flex gap-2">
+                    {[{ v: "var", t: "Makine Dairesi VAR" }, { v: "yok", t: "Makine Dairesi YOK" }].map((o) => (
+                      <button key={o.v} type="button" onClick={() => setMakineDairesi(o.v)}
+                        className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-bold border transition-colors ${makineDairesi === o.v ? "border-transparent text-white" : `bg-white text-slate-700 hover:border-brand hover:text-brand ${showErrors && !makineDairesi ? "border-red-300" : "border-slate-200"}`}`}
+                        style={makineDairesi === o.v ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)", boxShadow: "0 4px 12px rgba(30,42,91,.22)" } : undefined}>
+                        {o.t}
+                      </button>
+                    ))}
+                  </div>
                 </Field>
                 <Field label="Beyan Yükü (kg) *">
                   <select className={"inp" + ec(beyanYuku)} value={beyanYuku} onChange={(e) => setBeyanYuku(e.target.value ? Number(e.target.value) : "")}>
@@ -544,12 +576,74 @@ export default function DataEntryWizard(props: Props) {
                   <input className={"inp" + ec(beyanHizi)} value={beyanHizi} onChange={(e) => setBeyanHizi(e.target.value)} placeholder="Örn. 1.0" />
                 </Field>
                 <Field label="İmal Yılı *"><input className={"inp" + ec(imalYili)} value={imalYili} onChange={(e) => setImalYili(e.target.value)} placeholder="2026" /></Field>
-                <Field label="Kat Adedi *">
-                  <select className={"inp" + ec(katAdedi)} value={katAdedi}
-                    onChange={(e) => { const v = e.target.value; setKatAdedi(v); if (durakAdedi && v && Number(durakAdedi) > Number(v)) setDurakAdedi(""); }}>
-                    <option value="">Seçiniz…</option>
-                    {RANGE_100.map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
+
+                {/* Kat listesi — seçimler burada; toplam kat adedi otomatik dolar */}
+                <div className="col-span-2 bg-white border border-slate-200 rounded-xl p-4">
+                  <div className="font-bold mb-1">Kat Listesi</div>
+                  <p className="text-xs text-slate-400 mb-3">Başlangıç katı ve kat sayısını seçin; liste otomatik oluşur. Gerekirse ara kat ekleyin. Toplam kat adedi aşağıya otomatik yazılır.</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Başlangıç Katı *">
+                      <select className={"inp" + ec(baslangicKat)} value={baslangicKat} onChange={(e) => setBaslangicKat(e.target.value)}>
+                        <option value="">Seçiniz…</option>
+                        {KAT_BASLANGIC.map((x) => <option key={x} value={x}>{x}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Kat Sayısı * (ara katlar hariç)">
+                      <select className={"inp" + ec(katSayisi)} value={katSayisi} onChange={(e) => setKatSayisi(e.target.value)}>
+                        <option value="">Seçiniz…</option>
+                        {RANGE_100.map((n) => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </Field>
+                  </div>
+
+                  {katListesi.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {katListesi.map((k, i) => (
+                        <span key={`${k}-${i}`} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${araKatlar.some((m) => m.label === k) ? "bg-amber-50 text-amber-700" : "bg-brand-light text-brand"}`}>{k}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  {baseFloors.length > 0 && (
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <div className="text-xs font-semibold text-slate-600 mb-2">Ara Kat Ekle</div>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Hangi katların arasına?</label>
+                          <select value={araKatAfter} onChange={(e) => setAraKatAfter(e.target.value)}
+                            className="text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand">
+                            <option value="">Seçiniz…</option>
+                            {katListesi.slice(0, -1).map((k, i) => (
+                              <option key={`${k}-${i}`} value={k}>{k} ile {katListesi[i + 1]} arası</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Ara Kat Adı</label>
+                          <input value={araKatLabel} onChange={(e) => setAraKatLabel(e.target.value)}
+                            className="text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand w-36" />
+                        </div>
+                        <button type="button"
+                          onClick={() => { if (araKatAfter && araKatLabel.trim()) { setAraKatlar((a) => [...a, { after: araKatAfter, label: araKatLabel.trim() }]); setAraKatAfter(""); } }}
+                          className="text-sm font-bold bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg">+ Ekle</button>
+                      </div>
+                      {araKatlar.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {araKatlar.map((m, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs text-slate-600">
+                              <span className="font-semibold">{m.label}</span>
+                              <span className="text-slate-400">({m.after} üstüne)</span>
+                              <button type="button" onClick={() => setAraKatlar((a) => a.filter((_, j) => j !== i))} className="text-red-500 hover:underline">kaldır</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <Field label="Kat Adedi (otomatik — ara katlar dahil)">
+                  <input className={"inp bg-slate-100" + ec(katAdedi)} value={katAdedi} disabled />
                 </Field>
                 <Field label="Durak Adedi * (kattan fazla olamaz)">
                   <select className={"inp" + ec(durakAdedi)} value={durakAdedi} onChange={(e) => setDurakAdedi(e.target.value)} disabled={!katAdedi}>
@@ -594,7 +688,6 @@ export default function DataEntryWizard(props: Props) {
                   </>
                 )}
                 <Field label="Asansör Seri No *"><input className={"inp" + ec(asansorSeriNo)} value={asansorSeriNo} onChange={(e) => setAsansorSeriNo(e.target.value)} /></Field>
-                <Field label="Asansör Kimlik No *"><input className={"inp" + ec(asansorKimlikNo)} value={asansorKimlikNo} onChange={(e) => setAsansorKimlikNo(e.target.value)} /></Field>
                 <Field label="Seyir Mesafesi (m) *"><input className={"inp" + ec(seyirMesafesi)} value={seyirMesafesi} onChange={(e) => setSeyirMesafesi(e.target.value)} /></Field>
                 {!isHid ? (
                   <Field label="Motor Gücü (kW) *"><input className={"inp" + ec(motorGucu)} value={motorGucu} onChange={(e) => setMotorGucu(e.target.value)} /></Field>
@@ -619,66 +712,6 @@ export default function DataEntryWizard(props: Props) {
               </div>
 
               {/* Kat listesi */}
-              <div className="mt-5 bg-white border border-slate-200 rounded-xl p-4">
-                <div className="font-bold mb-1">Kat Listesi</div>
-                <p className="text-xs text-slate-400 mb-3">Başlangıç katı ve kat adedine göre otomatik oluşur; gerekirse ara kat ekleyebilirsiniz.</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="Başlangıç Katı *">
-                    <select className={"inp" + ec(baslangicKat)} value={baslangicKat} onChange={(e) => setBaslangicKat(e.target.value)}>
-                      <option value="">Seçiniz…</option>
-                      {KAT_BASLANGIC.map((x) => <option key={x} value={x}>{x}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Toplam Kat">
-                    <input className="inp bg-slate-100" value={katListesi.length ? `${katListesi.length} kat` : ""} disabled />
-                  </Field>
-                </div>
-
-                {katListesi.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {katListesi.map((k, i) => (
-                      <span key={`${k}-${i}`} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${araKatlar.some((m) => m.label === k) ? "bg-amber-50 text-amber-700" : "bg-brand-light text-brand"}`}>{k}</span>
-                    ))}
-                  </div>
-                )}
-
-                {baseFloors.length > 0 && (
-                  <div className="mt-4 border-t border-slate-100 pt-3">
-                    <div className="text-xs font-semibold text-slate-600 mb-2">Ara Kat Ekle</div>
-                    <div className="flex flex-wrap items-end gap-2">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Hangi katın üstüne?</label>
-                        <select value={araKatAfter} onChange={(e) => setAraKatAfter(e.target.value)}
-                          className="text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand">
-                          <option value="">Seçiniz…</option>
-                          {katListesi.slice(0, -1).map((k, i) => (
-                            <option key={`${k}-${i}`} value={k}>{k} ile {katListesi[i + 1]} arası</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Ara Kat Adı</label>
-                        <input value={araKatLabel} onChange={(e) => setAraKatLabel(e.target.value)}
-                          className="text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand w-36" />
-                      </div>
-                      <button type="button"
-                        onClick={() => { if (araKatAfter && araKatLabel.trim()) { setAraKatlar((a) => [...a, { after: araKatAfter, label: araKatLabel.trim() }]); setAraKatAfter(""); } }}
-                        className="text-sm font-bold bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg">+ Ekle</button>
-                    </div>
-                    {araKatlar.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {araKatlar.map((m, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs text-slate-600">
-                            <span className="font-semibold">{m.label}</span>
-                            <span className="text-slate-400">({m.after} üstüne)</span>
-                            <button type="button" onClick={() => setAraKatlar((a) => a.filter((_, j) => j !== i))} className="text-red-500 hover:underline">kaldır</button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
             </Section>
           )}
 
@@ -738,7 +771,7 @@ export default function DataEntryWizard(props: Props) {
                               const v = sel.seriList?.[i] ?? "";
                               return (
                                 <div key={i} className="flex items-center gap-2">
-                                  <span className="w-20 shrink-0 text-xs font-semibold text-slate-600">{multiCfg.label} {i + 1}</span>
+                                  <span className="w-24 shrink-0 text-xs font-semibold text-slate-600">{seriEtiket(cat.code, i)}</span>
                                   <input
                                     value={v}
                                     onChange={(e) => setSeriAt(cat.key, i, e.target.value)}
