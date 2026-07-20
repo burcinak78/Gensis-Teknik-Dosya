@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 
 type Musteri = { id: string; companyId: string; firma: string; docType: string; belgeNo: string | null; valid_until: string };
@@ -26,10 +26,55 @@ function durum(valid: string) {
 }
 const tr = (s: string) => (s ? new Date(s).toLocaleDateString("tr-TR") : "—");
 
+// Sütun tanımı: value = filtre/gösterim metni, render = özel hücre (rozet/link)
+type Col<T> = {
+  key: string;
+  label: string;
+  filter?: boolean;
+  value?: (r: T) => string;
+  render?: (r: T) => React.ReactNode;
+  cell?: "bold" | "muted";
+  align?: "right";
+};
+
 export default function BildirimlerClient({
   role, isStaff, musteri, muhendis, ekipman,
 }: { role: string; isStaff: boolean; musteri: Musteri[]; muhendis: Muhendis[]; ekipman: Ekipman[] }) {
   const toplam = musteri.length + muhendis.length + (isStaff ? ekipman.length : 0);
+  const guncelleMusteri = isStaff
+    ? (m: Musteri) => <Guncelle href={`/admin/musteriler?edit=${m.companyId}`} />
+    : () => <span className="text-xs text-slate-400">Gensis güncelleyecek</span>;
+  const guncelleMuhendis = isStaff
+    ? (m: Muhendis) => <Guncelle href={`/admin/muhendisler?edit=${m.engineerId}`} />
+    : () => <span className="text-xs text-slate-400">Gensis güncelleyecek</span>;
+
+  const musteriCols: Col<Musteri>[] = [
+    { key: "firma", label: "Müşteri İsmi", filter: true, value: (m) => m.firma, cell: "bold" },
+    { key: "belge", label: "Belge", filter: true, value: (m) => COMPANY_DOC[m.docType] ?? m.docType },
+    { key: "belgeNo", label: "Belge No", value: (m) => m.belgeNo || "—", cell: "muted" },
+    { key: "gecerlilik", label: "Geçerlilik", value: (m) => tr(m.valid_until), cell: "muted" },
+    { key: "durum", label: "Durum", filter: true, value: (m) => durum(m.valid_until).t, render: (m) => <Badge du={durum(m.valid_until)} /> },
+    { key: "actions", label: "", align: "right", render: guncelleMusteri },
+  ];
+  const muhendisCols: Col<Muhendis>[] = [
+    { key: "ad", label: "Mühendis İsmi", filter: true, value: (m) => m.ad, cell: "bold" },
+    { key: "brans", label: "Branş", filter: true, value: (m) => BRANS[m.brans] ?? m.brans, cell: "muted" },
+    { key: "belge", label: "Belge", filter: true, value: (m) => ENG_DOC[m.docType] ?? m.docType },
+    { key: "gecerlilik", label: "Geçerlilik", value: (m) => tr(m.valid_until), cell: "muted" },
+    { key: "durum", label: "Durum", filter: true, value: (m) => durum(m.valid_until).t, render: (m) => <Badge du={durum(m.valid_until)} /> },
+    { key: "actions", label: "", align: "right", render: guncelleMuhendis },
+  ];
+  const ekipmanCols: Col<Ekipman>[] = [
+    { key: "kategori", label: "Ekipman Tipi", filter: true, value: (m) => m.kategori, cell: "bold" },
+    { key: "marka", label: "Marka", filter: true, value: (m) => m.marka, cell: "muted" },
+    { key: "model", label: "Model", filter: true, value: (m) => m.model },
+    { key: "certNo", label: "Sertifika No", value: (m) => m.certNo || "—", cell: "muted" },
+    { key: "gecerlilik", label: "Geçerlilik", value: (m) => tr(m.valid_until), cell: "muted" },
+    { key: "durum", label: "Durum", filter: true, value: (m) => durum(m.valid_until).t, render: (m) => <Badge du={durum(m.valid_until)} /> },
+    { key: "actions", label: "", align: "right", render: () => null },
+  ];
+  // Ekipmanda güncelle linki
+  ekipmanCols[ekipmanCols.length - 1].render = (m: Ekipman) => <Guncelle href={`/admin/ekipmanlar?edit=${m.modelId}`} />;
 
   return (
     <div>
@@ -42,96 +87,100 @@ export default function BildirimlerClient({
       </div>
 
       <div className="px-8 py-6 space-y-6 gs-fade max-w-5xl">
-        {/* Müşteri Dokümanları */}
-        <Grup baslik="Müşteri Dokümanları" adet={musteri.length}
-          cols={["Müşteri İsmi", "Belge", "Belge No", "Geçerlilik", "Durum", ""]}>
-          {musteri.map((m) => {
-            const du = durum(m.valid_until);
-            return (
-              <Row key={m.id}>
-                <Td bold>{m.firma}</Td>
-                <Td>{COMPANY_DOC[m.docType] ?? m.docType}</Td>
-                <Td muted>{m.belgeNo || "—"}</Td>
-                <Td muted>{tr(m.valid_until)}</Td>
-                <Td><Badge du={du} /></Td>
-                <Td right>{isStaff ? <Guncelle href={`/admin/musteriler?edit=${m.companyId}`} /> : <span className="text-xs text-slate-400">Gensis güncelleyecek</span>}</Td>
-              </Row>
-            );
-          })}
-        </Grup>
-
-        {/* Mühendis Dokümanları */}
-        <Grup baslik="Mühendis Dokümanları" adet={muhendis.length}
-          cols={["Mühendis İsmi", "Branş", "Belge", "Geçerlilik", "Durum", ""]}>
-          {muhendis.map((m) => {
-            const du = durum(m.valid_until);
-            return (
-              <Row key={m.id}>
-                <Td bold>{m.ad}</Td>
-                <Td muted>{BRANS[m.brans] ?? m.brans}</Td>
-                <Td>{ENG_DOC[m.docType] ?? m.docType}</Td>
-                <Td muted>{tr(m.valid_until)}</Td>
-                <Td><Badge du={du} /></Td>
-                <Td right>{isStaff ? <Guncelle href={`/admin/muhendisler?edit=${m.engineerId}`} /> : <span className="text-xs text-slate-400">Gensis güncelleyecek</span>}</Td>
-              </Row>
-            );
-          })}
-        </Grup>
-
-        {/* Ekipman Sertifikaları — yalnız Admin/Gensis */}
-        {isStaff && (
-          <Grup baslik="Ekipman Sertifikaları" adet={ekipman.length}
-            cols={["Ekipman Tipi", "Marka", "Model", "Sertifika No", "Geçerlilik", "Durum", ""]}>
-            {ekipman.map((m) => {
-              const du = durum(m.valid_until);
-              return (
-                <Row key={m.modelId}>
-                  <Td bold>{m.kategori}</Td>
-                  <Td muted>{m.marka}</Td>
-                  <Td>{m.model}</Td>
-                  <Td muted>{m.certNo || "—"}</Td>
-                  <Td muted>{tr(m.valid_until)}</Td>
-                  <Td><Badge du={du} /></Td>
-                  <Td right><Guncelle href={`/admin/ekipmanlar?edit=${m.modelId}`} /></Td>
-                </Row>
-              );
-            })}
-          </Grup>
-        )}
+        <Grup baslik="Müşteri Dokümanları" rows={musteri} cols={musteriCols} keyOf={(m) => m.id} />
+        <Grup baslik="Mühendis Dokümanları" rows={muhendis} cols={muhendisCols} keyOf={(m) => m.id} />
+        {isStaff && <Grup baslik="Ekipman Sertifikaları" rows={ekipman} cols={ekipmanCols} keyOf={(m) => m.modelId} />}
       </div>
     </div>
   );
 }
 
-function Grup({ baslik, adet, cols, children }: { baslik: string; adet: number; cols: string[]; children: React.ReactNode }) {
+function Grup<T>({ baslik, rows, cols, keyOf }: { baslik: string; rows: T[]; cols: Col<T>[]; keyOf: (r: T) => string }) {
   const [open, setOpen] = useState(false);
+  const [filters, setFilters] = useState<Record<string, string>>({});
+
+  const filtreliKolonlar = cols.filter((c) => c.filter && c.value);
+  const secenekler = useMemo(() => {
+    const m: Record<string, string[]> = {};
+    for (const c of filtreliKolonlar) {
+      m[c.key] = Array.from(new Set(rows.map((r) => c.value!(r)).filter(Boolean))).sort((a, b) => a.localeCompare(b, "tr"));
+    }
+    return m;
+  }, [rows, cols]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filtreli = rows.filter((r) =>
+    cols.every((c) => {
+      const f = filters[c.key];
+      if (!f || !c.value) return true;
+      return c.value(r) === f;
+    })
+  );
+  const aktifFiltre = Object.values(filters).some(Boolean);
+
   return (
     <div className="gs-card rounded-[18px] overflow-hidden">
       <button type="button" onClick={() => setOpen((o) => !o)}
         className={`w-full flex items-center justify-between px-5 py-3 bg-slate-50 hover:bg-slate-100 ${open ? "border-b border-[#e5e9f0]" : ""}`}>
         <span className="font-bold text-sm">{baslik}</span>
         <span className="flex items-center gap-2">
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${adet ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-400"}`}>{adet}</span>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${rows.length ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-400"}`}>
+            {aktifFiltre ? `${filtreli.length} / ${rows.length}` : rows.length}
+          </span>
           <span className="material-symbols-rounded text-[18px] text-slate-400">{open ? "expand_less" : "expand_more"}</span>
         </span>
       </button>
-      {open && (
-        adet === 0 ? (
-          <div className="px-5 py-4 text-sm text-slate-400">Dikkat gerektiren belge yok.</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-[11px] font-bold text-[#64748b] uppercase tracking-wide">
-                {cols.map((c, i) => <th key={i} className={`px-5 py-2 ${i === cols.length - 1 ? "text-right" : ""}`}>{c}</th>)}
-              </tr>
-            </thead>
-            <tbody>{children}</tbody>
-          </table>
-        )
-      )}
+
+      {open && (rows.length === 0 ? (
+        <div className="px-5 py-4 text-sm text-slate-400">Dikkat gerektiren belge yok.</div>
+      ) : (
+        <>
+          {filtreliKolonlar.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-[#eef1f5] bg-white">
+              {filtreliKolonlar.map((c) => (
+                <select key={c.key} value={filters[c.key] ?? ""}
+                  onChange={(e) => setFilters((f) => ({ ...f, [c.key]: e.target.value }))}
+                  className={`text-xs rounded-lg px-2 py-1.5 bg-white border ${filters[c.key] ? "border-navy text-navy font-semibold" : "border-slate-200 text-slate-600"}`}>
+                  <option value="">{c.label}: Tümü</option>
+                  {secenekler[c.key]?.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              ))}
+              {aktifFiltre && (
+                <button type="button" onClick={() => setFilters({})}
+                  className="text-xs font-semibold text-slate-500 hover:text-navy inline-flex items-center gap-1 px-2 py-1.5">
+                  <span className="material-symbols-rounded text-[15px]">close</span> Temizle
+                </button>
+              )}
+            </div>
+          )}
+
+          {filtreli.length === 0 ? (
+            <div className="px-5 py-4 text-sm text-slate-400">Seçime uygun kayıt yok.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] font-bold text-[#64748b] uppercase tracking-wide">
+                  {cols.map((c) => <th key={c.key} className={`px-5 py-2 ${c.align === "right" ? "text-right" : ""}`}>{c.label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {filtreli.map((r) => (
+                  <Row key={keyOf(r)}>
+                    {cols.map((c) => (
+                      <Td key={c.key} bold={c.cell === "bold"} muted={c.cell === "muted"} right={c.align === "right"}>
+                        {c.render ? c.render(r) : c.value ? c.value(r) : null}
+                      </Td>
+                    ))}
+                  </Row>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      ))}
     </div>
   );
 }
+
 const Row = ({ children }: { children: React.ReactNode }) => <tr className="border-t border-[#e5e9f0]">{children}</tr>;
 const Td = ({ children, bold, muted, right }: { children: React.ReactNode; bold?: boolean; muted?: boolean; right?: boolean }) => (
   <td className={`px-5 py-2.5 ${bold ? "font-semibold text-slate-800" : muted ? "text-slate-500" : "text-slate-700"} ${right ? "text-right" : ""}`}>{children}</td>
