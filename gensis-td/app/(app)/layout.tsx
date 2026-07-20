@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { bildirimSayisi } from "@/lib/bildirimSayisi";
 import SignOutButton from "@/components/SignOutButton";
 import SideNav from "@/components/SideNav";
 
@@ -12,11 +14,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, role")
+    .select("full_name, role, company_id")
     .eq("id", user.id)
     .single();
 
   const rol = profile?.role ?? "customer";
+  let bildirimCount = 0;
+  try {
+    bildirimCount = await bildirimSayisi(createAdminClient(), rol, profile?.company_id ?? null);
+  } catch {
+    /* sayaç alınamazsa menü yine çalışır */
+  }
   const rolTr = rol === "admin" ? "Admin" : rol === "gensis" ? "Gensis Kullanıcı" : "Müşteri";
   const adSoyad = profile?.full_name ?? user.email ?? "";
   const bas = adSoyad.trim().slice(0, 2).toUpperCase() || "GT";
@@ -29,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <img src="/logo.png" alt="GENSIS" style={{ height: 26, width: "auto" }} />
         </div>
 
-        <SideNav isAdmin={rol === "admin"} />
+        <SideNav isAdmin={rol === "admin"} bildirimCount={bildirimCount} />
 
         <div className="p-3">
           <div className="flex items-center gap-3 bg-[#eef1f8] rounded-xl p-3">
