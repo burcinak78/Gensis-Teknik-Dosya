@@ -1,5 +1,5 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, Svg, Path } from "@react-pdf/renderer";
 import { TEKNIK_DOSYA_BELGELERI } from "./belgeler";
 import { KULLANIM_KLAVUZU, BAKIM_KLAVUZU, SON_KONTROL } from "./belge_icerik";
 import { KULLANIM_KLAVUZU_HID, BAKIM_KLAVUZU_HID } from "./belge_icerik_hidrolik";
@@ -33,8 +33,8 @@ const st = StyleSheet.create({
   listNo: { width: 22, color: TEAL, fontWeight: "bold" },
   footer: { position: "absolute", bottom: 24, left: 42, right: 42, fontSize: 8, color: "#9ca3af", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#e2e8f0", paddingTop: 6 },
   coverWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
-  coverBig: { fontSize: 30, fontWeight: "bold", color: NAVY, marginBottom: 8 },
-  coverSub: { fontSize: 13, color: TEAL, marginBottom: 40 },
+  coverBig: { fontSize: 26, fontWeight: "bold", color: NAVY, marginBottom: 14, lineHeight: 1.1, textAlign: "center" },
+  coverSub: { fontSize: 13, color: TEAL, marginBottom: 40, textAlign: "center" },
   klvItem: { flexDirection: "row", paddingVertical: 2, fontSize: 9.5 },
   klvNo: { width: 22, color: TEAL },
   klvText: { flex: 1, textAlign: "justify" },
@@ -450,12 +450,26 @@ function buildCtx(data: any) {
   return { d, firma, modul, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi };
 }
 
+// CE işareti (vektör) — kapak için
+function CeMark({ size = 150 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size * 0.58} viewBox="0 0 120 70">
+      <Path d="M46.9,13.7 A26,26 0 1 0 46.9,56.3" stroke="#111827" strokeWidth={10} fill="none" strokeLinecap="butt" />
+      <Path d="M98.9,13.7 A26,26 0 1 0 98.9,56.3" stroke="#111827" strokeWidth={10} fill="none" strokeLinecap="butt" />
+      <Path d="M58,35 L94,35" stroke="#111827" strokeWidth={10} fill="none" strokeLinecap="butt" />
+    </Svg>
+  );
+}
+
 // Her belge için render fonksiyonu (code -> Page)
 const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   kapak: (c) => (
     <Page key="kapak" size="A4" style={st.page}>
       <View style={st.coverWrap}>
-        <Text style={st.coverBig}>TEKNİK DOSYA</Text>
+        <View style={{ alignItems: "center", marginBottom: 22 }}>
+          <CeMark size={150} />
+        </View>
+        <Text style={st.coverBig}>ASANSÖR TEKNİK DOSYASI</Text>
         <Text style={st.coverSub}>2014/33 AB ASANSÖR YÖNETMELİĞİ</Text>
         <R l="Dosya No" val={c.d.dosya_no} />
         <View style={{ height: 10 }} />
@@ -463,10 +477,10 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <R l="Bina Adı" val={c.d.bina_adi} />
         <R l="Bina Adresi" val={c.d.montaj_adresi} />
         <R l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
-        <View style={{ height: 24 }} />
-        <Text style={st.firmaName}>{c.fname}</Text>
+        <View style={{ height: 20 }} />
         <Text style={{ fontSize: 9, color: "#6b7280" }}>{c.tarih}</Text>
       </View>
+      <Footer firma={c.fname} />
     </Page>
   ),
 
