@@ -60,7 +60,15 @@ const STEPS = ["Firma", "Yapı Ruhsatı", "Belgeler", "Asansör", "Ekipmanlar", 
 // Adım indeksleri (tek kaynak — sabit sayı kullanma)
 const S_FIRMA = 0, S_RUHSAT = 1, S_BELGELER = 2, S_ASANSOR = 3, S_EKIPMAN = 4, S_ISLEM = 5;
 const LAST_STEP = STEPS.length - 1;
-const MODUL_SECENEKLERI = ["H1", "B", "G"];
+const MODUL_SECENEKLERI: { v: string; t: string }[] = [
+  { v: "H1B", t: "Mod H1 / B" },
+  { v: "G", t: "Mod G" },
+];
+// Asansör imal yılı listesi (gelecek yıldan 25 yıl geriye)
+const IMAL_YILLARI = (() => { const y = new Date().getFullYear(); return Array.from({ length: 27 }, (_, i) => y + 1 - i); })();
+const RANGE_3 = [1, 2, 3];
+// Binlik ayraçlı sayı biçimi (ör. 25000 → "25.000")
+const formatThousands = (s: string) => { const d = String(s ?? "").replace(/\D/g, ""); return d ? Number(d).toLocaleString("tr-TR") : ""; };
 const COMPANY_DOC_ETIKET: Record<string, string> = {
   sanayi_sicil: "Sanayi Sicil Belgesi", tse_hyb: "TSE HYB Belgesi",
   ce_h1: "Mod H1 Belgesi", ce_tasarim: "Tasarım İnceleme Belgesi",
@@ -179,7 +187,7 @@ export default function DataEntryWizard(props: Props) {
   const [periyodikTarihi, setPeriyodikTarihi] = useState(init?.periyodikTarihi ?? "");
   // Dosya İşlemleri adımı
   const [faturali, setFaturali] = useState(init?.faturali ?? "");
-  const [fiyat, setFiyat] = useState(init?.fiyat ?? "");
+  const [fiyat, setFiyat] = useState(formatThousands(init?.fiyat ?? ""));
   const [teslimDurumu, setTeslimDurumu] = useState(init?.teslimDurumu ?? "taslak");
   const [teslimTarihi, setTeslimTarihi] = useState(init?.teslimTarihi ?? "");
   const [kopyalandi, setKopyalandi] = useState<string>("");
@@ -363,7 +371,7 @@ export default function DataEntryWizard(props: Props) {
   // Dosya İşlemleri — metin + gönderim yardımcıları
   const faturaliTr = faturali === "faturali" ? "Faturalı" : faturali === "faturasiz" ? "Faturasız" : "—";
   const muhasebeMetni = () =>
-    `Firma: ${company?.short_name ?? "—"}\nProje No: ${dosyaNo || "—"}\nFiyat: ${fiyat ? fiyat + " TL" : "—"}\nFatura: ${faturaliTr}` +
+    `Firma: ${company?.short_name ?? "—"}\nProje No: ${dosyaNo || "—"}\nFiyat + KDV: ${fiyat ? fiyat + " TL" : "—"}\nFatura: ${faturaliTr}` +
     (faturali === "faturali" ? `\nFatura No: ${faturaNo || "—"}\nFatura Tarihi: ${faturaTarihi || "—"}` : "");
   const musteriMetni = () =>
     `Sayın ${company?.short_name ?? ""},\n${dosyaNo || ""} numaralı teknik dosyanız hazırlanmıştır. Bilginize sunarız.`;
@@ -612,24 +620,27 @@ export default function DataEntryWizard(props: Props) {
               {/* Kullanılacak Modül Belgesi */}
               <Field label="Kullanılacak Modül Belgesi *" full>
                 <div className="flex gap-2">
-                  {MODUL_SECENEKLERI.map((m) => (
-                    <button key={m} type="button" onClick={() => setModulSecim(m)}
-                      className={`px-4 py-2.5 rounded-lg text-sm font-bold border transition-colors ${modulSecim === m ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
-                      style={modulSecim === m ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)" } : undefined}>
-                      Modül {m}
-                    </button>
-                  ))}
+                  {MODUL_SECENEKLERI.map((m) => {
+                    const aktif = modulSecim === m.v || (m.v === "H1B" && (modulSecim === "H1" || modulSecim === "B"));
+                    return (
+                      <button key={m.v} type="button" onClick={() => setModulSecim(m.v)}
+                        className={`px-4 py-2.5 rounded-lg text-sm font-bold border transition-colors ${aktif ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
+                        style={aktif ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)" } : undefined}>
+                        {m.t}
+                      </button>
+                    );
+                  })}
                 </div>
               </Field>
 
-              {(modulSecim === "H1" || modulSecim === "B") && (
+              {(modulSecim === "H1B" || modulSecim === "H1" || modulSecim === "B") && (
                 <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="text-sm font-bold text-slate-800 mb-1">Müşterinin belgelerinden seçin</div>
-                  <div className="text-xs text-slate-500 mb-3">Bu asansör için kullanılacak, önceden yüklenmiş belgeleri işaretleyin (birden fazla seçebilirsiniz).</div>
+                  <div className="text-sm font-bold text-slate-800 mb-1">Müşterinin CE belgelerinden seçin</div>
+                  <div className="text-xs text-slate-500 mb-3">Bu asansör için kullanılacak, önceden yüklenmiş CE belgelerini (Mod B, Mod H1, Tasarım İnceleme, Mod E…) işaretleyin (birden fazla seçebilirsiniz).</div>
                   {(() => {
-                    const docs = (props.companyDocuments ?? []).filter((d) => d.company_id === companyId);
+                    const docs = (props.companyDocuments ?? []).filter((d) => d.company_id === companyId && d.doc_type.startsWith("ce"));
                     if (!companyId) return <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Önce Firma adımında müşteri seçin.</div>;
-                    if (docs.length === 0) return <div className="text-xs text-slate-400">Bu müşteriye ait yüklenmiş belge yok.</div>;
+                    if (docs.length === 0) return <div className="text-xs text-slate-400">Bu müşteriye ait yüklenmiş CE belgesi yok.</div>;
                     return (
                       <div className="space-y-1.5">
                         {docs.map((d) => {
@@ -723,7 +734,12 @@ export default function DataEntryWizard(props: Props) {
                 <Field label="Beyan Hızı (m/s) *">
                   <input className={"inp" + ec(beyanHizi)} value={beyanHizi} onChange={(e) => setBeyanHizi(e.target.value)} placeholder="Örn. 1.0" />
                 </Field>
-                <Field label="İmal Yılı *"><input className={"inp" + ec(imalYili)} value={imalYili} onChange={(e) => setImalYili(e.target.value)} placeholder="2026" /></Field>
+                <Field label="İmal Yılı *">
+                  <select className={"inp" + ec(imalYili)} value={imalYili} onChange={(e) => setImalYili(e.target.value)}>
+                    <option value="">Seçiniz…</option>
+                    {IMAL_YILLARI.map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </Field>
 
                 {/* Kat listesi — seçimler burada; toplam kat adedi otomatik dolar */}
                 <div className="col-span-2 bg-white border border-slate-200 rounded-xl p-4">
@@ -799,10 +815,10 @@ export default function DataEntryWizard(props: Props) {
                     {RANGE_100.filter((n) => !katAdedi || n <= Number(katAdedi)).map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </Field>
-                <Field label="Giriş Sayısı * (en fazla 4)">
+                <Field label="Giriş Sayısı * (en fazla 3)">
                   <select className={"inp" + ec(girisSayisi)} value={girisSayisi} onChange={(e) => setGirisSayisi(e.target.value)}>
                     <option value="">Seçiniz…</option>
-                    {RANGE_4.map((n) => <option key={n} value={n}>{n}</option>)}
+                    {RANGE_3.map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </Field>
                 <Field label="Askı Tipi *">
@@ -1032,10 +1048,12 @@ export default function DataEntryWizard(props: Props) {
                     </button>
                   ))}
                 </div>
-                {faturali === "faturali" && (
+                {faturali && (
                   <div className="space-y-2">
-                    <div className="text-xs text-slate-500">Fatura bilgileri (Belgeler adımından): No <b>{faturaNo || "—"}</b> · Tarih <b>{faturaTarihi || "—"}</b></div>
-                    <Field label="Fiyat (TL)"><input className="inp" value={fiyat} onChange={(e) => setFiyat(e.target.value)} placeholder="Örn. 25000" inputMode="decimal" /></Field>
+                    {faturali === "faturali" && (
+                      <div className="text-xs text-slate-500">Fatura bilgileri (Belgeler adımından): No <b>{faturaNo || "—"}</b> · Tarih <b>{faturaTarihi || "—"}</b></div>
+                    )}
+                    <Field label="Fiyat + KDV (TL)"><input className="inp" value={fiyat} onChange={(e) => setFiyat(formatThousands(e.target.value))} placeholder="Örn. 25.000" inputMode="numeric" /></Field>
                   </div>
                 )}
               </div>
