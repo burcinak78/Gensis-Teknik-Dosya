@@ -31,7 +31,7 @@ export default async function PanelPage() {
 
   return (
     <div>
-      <div className="px-8 pt-6 pb-4">
+      <div className="px-8 pt-6 pb-4 sticky top-0 z-30 bg-white border-b border-[#e7ebf2]">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-[24px] font-extrabold tracking-tight">Teknik Dosyalar</h1>

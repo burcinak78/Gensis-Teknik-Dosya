@@ -6,25 +6,36 @@ import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument, del
 
 type Company = {
   id: string; short_name: string; legal_name: string | null; address: string | null;
-  phone: string | null; mobile_phone: string | null; city: string | null;
+  phone: string | null; mobile_phone: string | null; email: string | null; city: string | null;
   authorized_person: string | null; registered_brand: string | null; industry_reg_no: string | null; ce_module: string | null;
 };
 type Doc = { id: string; company_id: string; doc_type: string; original_name: string | null; issue_date: string | null; valid_until: string | null; belge_no: string | null; notified_body_id: string | null; sub_type: string | null; parent_id: string | null };
 type NB = { id: string; identity_no: string | null; name: string };
-type Row = { uid: string; id?: string; belge_no: string; issue_date: string; valid_until: string; notified_body_id: string; file: File | null; original_name?: string | null };
+type Row = { uid: string; id?: string; belge_no: string; issue_date: string; valid_until: string; notified_body_id: string; file: File | null; original_name?: string | null; sub_type?: string };
 type BRow = Row & { sub_type: string; eki: Row[] };
 type DocsState = { sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_tasarim: Row[]; ce_b: BRow[] };
 
 const BLANK: Record<string, string> = {
   short_name: "", legal_name: "", authorized_person: "", registered_brand: "",
-  city: "", phone: "", mobile_phone: "", industry_reg_no: "", address: "",
+  city: "", phone: "", mobile_phone: "", email: "", industry_reg_no: "", address: "",
 };
 const B_TIPLERI = [
   { v: "mr", ad: "Mod B MR — Elektrikli Makine Daireli" },
   { v: "mrl", ad: "Mod B MRL — Elektrikli Makine Dairesiz" },
   { v: "hid_1_1", ad: "Mod B Hidrolik 1/1 Askı" },
   { v: "hid_2_1", ad: "Mod B Hidrolik 2/1 Askı" },
+  { v: "mr_ra", ad: "Mod B- MR-RA" },
+  { v: "mrl_ra", ad: "Mod B-MRL-RA" },
+  { v: "hid_2_1_tandem", ad: "Mod B- Hidrolik 2/1 Askı TANDEM" },
 ];
+// Tasarım İnceleme (Mod H1) tipleri
+const TI_TIPLERI = [
+  { v: "ti_makine_dairesi", ad: "Tİ - Makine Dairesi" },
+  { v: "ti_kuyu_ust", ad: "Tİ - Kuyu Üst Boşluğu" },
+  { v: "ti_kuyu_dibi", ad: "Tİ - Kuyu Dibi" },
+];
+// Zorunlu firma alanları
+const ZORUNLU_FIRMA = ["short_name", "legal_name", "authorized_person", "registered_brand", "city", "industry_reg_no", "address"];
 const BADGE: Record<string, string> = {
   green: "bg-green-50 text-green-700", amber: "bg-amber-50 text-amber-700",
   red: "bg-red-50 text-red-600", slate: "bg-slate-100 text-slate-500",
@@ -60,7 +71,9 @@ export default function MusterilerClient({
   const [docKey, setDocKey] = useState(0);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showReq, setShowReq] = useState(false);
   const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
+  const reqCls = (k: string) => (showReq && !(form[k] ?? "").trim() ? " !border-red-300 !bg-red-50" : "");
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const formRef = useRef<HTMLFormElement>(null);
   const scrollToForm = () => setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
@@ -72,7 +85,7 @@ export default function MusterilerClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const rowFromDoc = (d: Doc): Row => ({ uid: uid(), id: d.id, belge_no: d.belge_no ?? "", issue_date: d.issue_date ?? "", valid_until: d.valid_until ?? "", notified_body_id: d.notified_body_id ?? "", file: null, original_name: d.original_name });
+  const rowFromDoc = (d: Doc): Row => ({ uid: uid(), id: d.id, belge_no: d.belge_no ?? "", issue_date: d.issue_date ?? "", valid_until: d.valid_until ?? "", notified_body_id: d.notified_body_id ?? "", file: null, original_name: d.original_name, sub_type: d.sub_type ?? "" });
   function buildDocs(compId: string): DocsState {
     const all = documents.filter((d) => d.company_id === compId);
     const one = (t: string) => { const d = all.find((x) => x.doc_type === t); return d ? rowFromDoc(d) : emptyRow(); };
@@ -126,7 +139,7 @@ export default function MusterilerClient({
     const f = {
       short_name: c.short_name ?? "", legal_name: c.legal_name ?? "", authorized_person: c.authorized_person ?? "",
       registered_brand: c.registered_brand ?? "", city: c.city ?? "", phone: c.phone ?? "",
-      mobile_phone: c.mobile_phone ?? "", industry_reg_no: c.industry_reg_no ?? "", address: c.address ?? "",
+      mobile_phone: c.mobile_phone ?? "", email: c.email ?? "", industry_reg_no: c.industry_reg_no ?? "", address: c.address ?? "",
     };
     setForm(f);
     setCeModule(c.ce_module || "H1");
@@ -139,9 +152,16 @@ export default function MusterilerClient({
     setDocs(emptyDocs()); setDeletedIds([]); setDocKey((k) => k + 1); setMsg(null); scrollToForm();
   }
 
+  async function silRow(c: Company) {
+    if (!confirm(`"${c.short_name}" müşterisi; belgeleri ve bağlı mühendisleriyle birlikte tamamen silinsin mi? Bu işlem geri alınamaz.`)) return;
+    const res = await deleteCompany(c.id);
+    if (res.ok) { if (editId === c.id) newCompany(); router.refresh(); }
+    else alert("Silinemedi: " + res.error);
+  }
+
   async function sil() {
     if (!editId) return;
-    if (!confirm(`"${form.short_name}" müşterisini silmek istiyor musunuz?`)) return;
+    if (!confirm(`"${form.short_name}" müşterisi; belgeleri ve bağlı mühendisleriyle birlikte tamamen silinsin mi? Bu işlem geri alınamaz.`)) return;
     setBusy(true); setMsg(null);
     const res = await deleteCompany(editId);
     setBusy(false);
@@ -153,6 +173,9 @@ export default function MusterilerClient({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    const eksik = ZORUNLU_FIRMA.filter((k) => !(form[k] ?? "").trim());
+    if (eksik.length) { setShowReq(true); setMsg({ ok: false, text: "Lütfen kırmızı ile işaretli zorunlu alanları doldurun." }); return; }
+    setShowReq(false);
     setBusy(true); setMsg(null);
     const payload = { ...form, ce_module: ceModule };
     // Müşteri: firma bilgisi yalnız değiştiyse onaya gönder (gereksiz onay üretme)
@@ -190,7 +213,7 @@ export default function MusterilerClient({
     if (ceModule === "H1") {
       nd.ce_h1 = wantUp(docs.ce_h1) ? await up("ce_h1", docs.ce_h1) : { ...docs.ce_h1, file: null };
       nd.ce_tasarim = [];
-      for (const r of docs.ce_tasarim) nd.ce_tasarim.push(wantUp(r) ? await up("ce_tasarim", r) : { ...r, file: null });
+      for (const r of docs.ce_tasarim) nd.ce_tasarim.push(wantUp(r) ? await up("ce_tasarim", r, { sub_type: r.sub_type }) : { ...r, file: null });
       nd.ce_b = docs.ce_b;
     } else {
       nd.ce_b = [];
@@ -226,7 +249,7 @@ export default function MusterilerClient({
       )}
 
       {!isCustomer && (
-        <div>
+        <div className="sticky top-[86px] z-30 bg-white -mx-8 px-8 py-3 border-b border-[#e7ebf2]">
           <button type="button" onClick={newCompany} className="gs-btn text-sm font-bold px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5">
             <span className="material-symbols-rounded text-[18px]">add</span> Yeni Müşteri Oluştur
           </button>
@@ -235,8 +258,8 @@ export default function MusterilerClient({
 
       {/* Liste (yalnız personel) */}
       {!isCustomer && (
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-        <div className="p-3 border-b border-slate-100">
+      <div className="bg-white border border-slate-200 rounded-2xl">
+        <div className="p-3 border-b border-slate-100 sticky top-[146px] z-20 bg-white rounded-t-2xl">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Firma adından ara…" className={inp} />
         </div>
         <table className="w-full text-sm">
@@ -250,7 +273,10 @@ export default function MusterilerClient({
                   <td className="px-5 py-2.5 text-slate-500">{c.authorized_person ?? "—"}</td>
                   <td className="px-5 py-2.5"><span className={`text-xs px-2 py-1 rounded-full font-semibold ${BADGE[du.c]}`}>{du.t}</span></td>
                   <td className="px-5 py-2.5 text-right">
-                    <button onClick={() => selectCompany(c)} className="text-xs font-semibold text-brand hover:underline">Düzenle</button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button onClick={() => selectCompany(c)} className="text-xs font-semibold text-brand hover:underline">Düzenle</button>
+                      <button onClick={() => silRow(c)} className="text-xs font-semibold text-red-600 hover:underline">Sil</button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -261,44 +287,33 @@ export default function MusterilerClient({
       </div>
       )}
 
-      {/* Bilgiler (sol) + Belgeler (sağ) — tek Kaydet */}
-      <form ref={formRef} onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start scroll-mt-6">
-        {/* Sol */}
+      {/* Bilgiler (üst) + Belgeler (alt) — tam genişlik, Kaydet en altta */}
+      <form ref={formRef} onSubmit={submit} className="space-y-6 scroll-mt-6">
+        {/* Temel bilgiler */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold">{isCustomer ? "Firma Bilgilerim" : editId ? "Müşteri Düzenle" : "Yeni Müşteri"}</h2>
             {!isCustomer && editId && <button type="button" onClick={newCompany} className="text-xs font-semibold text-brand hover:underline">+ Yeni</button>}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2"><L>Kısa Ad *</L><input className={inp} value={form.short_name} onChange={(e) => set("short_name", e.target.value)} /></div>
-            <div className="col-span-2"><L>Ticari Ünvan *</L><input className={inp} value={form.legal_name} onChange={(e) => set("legal_name", e.target.value)} /></div>
-            <div><L>Yetkili / Ünvanı</L><input className={inp} value={form.authorized_person} onChange={(e) => set("authorized_person", e.target.value)} /></div>
-            <div><L>Tescilli Marka</L><input className={inp} value={form.registered_brand} onChange={(e) => set("registered_brand", e.target.value)} /></div>
-            <div><L>Şehir</L>
-              <select className={inp} value={form.city} onChange={(e) => set("city", e.target.value)}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="md:col-span-2"><L>Kısa Ad *</L><input className={inp + reqCls("short_name")} value={form.short_name} onChange={(e) => set("short_name", e.target.value)} /></div>
+            <div className="md:col-span-2"><L>Ticari Ünvan *</L><input className={inp + reqCls("legal_name")} value={form.legal_name} onChange={(e) => set("legal_name", e.target.value)} /></div>
+            <div><L>Yetkili / Ünvanı *</L><input className={inp + reqCls("authorized_person")} value={form.authorized_person} onChange={(e) => set("authorized_person", e.target.value)} /></div>
+            <div><L>Tescilli Marka *</L><input className={inp + reqCls("registered_brand")} value={form.registered_brand} onChange={(e) => set("registered_brand", e.target.value)} /></div>
+            <div><L>Şehir *</L>
+              <select className={inp + reqCls("city")} value={form.city} onChange={(e) => set("city", e.target.value)}>
                 <option value="">Seçiniz…</option>
                 {provinces.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
-            <div><L>Sanayi Sicil No</L><input className={inp} value={form.industry_reg_no} onChange={(e) => set("industry_reg_no", e.target.value)} /></div>
-            <div><L>Sabit Telefon</L><input type="tel" className={inp} value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="0 224 000 00 00" /></div>
+            <div><L>Sanayi Sicil No *</L><input className={inp + reqCls("industry_reg_no")} value={form.industry_reg_no} onChange={(e) => set("industry_reg_no", e.target.value)} /></div>
             <div><L>Cep Telefonu</L><input type="tel" className={inp} value={form.mobile_phone} onChange={(e) => set("mobile_phone", e.target.value)} placeholder="0 5xx 000 00 00" /></div>
-            <div className="col-span-2"><L>Adres</L><input className={inp} value={form.address} onChange={(e) => set("address", e.target.value)} /></div>
-          </div>
-          {msg && <div className={`mt-3 text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
-          <div className="mt-4 flex items-center gap-2">
-            <button disabled={busy} className="bg-brand hover:bg-brand-dark text-white font-bold text-sm px-5 py-2.5 rounded-lg disabled:opacity-50">
-              {busy ? "Kaydediliyor…" : isCustomer ? "Onaya Gönder" : editId ? "Değişiklikleri Kaydet" : "Müşteriyi Kaydet"}
-            </button>
-            {!isCustomer && editId && (
-              <button type="button" onClick={sil} disabled={busy} className="text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg disabled:opacity-50">
-                Müşteri Sil
-              </button>
-            )}
+            <div><L>Müşteri E-posta (opsiyonel)</L><input type="email" className={inp} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="ornek@firma.com" /></div>
+            <div className="md:col-span-2"><L>Adres *</L><input className={inp + reqCls("address")} value={form.address} onChange={(e) => set("address", e.target.value)} /></div>
           </div>
         </div>
 
-        {/* Sağ: belgeler */}
+        {/* Belgeler */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
           <div>
             <h2 className="font-bold">Belgeler</h2>
@@ -326,8 +341,20 @@ export default function MusterilerClient({
                 <DocRow ad="Mod H1 Belgesi" row={docs.ce_h1} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setSingle("ce_h1", p)} rk={`${docKey}-h1`} />
                 <div className="text-xs font-semibold text-slate-600">Tasarım İnceleme Belgeleri</div>
                 {docs.ce_tasarim.map((r, i) => (
-                  <DocRow key={r.uid} ad={`Tasarım İnceleme ${i + 1}`} row={r} nbs={notifiedBodies} showBelgeNo showNb
-                    onChange={(p) => setTasarim(i, p)} onRemove={() => removeTasarim(i)} rk={r.uid} />
+                  <div key={r.uid} className="border border-slate-200 rounded-xl p-3 space-y-2 bg-white">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-800">Tasarım İnceleme {i + 1}</span>
+                      <button type="button" onClick={() => removeTasarim(i)} className="text-xs text-red-500 hover:underline">Sil</button>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Tasarım İnceleme Tipi</label>
+                      <select value={r.sub_type ?? ""} onChange={(e) => setTasarim(i, { sub_type: e.target.value })} className="w-full text-xs px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-brand">
+                        <option value="">Seçiniz…</option>
+                        {TI_TIPLERI.map((t) => <option key={t.v} value={t.v}>{t.ad}</option>)}
+                      </select>
+                    </div>
+                    <DocRow ad="Belge Bilgileri" row={r} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setTasarim(i, p)} rk={r.uid} />
+                  </div>
                 ))}
                 <button type="button" onClick={addTasarim} className="text-xs font-semibold text-brand hover:underline">+ Tasarım İnceleme Ekle</button>
               </div>
@@ -360,6 +387,21 @@ export default function MusterilerClient({
                 <button type="button" onClick={addB} className="text-xs font-semibold text-brand hover:underline">+ Mod B Ekle</button>
                 <DocRow ad="Mod E Belgesi" row={docs.ce_e} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setSingle("ce_e", p)} rk={`${docKey}-e`} />
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* Kaydet (en altta, tam genişlik) */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5">
+          {msg && <div className={`mb-3 text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
+          <div className="flex items-center gap-2">
+            <button disabled={busy} className="bg-brand hover:bg-brand-dark text-white font-bold text-sm px-5 py-2.5 rounded-lg disabled:opacity-50">
+              {busy ? "Kaydediliyor…" : isCustomer ? "Onaya Gönder" : editId ? "Değişiklikleri Kaydet" : "Müşteriyi Kaydet"}
+            </button>
+            {!isCustomer && editId && (
+              <button type="button" onClick={sil} disabled={busy} className="text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg disabled:opacity-50">
+                Müşteri Sil
+              </button>
             )}
           </div>
         </div>
@@ -419,7 +461,7 @@ function DocRow({
             <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Onaylanmış Kuruluş</label>
             <select value={row.notified_body_id} onChange={(e) => onChange({ notified_body_id: e.target.value })} className={dinp}>
               <option value="">Seçiniz…</option>
-              {nbs.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
+              {nbs.filter((n) => n.identity_no).map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
             </select>
           </div>
           <div>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { deleteProject } from "../yeni/actions";
 
 type Proje = {
   id: string; dosya_no: string; status: string; bina_adi: string | null;
@@ -31,6 +32,16 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
   const setF = (k: ColKey, v: string) => setColF((s) => ({ ...s, [k]: v }));
   const anyFilter = Object.values(colF).some(Boolean);
   const clearAll = () => setColF({ ...emptyF });
+  const [silId, setSilId] = useState<string | null>(null);
+
+  async function sil(p: Proje) {
+    if (!confirm(`"${p.dosya_no}" teknik dosyası tamamen silinsin mi? Bu işlem geri alınamaz.`)) return;
+    setSilId(p.id);
+    const r = await deleteProject(p.id);
+    setSilId(null);
+    if (r.ok) router.refresh();
+    else alert("Silinemedi: " + (r.error ?? ""));
+  }
 
   // Filtre açılır menüleri için listedeki benzersiz değerler
   const firms = useMemo(
@@ -104,8 +115,8 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
   }
 
   return (
-    <div className="gs-card rounded-[18px] overflow-hidden">
-      <div className="flex items-center justify-between gap-2 p-3 border-b border-[#e5e9f0]">
+    <div className="gs-card rounded-[18px]">
+      <div className="flex items-center justify-between gap-2 p-3 border-b border-[#e5e9f0] sticky top-[86px] z-20 bg-white rounded-t-[18px]">
         <div className="text-sm text-slate-500">
           <b className="text-slate-700">{rows.length}</b> / {projects.length} dosya
           {anyFilter && <span className="ml-2 text-xs text-slate-400">(filtreli)</span>}
@@ -117,10 +128,10 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
         )}
       </div>
 
-      <div className="overflow-x-auto">
+      <div>
         <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-[12px] font-bold text-[#64748b] uppercase tracking-wide">
+          <thead className="sticky top-[132px] z-10 bg-white">
+            <tr className="text-left text-[12px] font-bold text-[#64748b] uppercase tracking-wide bg-white">
               <Th k="dosya_no">Dosya No</Th>
               <Th k="bina_adi">Bina</Th>
               <Th k="firma">Firma</Th>
@@ -129,7 +140,7 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
               <Th k="created_at">Tarih</Th>
               <th className="px-5 pt-3 pb-2">İşlemler</th>
             </tr>
-            <tr className="border-b border-[#e5e9f0]">
+            <tr className="border-b border-[#e5e9f0] bg-white">
               <td className="px-5 pb-3 align-top"><TextFilter k="dosya_no" ph="Dosya no…" /></td>
               <td className="px-5 pb-3 align-top"><TextFilter k="bina_adi" ph="Bina…" /></td>
               <td className="px-5 pb-3 align-top">
@@ -178,9 +189,13 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
                       <div className="flex items-center gap-4">
                         <Link href={`/panel/${p.id}/duzenle`} onClick={(e) => e.stopPropagation()}
                           className="text-slate-600 font-semibold hover:text-navy hover:underline inline-flex items-center gap-1">
-                          <span className="material-symbols-rounded text-[16px]">edit</span> Düzenle
+                          <span className="material-symbols-rounded text-[16px]">edit</span> Güncelle
                         </Link>
-                        <Link href={`/panel/${p.id}`} onClick={(e) => e.stopPropagation()} className="text-navy font-semibold hover:underline">Belgeler →</Link>
+                        <Link href={`/panel/${p.id}`} onClick={(e) => e.stopPropagation()} className="text-navy font-semibold hover:underline">Belgeler</Link>
+                        <button onClick={(e) => { e.stopPropagation(); sil(p); }} disabled={silId === p.id}
+                          className="text-red-600 font-semibold hover:underline inline-flex items-center gap-1 disabled:opacity-50">
+                          <span className="material-symbols-rounded text-[16px]">delete</span> {silId === p.id ? "Siliniyor…" : "Sil"}
+                        </button>
                       </div>
                     </td>
                   </tr>

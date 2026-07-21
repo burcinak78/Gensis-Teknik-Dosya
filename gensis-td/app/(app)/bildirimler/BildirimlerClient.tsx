@@ -78,7 +78,7 @@ export default function BildirimlerClient({
 
   return (
     <div>
-      <div className="px-8 pt-6 pb-4 border-b border-[#e7ebf2]">
+      <div className="px-8 pt-6 pb-4 border-b border-[#e7ebf2] sticky top-0 z-30 bg-white">
         <h1 className="text-[24px] font-extrabold tracking-tight">Bildirimler</h1>
         <p className="text-sm text-slate-500">
           Geçerliliğine 1 aydan az kalan veya süresi dolmuş belgeler.{" "}

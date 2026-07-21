@@ -156,3 +156,16 @@ export async function updateDraftProject(id: string, payload: DraftPayload): Pro
   revalidatePath(`/panel/${id}`);
   return { ok: true, id };
 }
+
+// ---------- Teknik dosyayı tamamen sil ----------
+export async function deleteProject(id: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Oturum bulunamadı." };
+  if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+  await supabase.from("project_equipment").delete().eq("project_id", id);
+  const { error } = await supabase.from("projects").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/panel");
+  return { ok: true };
+}

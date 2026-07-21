@@ -18,7 +18,7 @@ export default async function FirmamPage() {
   const admin = createAdminClient();
   const [{ data: company }, { data: provinces }, { data: docs }, { data: notifiedBodies }] = await Promise.all([
     admin.from("companies")
-      .select("id, short_name, legal_name, address, phone, mobile_phone, city, authorized_person, registered_brand, industry_reg_no, ce_module")
+      .select("id, short_name, legal_name, address, phone, mobile_phone, email, city, authorized_person, registered_brand, industry_reg_no, ce_module")
       .eq("id", companyId).maybeSingle(),
     admin.from("provinces").select("name").order("name"),
     admin.from("company_documents")

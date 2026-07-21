@@ -50,6 +50,7 @@ export async function createCompany(form: Record<string, string>): Promise<Resul
       authorized_person: form.authorized_person || null,
       registered_brand: form.registered_brand || null,
       industry_reg_no: form.industry_reg_no || null,
+      email: form.email || null,
       ce_module: form.ce_module || null,
     }).select("id").single();
     if (error || !data) return { ok: false, error: error?.message ?? "Müşteri eklenemedi." };
@@ -78,6 +79,7 @@ export async function updateCompany(id: string, form: Record<string, string>): P
       authorized_person: form.authorized_person || null,
       registered_brand: form.registered_brand || null,
       industry_reg_no: form.industry_reg_no || null,
+      email: form.email || null,
       ce_module: form.ce_module || null,
     };
     if (!staff) {
@@ -102,17 +104,42 @@ export async function deleteCompany(id: string): Promise<Result> {
     await assertAdmin();
     if (!id) return { ok: false, error: "Kayıt bulunamadı." };
     const admin = createAdminClient();
+    // Güvenlik: teknik dosyası / proje onayı olan firma silinmesin (bu kayıtlar sessizce yok olmasın)
     const { count: pc } = await admin.from("projects").select("*", { count: "exact", head: true }).eq("company_id", id);
-    if ((pc ?? 0) > 0) return { ok: false, error: "Bu firmanın teknik dosyaları var; silmeden önce onları kaldırın." };
+    if ((pc ?? 0) > 0) return { ok: false, error: "Bu firmanın teknik dosyaları var; önce onları silin." };
     const { count: oc } = await admin.from("proje_onay").select("*", { count: "exact", head: true }).eq("company_id", id);
-    if ((oc ?? 0) > 0) return { ok: false, error: "Bu firmanın proje onay dosyaları var; silinemez." };
-    // bağlı referansları çöz (FK engellemesin)
-    await admin.from("engineers").update({ company_id: null }).eq("company_id", id);
+    if ((oc ?? 0) > 0) return { ok: false, error: "Bu firmanın proje onay dosyaları var; önce onları silin." };
+
+    // 1) Firma belgeleri + depodaki dosyalar
+    const { data: cdocs } = await admin.from("company_documents").select("storage_path").eq("company_id", id);
+    const cPaths = (cdocs ?? []).map((d: any) => d.storage_path).filter(Boolean);
+    if (cPaths.length) await admin.storage.from("documents").remove(cPaths);
+    await admin.from("company_documents").delete().eq("company_id", id);
+
+    // 2) Bağlı mühendisler + belgeleri + depodaki dosyalar
+    const { data: engs } = await admin.from("engineers").select("id").eq("company_id", id);
+    const engIds = (engs ?? []).map((e: any) => e.id);
+    if (engIds.length) {
+      const { data: edocs } = await admin.from("engineer_documents").select("storage_path").in("engineer_id", engIds);
+      const ePaths = (edocs ?? []).map((d: any) => d.storage_path).filter(Boolean);
+      if (ePaths.length) await admin.storage.from("documents").remove(ePaths);
+      await admin.from("engineer_documents").delete().in("engineer_id", engIds);
+      // projelerdeki mühendis referanslarını çöz (FK engellemesin)
+      await admin.from("projects").update({ makine_muhendis_id: null }).in("makine_muhendis_id", engIds);
+      await admin.from("projects").update({ elektrik_muhendis_id: null }).in("elektrik_muhendis_id", engIds);
+      await admin.from("engineers").delete().in("id", engIds);
+    }
+
+    // 3) Firmaya bağlı bekleyen onaylar (tablo yoksa yok say)
+    await admin.from("pending_changes").delete().eq("company_id", id);
+
+    // 4) Kullanıcı profillerini firmadan çöz
     await admin.from("profiles").update({ company_id: null }).eq("company_id", id);
+
     const { error } = await admin.from("companies").delete().eq("id", id);
     if (error) return { ok: false, error: error.message };
     revalidatePath("/admin/musteriler");
-    return { ok: true, message: "Müşteri silindi." };
+    return { ok: true, message: "Müşteri, belgeleri ve bağlı mühendisleri silindi." };
   } catch (e: any) {
     return { ok: false, error: e.message };
   }

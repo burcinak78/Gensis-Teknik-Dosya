@@ -182,8 +182,8 @@ export default function MuhendislerClient({
       )}
 
       {/* Liste (tam genişlik) */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-        <div className="p-3 border-b border-slate-100">
+      <div className="bg-white border border-slate-200 rounded-2xl">
+        <div className="p-3 border-b border-slate-100 sticky top-[86px] z-20 bg-white rounded-t-2xl">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Mühendis adından ara…" className={inp} />
         </div>
         <table className="w-full text-sm">
@@ -213,9 +213,9 @@ export default function MuhendislerClient({
         </table>
       </div>
 
-      {/* Bilgiler (sol) + Belgeler (sağ) — tek Kaydet */}
-      <form ref={formRef} onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start scroll-mt-6">
-        {/* Sol: bilgiler */}
+      {/* Bilgiler (üst) + Belgeler (alt) — tam genişlik, Kaydet en altta */}
+      <form ref={formRef} onSubmit={submit} className="space-y-6 scroll-mt-6">
+        {/* Temel bilgiler */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold">{editId ? "Mühendis Düzenle" : "Yeni Mühendis (Proje Müellifi)"}</h2>
@@ -255,20 +255,9 @@ export default function MuhendislerClient({
               </div>
             )}
           </div>
-          {msg && <div className={`mt-3 text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
-          <div className="mt-4 flex items-center gap-2">
-            <button disabled={busy} className="bg-brand hover:bg-brand-dark text-white font-bold text-sm px-5 py-2.5 rounded-lg disabled:opacity-50">
-              {busy ? "Kaydediliyor…" : isCustomer ? "Onaya Gönder" : editId ? "Değişiklikleri Kaydet" : "Mühendisi Kaydet"}
-            </button>
-            {!isCustomer && editId && (
-              <button type="button" onClick={sil} disabled={busy} className="text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg disabled:opacity-50">
-                Mühendisi Sil
-              </button>
-            )}
-          </div>
         </div>
 
-        {/* Sağ: belgeler */}
+        {/* Belgeler */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <h2 className="font-bold mb-1">Belgeler</h2>
           <p className="text-xs text-slate-400 mb-3">Dosya ve geçerlilik tarihini gir; alttaki <b>Kaydet</b> ile mühendisle birlikte yüklenir. 1 aydan az kalınca sarı, dolunca kırmızı.</p>
@@ -284,6 +273,21 @@ export default function MuhendislerClient({
                 onFile={(f) => setDoc(t.key, { file: f })}
               />
             ))}
+          </div>
+        </div>
+
+        {/* Kaydet (en altta, tam genişlik) */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5">
+          {msg && <div className={`mb-3 text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
+          <div className="flex items-center gap-2">
+            <button disabled={busy} className="bg-brand hover:bg-brand-dark text-white font-bold text-sm px-5 py-2.5 rounded-lg disabled:opacity-50">
+              {busy ? "Kaydediliyor…" : isCustomer ? "Onaya Gönder" : editId ? "Değişiklikleri Kaydet" : "Mühendisi Kaydet"}
+            </button>
+            {!isCustomer && editId && (
+              <button type="button" onClick={sil} disabled={busy} className="text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg disabled:opacity-50">
+                Mühendisi Sil
+              </button>
+            )}
           </div>
         </div>
       </form>

@@ -8,7 +8,7 @@ export default async function MusterilerPage() {
   const [{ data: companies }, { data: provinces }, { data: docs }, { data: notifiedBodies }] = await Promise.all([
     supabase
       .from("companies")
-      .select("id, short_name, legal_name, address, phone, mobile_phone, city, authorized_person, registered_brand, industry_reg_no, ce_module")
+      .select("id, short_name, legal_name, address, phone, mobile_phone, email, city, authorized_person, registered_brand, industry_reg_no, ce_module")
       .order("short_name")
       .limit(1000),
     supabase.from("provinces").select("name").order("name"),

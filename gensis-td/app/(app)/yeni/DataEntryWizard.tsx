@@ -668,7 +668,7 @@ export default function DataEntryWizard(props: Props) {
                     <Field label="Onaylanmış Kuruluş">
                       <select className="inp" value={modulG.nb_id} onChange={(e) => setModulG({ ...modulG, nb_id: e.target.value })}>
                         <option value="">Seçiniz…</option>
-                        {props.notifiedBodies.map((n) => <option key={n.id} value={n.id}>{n.identity_no ? `${n.identity_no} · ` : ""}{n.name}</option>)}
+                        {props.notifiedBodies.filter((n) => n.identity_no).map((n) => <option key={n.id} value={n.id}>{n.identity_no} · {n.name}</option>)}
                       </select>
                     </Field>
                     <Field label="Veriliş Tarihi"><input type="date" className="inp" value={modulG.verilis} onChange={(e) => setModulG({ ...modulG, verilis: e.target.value })} /></Field>
