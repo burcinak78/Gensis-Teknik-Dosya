@@ -20,6 +20,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     capacity,
     lookups,
     engineers,
+    companyDocsRes,
     projectRes,
     equipRes,
   ] = await Promise.all([
@@ -39,6 +40,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
       .order("beyan_yuku_kg"),
     supabase.from("lookup_values").select("list_key, value, sort_order").order("sort_order"),
     supabase.from("engineers").select("id, full_name, discipline, chamber_reg_no, company_id").order("full_name").limit(2000),
+    supabase.from("company_documents").select("id, company_id, doc_type, belge_no, valid_until").limit(5000),
     supabase.from("projects").select("*").eq("id", params.id).single(),
     supabase
       .from("project_equipment")
@@ -119,6 +121,19 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     katSayisi: s(inp.kat_sayisi) || s(project.kat_adedi),
     baslangicKat: s(inp.baslangic_kat) || "Z",
     araKatlar: Array.isArray(inp.ara_katlar) ? inp.ara_katlar : [],
+    // Belgeler + Dosya İşlemleri (Faz 1 metadata)
+    modulSecim: s(inp.modul_secim),
+    modulBelgeIds: Array.isArray(inp.modul_belge_ids) ? inp.modul_belge_ids : [],
+    modulG: inp.modul_g && typeof inp.modul_g === "object"
+      ? { belge_no: s(inp.modul_g.belge_no), verilis: s(inp.modul_g.verilis), gecerlilik: s(inp.modul_g.gecerlilik), nb_id: s(inp.modul_g.nb_id) }
+      : { belge_no: "", verilis: "", gecerlilik: "", nb_id: "" },
+    faturaNo: s(inp.fatura_no),
+    faturaTarihi: s(inp.fatura_tarihi),
+    periyodikTarihi: s(inp.periyodik_tarihi),
+    faturali: s(inp.faturali),
+    fiyat: s(inp.fiyat),
+    teslimDurumu: s(inp.teslim_durumu) || "taslak",
+    teslimTarihi: s(inp.teslim_tarihi),
     makineMuhId: project.makine_muhendis_id ?? "",
     elektrikMuhId: project.elektrik_muhendis_id ?? "",
     equip,
@@ -140,6 +155,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
       lookups={lookups.data ?? []}
       engineers={engineers.data ?? []}
       gensisCompanyId={gensis?.id ?? null}
+      companyDocuments={companyDocsRes.data ?? []}
       initial={initial}
     />
   );

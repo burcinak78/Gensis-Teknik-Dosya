@@ -5,13 +5,26 @@ import { usePathname } from "next/navigation";
 
 type Item = { href: string; label: string; icon: string; match: (p: string) => boolean; badge?: number };
 
-export default function SideNav({ isAdmin, bildirimCount = 0 }: { isAdmin: boolean; bildirimCount?: number }) {
+export default function SideNav({
+  role, bildirimCount = 0, onayCount = 0,
+}: { role: string; bildirimCount?: number; onayCount?: number }) {
   const path = usePathname();
+  const isAdmin = role === "admin";
+  const isStaff = role === "admin" || role === "gensis";
+  const isCustomer = !isStaff;
+
   const items: Item[] = [
     { href: "/bildirimler", label: "Bildirimler", icon: "notifications", match: (p) => p.startsWith("/bildirimler"), badge: bildirimCount },
+  ];
+  if (isStaff) items.push({ href: "/onaylar", label: "Onay Bekleyenler", icon: "rate_review", match: (p) => p.startsWith("/onaylar"), badge: onayCount });
+  items.push(
     { href: "/proje-onay", label: "Proje Onay Dosyası", icon: "fact_check", match: (p) => p.startsWith("/proje-onay") },
     { href: "/panel", label: "Asansör Teknik Dosyası", icon: "note_add", match: (p) => p === "/panel" || p.startsWith("/panel/") || p === "/yeni" },
-  ];
+  );
+  if (isCustomer) items.push(
+    { href: "/firmam", label: "Firmam", icon: "apartment", match: (p) => p.startsWith("/firmam") },
+    { href: "/muhendislerim", label: "Mühendislerim", icon: "engineering", match: (p) => p.startsWith("/muhendislerim") },
+  );
   if (isAdmin) items.push({ href: "/admin", label: "Yönetim", icon: "admin_panel_settings", match: (p) => p.startsWith("/admin") });
 
   return (

@@ -41,9 +41,11 @@ function belgeDurum(validUntil: string | null | undefined, hasFile: boolean): { 
 }
 
 export default function MuhendislerClient({
-  engineers, companies, documents, defaultCompanyId,
-}: { engineers: Engineer[]; companies: Company[]; documents: Doc[]; defaultCompanyId: string }) {
+  engineers, companies, documents, defaultCompanyId, mode = "admin",
+}: { engineers: Engineer[]; companies: Company[]; documents: Doc[]; defaultCompanyId: string; mode?: "admin" | "customer" }) {
+  const isCustomer = mode === "customer";
   const router = useRouter();
+  const snapshotRef = useRef<string>("");
   const blank = { full_name: "", discipline: "makine", chamber_reg_no: "", company_id: defaultCompanyId, address: "", phone: "" };
   const [q, setQ] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
@@ -59,6 +61,7 @@ export default function MuhendislerClient({
   const scrollToForm = () => setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   const searchParams = useSearchParams();
   useEffect(() => {
+    if (isCustomer) return;
     const id = searchParams.get("edit");
     if (id) { const e = engineers.find((x) => x.id === id); if (e) edit(e); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,45 +105,59 @@ export default function MuhendislerClient({
 
   function edit(e: Engineer) {
     setEditId(e.id);
-    setForm({
+    const f = {
       full_name: e.full_name ?? "", discipline: e.discipline ?? "makine",
       chamber_reg_no: e.chamber_reg_no ?? "", company_id: e.company_id ?? "",
       address: e.address ?? "", phone: e.phone ?? "",
-    });
+    };
+    setForm(f);
+    snapshotRef.current = JSON.stringify(f);
     initDocForms(e.id, e.discipline ?? "makine");
-    setMsg(null); scrollToForm();
+    setMsg(null); if (!isCustomer) scrollToForm();
   }
-  function yeni() { setEditId(null); setForm({ ...blank }); initDocForms(null, "makine"); setMsg(null); scrollToForm(); }
+  function yeni() { setEditId(null); setForm({ ...blank }); snapshotRef.current = ""; initDocForms(null, "makine"); setMsg(null); scrollToForm(); }
 
   async function submit(ev: React.FormEvent) {
     ev.preventDefault();
     setBusy(true); setMsg(null);
-    const res = editId ? await updateEngineer(editId, form as any) : await createEngineer(form as any);
-    if (!res.ok) { setBusy(false); setMsg({ ok: false, text: res.error }); return; }
-    const engId = editId || res.id!;
+    let engId: string | null = editId;
+    if (editId) {
+      const changed = JSON.stringify(form) !== snapshotRef.current;
+      if (!isCustomer || changed) {
+        const res = await updateEngineer(editId, form as any);
+        if (!res.ok) { setBusy(false); setMsg({ ok: false, text: res.error }); return; }
+      }
+    } else {
+      const res = await createEngineer(form as any);
+      if (!res.ok) { setBusy(false); setMsg({ ok: false, text: res.error }); return; }
+      engId = res.id ?? null; // müşteri: yeni mühendis onaya düştüğü için id yok
+    }
 
-    // staged belgeleri yükle (yalnız değişenler)
-    const tipler = BELGE_TIPLERI[form.discipline] || [];
+    // staged belgeleri yükle (yalnız mevcut mühendis + değişenler)
     let docErr: string | null = null;
-    for (const t of tipler) {
-      const df = docForms[t.key];
-      if (!df) continue;
-      const existing = docsByEng[engId]?.[t.key];
-      const changed = !!df.file || (df.valid_until && df.valid_until !== (existing?.valid_until ?? ""));
-      if (!changed) continue;
-      const fd = new FormData();
-      fd.set("engineer_id", engId); fd.set("doc_type", t.key); fd.set("valid_until", df.valid_until);
-      if (df.file) fd.set("file", df.file);
-      const r = await uploadEngineerDocument(fd);
-      if (!r.ok) docErr = r.error;
+    if (engId) {
+      const tipler = BELGE_TIPLERI[form.discipline] || [];
+      for (const t of tipler) {
+        const df = docForms[t.key];
+        if (!df) continue;
+        const existing = docsByEng[engId]?.[t.key];
+        const changed = !!df.file || (df.valid_until && df.valid_until !== (existing?.valid_until ?? ""));
+        if (!changed) continue;
+        const fd = new FormData();
+        fd.set("engineer_id", engId); fd.set("doc_type", t.key); fd.set("valid_until", df.valid_until);
+        if (df.file) fd.set("file", df.file);
+        const r = await uploadEngineerDocument(fd);
+        if (!r.ok) docErr = r.error;
+      }
     }
 
     setBusy(false);
-    if (docErr) { setMsg({ ok: false, text: "Mühendis kaydedildi, belge hatası: " + docErr }); }
-    else setMsg({ ok: true, text: editId ? "Kaydedildi." : "Mühendis ve belgeler kaydedildi." });
+    if (!editId && isCustomer) setMsg({ ok: true, text: "Yeni mühendis onaya gönderildi. Onaylandıktan sonra belgelerini yükleyebilirsiniz." });
+    else if (docErr) setMsg({ ok: false, text: (isCustomer ? "Gönderildi, belge hatası: " : "Mühendis kaydedildi, belge hatası: ") + docErr });
+    else setMsg({ ok: true, text: isCustomer ? "Değişiklikleriniz onaya gönderildi." : (editId ? "Kaydedildi." : "Mühendis ve belgeler kaydedildi.") });
     router.refresh();
-    if (!editId) yeni();
-    else { setDocForms((s) => { const o: Record<string, DocForm> = {}; for (const k in s) o[k] = { ...s[k], file: null }; return o; }); setDocKey((k) => k + 1); }
+    if (!editId && !isCustomer) yeni();
+    else if (editId) { setDocForms((s) => { const o: Record<string, DocForm> = {}; for (const k in s) o[k] = { ...s[k], file: null }; return o; }); setDocKey((k) => k + 1); }
   }
 
   async function sil() {
@@ -157,6 +174,13 @@ export default function MuhendislerClient({
 
   return (
     <div className="space-y-6">
+      {isCustomer && (
+        <div>
+          <h1 className="text-[22px] font-extrabold tracking-tight">Mühendislerim</h1>
+          <p className="text-sm text-slate-500">Firmanıza bağlı mühendisleri ve belgelerini yönetin. Yeni mühendis ve belge yüklemeleri Gensis onayına gönderilir.</p>
+        </div>
+      )}
+
       {/* Liste (tam genişlik) */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
         <div className="p-3 border-b border-slate-100">
@@ -221,20 +245,22 @@ export default function MuhendislerClient({
               <label className="block text-xs font-semibold text-slate-600 mb-1">Telefon</label>
               <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inp} placeholder="Örn. 0 224 441 96 65" />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Bağlı Şirket</label>
-              <select value={form.company_id} onChange={(e) => set("company_id", e.target.value)} className={inp}>
-                <option value="">Seçiniz…</option>
-                {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
-              </select>
-            </div>
+            {!isCustomer && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Bağlı Şirket</label>
+                <select value={form.company_id} onChange={(e) => set("company_id", e.target.value)} className={inp}>
+                  <option value="">Seçiniz…</option>
+                  {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
+                </select>
+              </div>
+            )}
           </div>
           {msg && <div className={`mt-3 text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
           <div className="mt-4 flex items-center gap-2">
             <button disabled={busy} className="bg-brand hover:bg-brand-dark text-white font-bold text-sm px-5 py-2.5 rounded-lg disabled:opacity-50">
-              {busy ? "Kaydediliyor…" : editId ? "Değişiklikleri Kaydet" : "Mühendisi Kaydet"}
+              {busy ? "Kaydediliyor…" : isCustomer ? "Onaya Gönder" : editId ? "Değişiklikleri Kaydet" : "Mühendisi Kaydet"}
             </button>
-            {editId && (
+            {!isCustomer && editId && (
               <button type="button" onClick={sil} disabled={busy} className="text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg disabled:opacity-50">
                 Mühendisi Sil
               </button>

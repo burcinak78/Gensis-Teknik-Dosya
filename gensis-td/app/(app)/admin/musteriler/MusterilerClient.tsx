@@ -46,9 +46,11 @@ function belgeDurum(validUntil: string | null | undefined, hasFile: boolean): { 
 const rowHasContent = (r: Row) => !!(r.file || r.belge_no.trim() || r.issue_date || r.valid_until || r.notified_body_id || r.original_name);
 
 export default function MusterilerClient({
-  companies, provinces, documents, notifiedBodies,
-}: { companies: Company[]; provinces: string[]; documents: Doc[]; notifiedBodies: NB[] }) {
+  companies, provinces, documents, notifiedBodies, mode = "admin",
+}: { companies: Company[]; provinces: string[]; documents: Doc[]; notifiedBodies: NB[]; mode?: "admin" | "customer" }) {
+  const isCustomer = mode === "customer";
   const router = useRouter();
+  const snapshotRef = useRef<string>("");
   const [q, setQ] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({ ...BLANK });
@@ -64,6 +66,7 @@ export default function MusterilerClient({
   const scrollToForm = () => setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   const searchParams = useSearchParams();
   useEffect(() => {
+    if (isCustomer) { if (companies[0]) selectCompany(companies[0]); return; }
     const id = searchParams.get("edit");
     if (id) { const c = companies.find((x) => x.id === id); if (c) selectCompany(c); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,13 +123,16 @@ export default function MusterilerClient({
 
   function selectCompany(c: Company) {
     setEditId(c.id);
-    setForm({
+    const f = {
       short_name: c.short_name ?? "", legal_name: c.legal_name ?? "", authorized_person: c.authorized_person ?? "",
       registered_brand: c.registered_brand ?? "", city: c.city ?? "", phone: c.phone ?? "",
       mobile_phone: c.mobile_phone ?? "", industry_reg_no: c.industry_reg_no ?? "", address: c.address ?? "",
-    });
+    };
+    setForm(f);
     setCeModule(c.ce_module || "H1");
-    setDocs(buildDocs(c.id)); setDeletedIds([]); setDocKey((k) => k + 1); setMsg(null); scrollToForm();
+    snapshotRef.current = JSON.stringify({ ...f, ce_module: c.ce_module || "H1" });
+    setDocs(buildDocs(c.id)); setDeletedIds([]); setDocKey((k) => k + 1); setMsg(null);
+    if (!isCustomer) scrollToForm();
   }
   function newCompany() {
     setEditId(null); setForm({ ...BLANK }); setCeModule("H1");
@@ -142,15 +148,24 @@ export default function MusterilerClient({
     if (res.ok) { newCompany(); router.refresh(); } else setMsg({ ok: false, text: res.error });
   }
 
+  // Müşteri modunda yalnız gerçek yeni yüklemeleri / yeni satırları onaya gönder
+  const wantUp = (r: Row) => (isCustomer ? (!!r.file || (!r.id && rowHasContent(r))) : rowHasContent(r));
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setMsg(null);
     const payload = { ...form, ce_module: ceModule };
-    const res = editId ? await updateCompany(editId, payload) : await createCompany(payload);
-    if (!res.ok) { setBusy(false); setMsg({ ok: false, text: res.error }); return; }
-    const compId = editId || res.id!;
+    // Müşteri: firma bilgisi yalnız değiştiyse onaya gönder (gereksiz onay üretme)
+    const formChanged = JSON.stringify(payload) !== snapshotRef.current;
+    let compId: string | null = editId;
+    if (!isCustomer || formChanged) {
+      const res = editId ? await updateCompany(editId, payload) : await createCompany(payload);
+      if (!res.ok) { setBusy(false); setMsg({ ok: false, text: res.error }); return; }
+      if (!editId) compId = res.id ?? null; // yeni firma (personel)
+    }
+    if (!compId) { setBusy(false); return; }
 
-    for (const id of deletedIds) await deleteCompanyDocument(id);
+    if (!isCustomer) for (const id of deletedIds) await deleteCompanyDocument(id);
 
     let docErr: string | null = null;
     // tek belge yükle → id yakalanmış satırı döndür
@@ -169,46 +184,57 @@ export default function MusterilerClient({
     }
 
     const nd = emptyDocs();
-    nd.sanayi_sicil = rowHasContent(docs.sanayi_sicil) ? await up("sanayi_sicil", docs.sanayi_sicil) : { ...docs.sanayi_sicil, file: null };
-    nd.tse_hyb = rowHasContent(docs.tse_hyb) ? await up("tse_hyb", docs.tse_hyb) : { ...docs.tse_hyb, file: null };
+    nd.sanayi_sicil = wantUp(docs.sanayi_sicil) ? await up("sanayi_sicil", docs.sanayi_sicil) : { ...docs.sanayi_sicil, file: null };
+    nd.tse_hyb = wantUp(docs.tse_hyb) ? await up("tse_hyb", docs.tse_hyb) : { ...docs.tse_hyb, file: null };
 
     if (ceModule === "H1") {
-      nd.ce_h1 = rowHasContent(docs.ce_h1) ? await up("ce_h1", docs.ce_h1) : { ...docs.ce_h1, file: null };
+      nd.ce_h1 = wantUp(docs.ce_h1) ? await up("ce_h1", docs.ce_h1) : { ...docs.ce_h1, file: null };
       nd.ce_tasarim = [];
-      for (const r of docs.ce_tasarim) nd.ce_tasarim.push(rowHasContent(r) ? await up("ce_tasarim", r) : { ...r, file: null });
+      for (const r of docs.ce_tasarim) nd.ce_tasarim.push(wantUp(r) ? await up("ce_tasarim", r) : { ...r, file: null });
       nd.ce_b = docs.ce_b;
     } else {
       nd.ce_b = [];
       for (const b of docs.ce_b) {
-        const bHas = rowHasContent(b) || !!b.sub_type;
+        const bHas = isCustomer ? (!!b.file || (!b.id && (rowHasContent(b) || !!b.sub_type))) : (rowHasContent(b) || !!b.sub_type);
         const savedB = bHas ? await up("ce_b", b, { sub_type: b.sub_type }) : { ...b, file: null };
         const parentId = savedB.id;
         const savedEki: Row[] = [];
         for (const e of b.eki) {
-          if ((e.file || e.id) && parentId) savedEki.push(await up("ce_b_eki", e, { parent_id: parentId }));
+          const wantEki = isCustomer ? !!e.file : (e.file || e.id);
+          if (wantEki && parentId) savedEki.push(await up("ce_b_eki", e, { parent_id: parentId }));
           else savedEki.push({ ...e, file: null });
         }
         nd.ce_b.push({ ...(savedB as Row), sub_type: b.sub_type, eki: savedEki });
       }
-      nd.ce_e = rowHasContent(docs.ce_e) ? await up("ce_e", docs.ce_e) : { ...docs.ce_e, file: null };
+      nd.ce_e = wantUp(docs.ce_e) ? await up("ce_e", docs.ce_e) : { ...docs.ce_e, file: null };
     }
 
     setBusy(false); setDocs(nd); setDeletedIds([]); setDocKey((k) => k + 1);
-    if (docErr) setMsg({ ok: false, text: "Müşteri kaydedildi, belge hatası: " + docErr });
-    else setMsg({ ok: true, text: editId ? "Kaydedildi." : "Müşteri ve belgeler kaydedildi." });
+    if (docErr) setMsg({ ok: false, text: (isCustomer ? "Bilgiler gönderildi, belge hatası: " : "Müşteri kaydedildi, belge hatası: ") + docErr });
+    else setMsg({ ok: true, text: isCustomer ? "Değişiklikleriniz onaya gönderildi." : (editId ? "Kaydedildi." : "Müşteri ve belgeler kaydedildi.") });
     router.refresh();
-    if (!editId) newCompany();
+    if (!editId && !isCustomer) newCompany();
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <button type="button" onClick={newCompany} className="gs-btn text-sm font-bold px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5">
-          <span className="material-symbols-rounded text-[18px]">add</span> Yeni Müşteri Oluştur
-        </button>
-      </div>
+      {isCustomer && (
+        <div>
+          <h1 className="text-[22px] font-extrabold tracking-tight">Firmam</h1>
+          <p className="text-sm text-slate-500">Firma bilgilerinizi ve belgelerinizi güncelleyin. Değişiklikleriniz Gensis onayına gönderilir.</p>
+        </div>
+      )}
 
-      {/* Liste */}
+      {!isCustomer && (
+        <div>
+          <button type="button" onClick={newCompany} className="gs-btn text-sm font-bold px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5">
+            <span className="material-symbols-rounded text-[18px]">add</span> Yeni Müşteri Oluştur
+          </button>
+        </div>
+      )}
+
+      {/* Liste (yalnız personel) */}
+      {!isCustomer && (
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
         <div className="p-3 border-b border-slate-100">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Firma adından ara…" className={inp} />
@@ -233,14 +259,15 @@ export default function MusterilerClient({
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Bilgiler (sol) + Belgeler (sağ) — tek Kaydet */}
       <form ref={formRef} onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start scroll-mt-6">
         {/* Sol */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold">{editId ? "Müşteri Düzenle" : "Yeni Müşteri"}</h2>
-            {editId && <button type="button" onClick={newCompany} className="text-xs font-semibold text-brand hover:underline">+ Yeni</button>}
+            <h2 className="font-bold">{isCustomer ? "Firma Bilgilerim" : editId ? "Müşteri Düzenle" : "Yeni Müşteri"}</h2>
+            {!isCustomer && editId && <button type="button" onClick={newCompany} className="text-xs font-semibold text-brand hover:underline">+ Yeni</button>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2"><L>Kısa Ad *</L><input className={inp} value={form.short_name} onChange={(e) => set("short_name", e.target.value)} /></div>
@@ -261,9 +288,9 @@ export default function MusterilerClient({
           {msg && <div className={`mt-3 text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
           <div className="mt-4 flex items-center gap-2">
             <button disabled={busy} className="bg-brand hover:bg-brand-dark text-white font-bold text-sm px-5 py-2.5 rounded-lg disabled:opacity-50">
-              {busy ? "Kaydediliyor…" : editId ? "Değişiklikleri Kaydet" : "Müşteriyi Kaydet"}
+              {busy ? "Kaydediliyor…" : isCustomer ? "Onaya Gönder" : editId ? "Değişiklikleri Kaydet" : "Müşteriyi Kaydet"}
             </button>
-            {editId && (
+            {!isCustomer && editId && (
               <button type="button" onClick={sil} disabled={busy} className="text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg disabled:opacity-50">
                 Müşteri Sil
               </button>

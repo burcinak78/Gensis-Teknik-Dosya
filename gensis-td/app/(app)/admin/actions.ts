@@ -18,6 +18,22 @@ async function assertAdmin() {
   return user;
 }
 
+// Oturumdaki kullanıcının rol + firma bilgisi (rol-farkında aksiyonlar için)
+const isStaffRole = (r: string) => r === "admin" || r === "gensis";
+async function getActor(): Promise<{ userId: string; role: string; companyId: string | null }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Oturum bulunamadı.");
+  const { data: prof } = await supabase.from("profiles").select("role, company_id, is_active").eq("id", user.id).single();
+  if (!prof || prof.is_active === false) throw new Error("Hesap aktif değil.");
+  return { userId: user.id, role: (prof.role as string) ?? "customer", companyId: (prof.company_id as string | null) ?? null };
+}
+async function assertStaff() {
+  const a = await getActor();
+  if (!isStaffRole(a.role)) throw new Error("Bu işlem için personel yetkisi gerekli.");
+  return a;
+}
+
 // ---------- Yeni Müşteri (firma) ----------
 export async function createCompany(form: Record<string, string>): Promise<Result> {
   try {
@@ -47,10 +63,12 @@ export async function createCompany(form: Record<string, string>): Promise<Resul
 // ---------- Müşteri Güncelle ----------
 export async function updateCompany(id: string, form: Record<string, string>): Promise<Result> {
   try {
-    await assertAdmin();
+    const actor = await getActor();
+    const staff = isStaffRole(actor.role);
     if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    if (!staff && actor.companyId !== id) return { ok: false, error: "Yalnız kendi firmanızı düzenleyebilirsiniz." };
     const admin = createAdminClient();
-    const { error } = await admin.from("companies").update({
+    const cols = {
       short_name: form.short_name,
       legal_name: form.legal_name,
       address: form.address || null,
@@ -61,7 +79,15 @@ export async function updateCompany(id: string, form: Record<string, string>): P
       registered_brand: form.registered_brand || null,
       industry_reg_no: form.industry_reg_no || null,
       ce_module: form.ce_module || null,
-    }).eq("id", id);
+    };
+    if (!staff) {
+      const { error } = await admin.from("pending_changes").insert({
+        kind: "company_edit", company_id: id, target_id: id, payload: cols, submitted_by: actor.userId,
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, message: "Firma güncellemesi onaya gönderildi." };
+    }
+    const { error } = await admin.from("companies").update(cols).eq("id", id);
     if (error) return { ok: false, error: error.message };
     revalidatePath("/admin/musteriler");
     return { ok: true, message: "Müşteri güncellendi." };
@@ -214,11 +240,28 @@ export async function createEngineer(form: {
   full_name: string; discipline: string; chamber_reg_no: string; company_id: string; address?: string; phone?: string;
 }): Promise<Result> {
   try {
-    await assertAdmin();
+    const actor = await getActor();
+    const staff = isStaffRole(actor.role);
     if (!form.full_name) return { ok: false, error: "Ad Soyad zorunlu." };
     if (!["makine", "elektrik"].includes(form.discipline)) return { ok: false, error: "Branş seçin." };
     const admin = createAdminClient();
     const title = form.discipline === "makine" ? "Mak.Müh." : "Elk.Müh.";
+    if (!staff) {
+      // Müşteri kendi firmasına ekleyebilir; onaya düşer
+      const company_id = actor.companyId;
+      if (!company_id) return { ok: false, error: "Firmanız bulunamadı." };
+      const { error } = await admin.from("pending_changes").insert({
+        kind: "engineer_new", company_id,
+        payload: {
+          full_name: form.full_name, discipline: form.discipline, title,
+          chamber_reg_no: form.chamber_reg_no || null, company_id,
+          address: form.address || null, phone: form.phone || null,
+        },
+        submitted_by: actor.userId,
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, message: "Yeni mühendis onaya gönderildi." };
+    }
     const { data, error } = await admin.from("engineers").insert({
       full_name: form.full_name,
       discipline: form.discipline,
@@ -242,12 +285,13 @@ export async function updateEngineer(id: string, form: {
   full_name: string; discipline: string; chamber_reg_no: string; company_id: string; address?: string; phone?: string;
 }): Promise<Result> {
   try {
-    await assertAdmin();
+    const actor = await getActor();
+    const staff = isStaffRole(actor.role);
     if (!id) return { ok: false, error: "Kayıt bulunamadı." };
     if (!["makine", "elektrik"].includes(form.discipline)) return { ok: false, error: "Branş seçin." };
     const admin = createAdminClient();
     const title = form.discipline === "makine" ? "Mak.Müh." : "Elk.Müh.";
-    const { error } = await admin.from("engineers").update({
+    const cols = {
       full_name: form.full_name,
       discipline: form.discipline,
       title,
@@ -255,7 +299,19 @@ export async function updateEngineer(id: string, form: {
       company_id: form.company_id || null,
       address: form.address || null,
       phone: form.phone || null,
-    }).eq("id", id);
+    };
+    if (!staff) {
+      // Müşteri yalnız kendi firmasının mühendisini düzenleyebilir; onaya düşer
+      const { data: eng } = await admin.from("engineers").select("company_id").eq("id", id).maybeSingle();
+      if (!actor.companyId || eng?.company_id !== actor.companyId) return { ok: false, error: "Yalnız kendi mühendislerinizi düzenleyebilirsiniz." };
+      const { error } = await admin.from("pending_changes").insert({
+        kind: "engineer_edit", company_id: actor.companyId, target_id: id, engineer_id: id,
+        payload: { ...cols, company_id: actor.companyId }, submitted_by: actor.userId,
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, message: "Mühendis güncellemesi onaya gönderildi." };
+    }
+    const { error } = await admin.from("engineers").update(cols).eq("id", id);
     if (error) return { ok: false, error: error.message };
     revalidatePath("/admin/muhendisler");
     return { ok: true, message: "Mühendis güncellendi." };
@@ -285,34 +341,52 @@ export async function deleteEngineer(id: string): Promise<Result> {
 // ---------- Müşteri Belgesi Yükle / Güncelle (Sanayi Sicil, TSE HYB ...) ----------
 export async function uploadCompanyDocument(formData: FormData): Promise<Result> {
   try {
-    await assertAdmin();
+    const actor = await getActor();
+    const staff = isStaffRole(actor.role);
     const company_id = String(formData.get("company_id") || "");
     const doc_type = String(formData.get("doc_type") || "");
     const belge_no = String(formData.get("belge_no") || "") || null;
     const issue_date = String(formData.get("issue_date") || "") || null;
     const valid_until = String(formData.get("valid_until") || "") || null;
     const notified_body_id = String(formData.get("notified_body_id") || "") || null;
-    const file = formData.get("file") as File | null;
-    if (!company_id || !doc_type) return { ok: false, error: "Eksik bilgi." };
-
     const doc_id = String(formData.get("doc_id") || "") || null;
     const sub_type = String(formData.get("sub_type") || "") || null;
     const parent_id = String(formData.get("parent_id") || "") || null;
-    const admin = createAdminClient();
-    const row: Record<string, any> = { company_id, doc_type, belge_no, issue_date, valid_until, notified_body_id, sub_type, parent_id };
+    const file = formData.get("file") as File | null;
+    if (!company_id || !doc_type) return { ok: false, error: "Eksik bilgi." };
+    if (!staff && actor.companyId !== company_id) return { ok: false, error: "Yalnız kendi firmanızın belgelerini yükleyebilirsiniz." };
 
+    const admin = createAdminClient();
+
+    // Dosya: personel → kalıcı yol; müşteri → pending/ yolu (onay sonrası taşınır)
+    let storage_path: string | null = null;
+    let original_name: string | null = null;
     if (file && file.size > 0) {
       const ext = (file.name.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "") || "pdf";
-      const path = `musteri/${company_id}/${doc_type}-${randomUUID()}.${ext}`;
+      const base = `musteri/${company_id}/${doc_type}-${randomUUID()}.${ext}`;
+      const path = staff ? base : `pending/${base}`;
       const bytes = new Uint8Array(await file.arrayBuffer());
       const { error: upErr } = await admin.storage.from("documents").upload(path, bytes, {
         contentType: file.type || "application/octet-stream",
         upsert: false,
       });
       if (upErr) return { ok: false, error: "Dosya yüklenemedi: " + upErr.message };
-      row.storage_path = path;
-      row.original_name = file.name;
+      storage_path = path;
+      original_name = file.name;
     }
+
+    if (!staff) {
+      const { error } = await admin.from("pending_changes").insert({
+        kind: "company_doc", company_id, target_id: doc_id, doc_type,
+        payload: { belge_no, issue_date, valid_until, notified_body_id, sub_type, parent_id },
+        storage_path, original_name, submitted_by: actor.userId,
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, message: "Belge onaya gönderildi." };
+    }
+
+    const row: Record<string, any> = { company_id, doc_type, belge_no, issue_date, valid_until, notified_body_id, sub_type, parent_id };
+    if (storage_path) { row.storage_path = storage_path; row.original_name = original_name; }
 
     let newId: string | undefined;
     if (doc_id) {
@@ -356,7 +430,8 @@ export async function deleteCompanyDocument(id: string): Promise<Result> {
 // ---------- Mühendis Belgesi Yükle / Güncelle (dosya + geçerlilik) ----------
 export async function uploadEngineerDocument(formData: FormData): Promise<Result> {
   try {
-    await assertAdmin();
+    const actor = await getActor();
+    const staff = isStaffRole(actor.role);
     const engineer_id = String(formData.get("engineer_id") || "");
     const doc_type = String(formData.get("doc_type") || "");
     const valid_until = String(formData.get("valid_until") || "") || null;
@@ -364,21 +439,42 @@ export async function uploadEngineerDocument(formData: FormData): Promise<Result
     if (!engineer_id || !doc_type) return { ok: false, error: "Eksik bilgi." };
 
     const admin = createAdminClient();
-    const row: Record<string, any> = { engineer_id, doc_type, valid_until };
 
+    // Müşteri: mühendis kendi firmasına ait olmalı
+    let engCompanyId: string | null = null;
+    if (!staff) {
+      const { data: eng } = await admin.from("engineers").select("company_id").eq("id", engineer_id).maybeSingle();
+      engCompanyId = eng?.company_id ?? null;
+      if (!actor.companyId || engCompanyId !== actor.companyId) return { ok: false, error: "Yalnız kendi mühendislerinizin belgelerini yükleyebilirsiniz." };
+    }
+
+    let storage_path: string | null = null;
+    let original_name: string | null = null;
     if (file && file.size > 0) {
       const ext = (file.name.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "") || "pdf";
-      const path = `muhendis/${engineer_id}/${doc_type}-${randomUUID()}.${ext}`;
+      const base = `muhendis/${engineer_id}/${doc_type}-${randomUUID()}.${ext}`;
+      const path = staff ? base : `pending/${base}`;
       const bytes = new Uint8Array(await file.arrayBuffer());
       const { error: upErr } = await admin.storage.from("documents").upload(path, bytes, {
         contentType: file.type || "application/octet-stream",
         upsert: false,
       });
       if (upErr) return { ok: false, error: "Dosya yüklenemedi: " + upErr.message };
-      row.storage_path = path;
-      row.original_name = file.name;
+      storage_path = path;
+      original_name = file.name;
     }
 
+    if (!staff) {
+      const { error } = await admin.from("pending_changes").insert({
+        kind: "engineer_doc", company_id: engCompanyId, engineer_id, doc_type,
+        payload: { valid_until }, storage_path, original_name, submitted_by: actor.userId,
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, message: "Belge onaya gönderildi." };
+    }
+
+    const row: Record<string, any> = { engineer_id, doc_type, valid_until };
+    if (storage_path) { row.storage_path = storage_path; row.original_name = original_name; }
     const { error } = await admin.from("engineer_documents").upsert(row, { onConflict: "engineer_id,doc_type" });
     if (error) return { ok: false, error: error.message };
     revalidatePath("/admin/muhendisler");
@@ -510,6 +606,106 @@ export async function createCertificate(formData: FormData): Promise<Result> {
 
     revalidatePath("/admin/sertifikalar");
     return { ok: true, message: "Sertifika kaydedildi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ==================== ONAY KUYRUĞU (FAZ 2) ====================
+
+// ---------- Onayla: bekleyen değişikliği gerçek tabloya uygula ----------
+export async function approvePendingChange(id: string): Promise<Result> {
+  try {
+    const actor = await assertStaff();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    const admin = createAdminClient();
+    const { data: pc } = await admin.from("pending_changes").select("*").eq("id", id).maybeSingle();
+    if (!pc) return { ok: false, error: "Kayıt bulunamadı." };
+    if (pc.status !== "pending") return { ok: false, error: "Bu kayıt zaten işlenmiş." };
+    const p = (pc.payload ?? {}) as Record<string, any>;
+
+    // Geçici dosyayı kalıcı yola taşı
+    const moveFile = async (): Promise<string | null> => {
+      let sp: string | null = pc.storage_path;
+      if (sp && sp.startsWith("pending/")) {
+        const finalPath = sp.replace(/^pending\//, "");
+        const { error: mvErr } = await admin.storage.from("documents").move(sp, finalPath);
+        if (!mvErr) sp = finalPath;
+      }
+      return sp;
+    };
+
+    if (pc.kind === "company_doc") {
+      const sp = await moveFile();
+      const row: Record<string, any> = {
+        company_id: pc.company_id, doc_type: pc.doc_type,
+        belge_no: p.belge_no ?? null, issue_date: p.issue_date ?? null, valid_until: p.valid_until ?? null,
+        notified_body_id: p.notified_body_id ?? null, sub_type: p.sub_type ?? null, parent_id: p.parent_id ?? null,
+      };
+      if (pc.storage_path) { row.storage_path = sp; row.original_name = pc.original_name; }
+      if (pc.target_id) {
+        const { error } = await admin.from("company_documents").update(row).eq("id", pc.target_id);
+        if (error) return { ok: false, error: error.message };
+      } else {
+        const { error } = await admin.from("company_documents").insert(row);
+        if (error) return { ok: false, error: error.message };
+      }
+      if (p.issue_date && pc.doc_type === "sanayi_sicil") await admin.from("companies").update({ industry_reg_date: p.issue_date }).eq("id", pc.company_id);
+      if (p.issue_date && pc.doc_type === "tse_hyb") await admin.from("companies").update({ hyb_date: p.issue_date }).eq("id", pc.company_id);
+    } else if (pc.kind === "engineer_doc") {
+      const sp = await moveFile();
+      const row: Record<string, any> = { engineer_id: pc.engineer_id, doc_type: pc.doc_type, valid_until: p.valid_until ?? null };
+      if (pc.storage_path) { row.storage_path = sp; row.original_name = pc.original_name; }
+      const { error } = await admin.from("engineer_documents").upsert(row, { onConflict: "engineer_id,doc_type" });
+      if (error) return { ok: false, error: error.message };
+    } else if (pc.kind === "engineer_new") {
+      const { error } = await admin.from("engineers").insert({
+        full_name: p.full_name, discipline: p.discipline, title: p.title,
+        chamber_reg_no: p.chamber_reg_no ?? null, company_id: p.company_id ?? pc.company_id,
+        address: p.address ?? null, phone: p.phone ?? null, is_active: true,
+      });
+      if (error) return { ok: false, error: error.message };
+    } else if (pc.kind === "engineer_edit") {
+      if (!pc.target_id) return { ok: false, error: "Hedef mühendis bulunamadı." };
+      const { error } = await admin.from("engineers").update({
+        full_name: p.full_name, discipline: p.discipline, title: p.title,
+        chamber_reg_no: p.chamber_reg_no ?? null, company_id: p.company_id ?? null,
+        address: p.address ?? null, phone: p.phone ?? null,
+      }).eq("id", pc.target_id);
+      if (error) return { ok: false, error: error.message };
+    } else if (pc.kind === "company_edit") {
+      if (!pc.target_id) return { ok: false, error: "Hedef firma bulunamadı." };
+      const { error } = await admin.from("companies").update(p).eq("id", pc.target_id);
+      if (error) return { ok: false, error: error.message };
+    } else {
+      return { ok: false, error: "Bilinmeyen değişiklik türü." };
+    }
+
+    await admin.from("pending_changes").update({
+      status: "approved", reviewed_by: actor.userId, reviewed_at: new Date().toISOString(),
+    }).eq("id", id);
+    revalidatePath("/onaylar"); revalidatePath("/admin/musteriler"); revalidatePath("/admin/muhendisler"); revalidatePath("/bildirimler");
+    return { ok: true, message: "Onaylandı." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Reddet: bekleyen değişikliği iptal et (geçici dosyayı sil) ----------
+export async function rejectPendingChange(id: string, note?: string): Promise<Result> {
+  try {
+    const actor = await assertStaff();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    const admin = createAdminClient();
+    const { data: pc } = await admin.from("pending_changes").select("storage_path, status").eq("id", id).maybeSingle();
+    if (!pc) return { ok: false, error: "Kayıt bulunamadı." };
+    if (pc.status !== "pending") return { ok: false, error: "Bu kayıt zaten işlenmiş." };
+    if (pc.storage_path) await admin.storage.from("documents").remove([pc.storage_path]);
+    await admin.from("pending_changes").update({
+      status: "rejected", note: note || null, reviewed_by: actor.userId, reviewed_at: new Date().toISOString(),
+    }).eq("id", id);
+    revalidatePath("/onaylar"); revalidatePath("/bildirimler");
+    return { ok: true, message: "Reddedildi." };
   } catch (e: any) {
     return { ok: false, error: e.message };
   }

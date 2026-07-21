@@ -20,6 +20,7 @@ type Capacity = { beyan_yuku_kg: number; kisi_sayisi: number | null; kabin_agirl
 type Lookup = { list_key: string; value: string; sort_order: number };
 type District = { id: string; name: string };
 type Engineer = { id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null };
+type CompanyDoc = { id: string; company_id: string; doc_type: string; belge_no: string | null; valid_until: string | null };
 
 type EquipInit = Record<string, { brandId?: string; modelId?: string; seriNo?: string; seriList?: string[] }>;
 // Düzenleme modunda mevcut projeyi dolduran başlangıç verisi
@@ -39,6 +40,11 @@ export type InitialData = {
   baslangicKat: string; araKatlar: { after: string; label: string }[];
   makineMuhId: string; elektrikMuhId: string;
   equip: EquipInit;
+  // Belgeler + Dosya İşlemleri (Faz 1 metadata)
+  modulSecim?: string; modulBelgeIds?: string[];
+  modulG?: { belge_no: string; verilis: string; gecerlilik: string; nb_id: string };
+  faturaNo?: string; faturaTarihi?: string; periyodikTarihi?: string;
+  faturali?: string; fiyat?: string; teslimDurumu?: string; teslimTarihi?: string;
 };
 
 type Props = {
@@ -46,10 +52,20 @@ type Props = {
   certificates: Certificate[]; notifiedBodies: NotifiedBody[]; provinces: Province[];
   capacity: Capacity[]; lookups: Lookup[];
   engineers: Engineer[]; gensisCompanyId: string | null;
+  companyDocuments?: CompanyDoc[];
   initial?: InitialData | null;
 };
 
-const STEPS = ["Firma", "Yapı Ruhsatı", "Asansör", "Ekipmanlar", "Önizleme"];
+const STEPS = ["Firma", "Yapı Ruhsatı", "Belgeler", "Asansör", "Ekipmanlar", "Dosya İşlemleri"];
+// Adım indeksleri (tek kaynak — sabit sayı kullanma)
+const S_FIRMA = 0, S_RUHSAT = 1, S_BELGELER = 2, S_ASANSOR = 3, S_EKIPMAN = 4, S_ISLEM = 5;
+const LAST_STEP = STEPS.length - 1;
+const MODUL_SECENEKLERI = ["H1", "B", "G"];
+const COMPANY_DOC_ETIKET: Record<string, string> = {
+  sanayi_sicil: "Sanayi Sicil Belgesi", tse_hyb: "TSE HYB Belgesi",
+  ce_h1: "Mod H1 Belgesi", ce_tasarim: "Tasarım İnceleme Belgesi",
+  ce_b: "Mod B Belgesi", ce_b_eki: "Mod B Eki", ce_e: "Mod E Belgesi",
+};
 const RANGE_100 = Array.from({ length: 100 }, (_, i) => i + 1);
 // Her kat/giriş için ayrı seri no giren kategoriler:
 //  - kapı kilidi: durak sayısı kadar (her katta bir kilit) → "Kat 1..N"
@@ -154,6 +170,20 @@ export default function DataEntryWizard(props: Props) {
   const [elektrikMuhId, setElektrikMuhId] = useState(init?.elektrikMuhId ?? gElk?.id ?? "");
   const [equip, setEquip] = useState<Record<string, { brandId?: string; modelId?: string; seriNo?: string; seriList?: string[] }>>(init?.equip ?? {});
 
+  // Belgeler adımı (Faz 1 metadata)
+  const [modulSecim, setModulSecim] = useState(init?.modulSecim ?? "");
+  const [modulBelgeIds, setModulBelgeIds] = useState<string[]>(init?.modulBelgeIds ?? []);
+  const [modulG, setModulG] = useState(init?.modulG ?? { belge_no: "", verilis: "", gecerlilik: "", nb_id: "" });
+  const [faturaNo, setFaturaNo] = useState(init?.faturaNo ?? "");
+  const [faturaTarihi, setFaturaTarihi] = useState(init?.faturaTarihi ?? "");
+  const [periyodikTarihi, setPeriyodikTarihi] = useState(init?.periyodikTarihi ?? "");
+  // Dosya İşlemleri adımı
+  const [faturali, setFaturali] = useState(init?.faturali ?? "");
+  const [fiyat, setFiyat] = useState(init?.fiyat ?? "");
+  const [teslimDurumu, setTeslimDurumu] = useState(init?.teslimDurumu ?? "taslak");
+  const [teslimTarihi, setTeslimTarihi] = useState(init?.teslimTarihi ?? "");
+  const [kopyalandi, setKopyalandi] = useState<string>("");
+
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -246,14 +276,20 @@ export default function DataEntryWizard(props: Props) {
     if (!cfg) return 0;
     return cfg.count === "durak" ? Number(durakAdedi || 0) : Number(girisSayisi || 0);
   };
-  // ekipman: marka + model + seri no dolu değilse eksik sayılır
+  // Asma (ara) kat satırları: kapı kilidinde ara kat karşısındaki seri no PASİF olur
+  const araKatLabelSet = useMemo(() => new Set(araKatlar.map((m) => m.label)), [araKatlar]);
+  const isPasifSeri = (code: string, i: number) => code === "kapi_kilidi" && araKatLabelSet.has(katListesi[i]);
+  // ekipman: marka + model + seri no dolu değilse eksik sayılır (ara kat satırları hariç)
   const eqIncomplete = (card: { key: string; code: string }) => {
     const s = equip[card.key];
     if (!s?.modelId) return true;
     const n = multiCountForCode(card.code);
     if (n > 0) {
       const list = s.seriList || [];
-      for (let i = 0; i < n; i++) if (!list[i] || !list[i].trim()) return true;
+      for (let i = 0; i < n; i++) {
+        if (isPasifSeri(card.code, i)) continue;
+        if (!list[i] || !list[i].trim()) return true;
+      }
       return false;
     }
     return !s?.seriNo || !s.seriNo.trim();
@@ -268,12 +304,12 @@ export default function DataEntryWizard(props: Props) {
 
   // adım bazlı zorunlu alanlar
   const stepFieldMap: Record<number, Record<string, any>> = {
-    0: { companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId },
-    1: { binaAdi, montajAdresi, provinceId, districtId, pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi },
-    2: { asansorSinifi, makineDairesi, beyanYuku, beyanHizi, baslangicKat, katSayisi, katAdedi, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, kapiGenislik, kapiYukseklik, kabinGenislik, kabinDerinlik, kabinAgirligi, asansorSeriNo, seyirMesafesi, ...driveReq },
+    [S_FIRMA]: { companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId },
+    [S_RUHSAT]: { binaAdi, montajAdresi, provinceId, districtId, pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi },
+    [S_ASANSOR]: { asansorSinifi, makineDairesi, beyanYuku, beyanHizi, baslangicKat, katSayisi, katAdedi, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, kapiGenislik, kapiYukseklik, kabinGenislik, kabinDerinlik, kabinAgirligi, asansorSeriNo, seyirMesafesi, ...driveReq },
   };
   function stepMissing(i: number): number {
-    if (i === 3) return equipCards.filter((card) => eqIncomplete(card)).length;
+    if (i === S_EKIPMAN) return equipCards.filter((card) => eqIncomplete(card)).length;
     const fields = stepFieldMap[i];
     if (!fields) return 0;
     return Object.values(fields).filter(empty).length;
@@ -287,7 +323,7 @@ export default function DataEntryWizard(props: Props) {
     }
     setShowErrors(false);
     setError(null);
-    setStep((s) => Math.min(4, s + 1));
+    setStep((s) => Math.min(LAST_STEP, s + 1));
   }
   function goToStep(i: number) {
     if (i <= step) { setStep(i); setShowErrors(false); setError(null); }
@@ -324,12 +360,25 @@ export default function DataEntryWizard(props: Props) {
 
   const selectedEquipCount = equipCards.filter((card) => !eqIncomplete(card)).length;
 
-  async function handleSave() {
+  // Dosya İşlemleri — metin + gönderim yardımcıları
+  const faturaliTr = faturali === "faturali" ? "Faturalı" : faturali === "faturasiz" ? "Faturasız" : "—";
+  const muhasebeMetni = () =>
+    `Firma: ${company?.short_name ?? "—"}\nProje No: ${dosyaNo || "—"}\nFiyat: ${fiyat ? fiyat + " TL" : "—"}\nFatura: ${faturaliTr}` +
+    (faturali === "faturali" ? `\nFatura No: ${faturaNo || "—"}\nFatura Tarihi: ${faturaTarihi || "—"}` : "");
+  const musteriMetni = () =>
+    `Sayın ${company?.short_name ?? ""},\n${dosyaNo || ""} numaralı teknik dosyanız hazırlanmıştır. Bilginize sunarız.`;
+  const mailto = (subject: string, body: string) => `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const waLink = (text: string) => `https://wa.me/?text=${encodeURIComponent(text)}`;
+  async function kopyala(key: string, text: string) {
+    try { await navigator.clipboard.writeText(text); setKopyalandi(key); setTimeout(() => setKopyalandi(""), 1500); } catch { /* yok say */ }
+  }
+
+  async function handleSave(opts?: { gotoBelge?: boolean }) {
     if (!isValid) {
       setShowErrors(true);
       setError(`Kırmızı ile işaretli ${totalMissing} zorunlu alan boş. Lütfen tümünü doldurun.`);
-      if (missingEquip.length > 0 && missingText.length === 0) setStep(3);
-      else if (missingText.length > 0) setStep(0);
+      if (missingEquip.length > 0 && missingText.length === 0) setStep(S_EKIPMAN);
+      else if (missingText.length > 0) setStep(S_FIRMA);
       return;
     }
     setSaving(true);
@@ -370,14 +419,20 @@ export default function DataEntryWizard(props: Props) {
         kabin_agirligi: kabinAgirligi, karsi_agirlik_yeri: karsiAgirlikYeri, karsi_agirlik_agirligi: karsiAgirlik,
         motor_marka: motorMarka, makine_dairesi: makineDairesi,
         baslangic_kat: baslangicKat, kat_sayisi: katSayisi, ara_katlar: araKatlar, kat_listesi: katListesi,
+        // Belgeler + Dosya İşlemleri (Faz 1 metadata)
+        modul_secim: modulSecim, modul_belge_ids: modulBelgeIds,
+        modul_g: modulG, fatura_no: faturaNo, fatura_tarihi: faturaTarihi, periyodik_tarihi: periyodikTarihi,
+        faturali, fiyat, teslim_durumu: teslimDurumu, teslim_tarihi: teslimTarihi, proje_no: dosyaNo,
       },
       equipment,
     };
 
     const res = isEdit ? await updateDraftProject(init!.id, payload) : await saveDraftProject(payload);
     setSaving(false);
-    if (res.ok) { setSavedId(res.id); router.refresh(); }
-    else setError(res.error);
+    if (res.ok) {
+      if (opts?.gotoBelge && res.id) { router.push(`/panel/${res.id}`); return; }
+      setSavedId(res.id); router.refresh();
+    } else setError(res.error);
   }
 
   if (savedId) {
@@ -412,11 +467,11 @@ export default function DataEntryWizard(props: Props) {
         <div className="flex items-center gap-2">
           <button onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}
             className="text-sm font-bold px-4 py-2 rounded-xl border border-[#e5e9f0] bg-white hover:bg-slate-50 disabled:opacity-45">← Geri</button>
-          {step < 4 ? (
+          {step < LAST_STEP ? (
             <button onClick={goNext}
               className="gs-btn text-sm font-bold px-5 py-2 rounded-xl">İleri →</button>
           ) : (
-            <button onClick={handleSave} disabled={saving}
+            <button onClick={() => handleSave()} disabled={saving}
               className="text-sm font-bold px-5 py-2 rounded-xl text-white disabled:opacity-50"
               style={{ background: "linear-gradient(135deg,#16a34a,#15803d)", boxShadow: "0 6px 16px rgba(21,128,61,.26)" }}>
               {saving ? "Kaydediliyor…" : isEdit ? "✓ Güncelle" : "✓ Kaydet"}
@@ -514,6 +569,18 @@ export default function DataEntryWizard(props: Props) {
 
           {step === 1 && (
             <Section title="Yapı ruhsatı bilgileri" desc="Tüm alanlar zorunludur.">
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-slate-800 text-sm">Yapı Ruhsatı Ekle</div>
+                    <div className="text-xs text-slate-500">Yapı ruhsatı dosyasını (PDF/görsel) yükleyin.</div>
+                  </div>
+                  <button type="button" disabled title="Dosya yükleme sonraki güncellemede aktif olacak"
+                    className="text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-400 inline-flex items-center gap-1 cursor-not-allowed">
+                    <span className="material-symbols-rounded text-[16px]">upload_file</span> Dosya Yükle
+                  </button>
+                </div>
+              </div>
               <Field label="Bina Adı *"><input className={"inp" + ec(binaAdi)} value={binaAdi} onChange={(e) => setBinaAdi(e.target.value)} /></Field>
               <Field label="Montaj Adresi *"><input className={"inp" + ec(montajAdresi)} value={montajAdresi} onChange={(e) => setMontajAdresi(e.target.value)} /></Field>
               <div className="grid grid-cols-2 gap-4">
@@ -540,7 +607,88 @@ export default function DataEntryWizard(props: Props) {
             </Section>
           )}
 
-          {step === 2 && (
+          {step === S_BELGELER && (
+            <Section title="Belgeler" desc="Kullanılacak modül belgesi, fatura, periyodik kontrol ve asansör kimlik no.">
+              {/* Kullanılacak Modül Belgesi */}
+              <Field label="Kullanılacak Modül Belgesi *" full>
+                <div className="flex gap-2">
+                  {MODUL_SECENEKLERI.map((m) => (
+                    <button key={m} type="button" onClick={() => setModulSecim(m)}
+                      className={`px-4 py-2.5 rounded-lg text-sm font-bold border transition-colors ${modulSecim === m ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
+                      style={modulSecim === m ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)" } : undefined}>
+                      Modül {m}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+
+              {(modulSecim === "H1" || modulSecim === "B") && (
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-bold text-slate-800 mb-1">Müşterinin belgelerinden seçin</div>
+                  <div className="text-xs text-slate-500 mb-3">Bu asansör için kullanılacak, önceden yüklenmiş belgeleri işaretleyin (birden fazla seçebilirsiniz).</div>
+                  {(() => {
+                    const docs = (props.companyDocuments ?? []).filter((d) => d.company_id === companyId);
+                    if (!companyId) return <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Önce Firma adımında müşteri seçin.</div>;
+                    if (docs.length === 0) return <div className="text-xs text-slate-400">Bu müşteriye ait yüklenmiş belge yok.</div>;
+                    return (
+                      <div className="space-y-1.5">
+                        {docs.map((d) => {
+                          const checked = modulBelgeIds.includes(d.id);
+                          return (
+                            <label key={d.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer ${checked ? "border-brand bg-brand-light" : "border-slate-200 hover:bg-slate-50"}`}>
+                              <input type="checkbox" checked={checked}
+                                onChange={() => setModulBelgeIds((s) => s.includes(d.id) ? s.filter((x) => x !== d.id) : [...s, d.id])} />
+                              <span className="text-sm text-slate-800 flex-1">{COMPANY_DOC_ETIKET[d.doc_type] ?? d.doc_type}</span>
+                              {d.belge_no && <span className="text-xs text-slate-400">No: {d.belge_no}</span>}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {modulSecim === "G" && (
+                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                  <div className="text-sm font-bold text-slate-800">Modül G Belgesi</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Belge No"><input className="inp" value={modulG.belge_no} onChange={(e) => setModulG({ ...modulG, belge_no: e.target.value })} /></Field>
+                    <Field label="Onaylanmış Kuruluş">
+                      <select className="inp" value={modulG.nb_id} onChange={(e) => setModulG({ ...modulG, nb_id: e.target.value })}>
+                        <option value="">Seçiniz…</option>
+                        {props.notifiedBodies.map((n) => <option key={n.id} value={n.id}>{n.identity_no ? `${n.identity_no} · ` : ""}{n.name}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Veriliş Tarihi"><input type="date" className="inp" value={modulG.verilis} onChange={(e) => setModulG({ ...modulG, verilis: e.target.value })} /></Field>
+                    <Field label="Geçerlilik Tarihi"><input type="date" className="inp" value={modulG.gecerlilik} onChange={(e) => setModulG({ ...modulG, gecerlilik: e.target.value })} /></Field>
+                  </div>
+                  <div className="text-xs text-slate-400">Modül G belgesi ve raporu dosya yüklemesi sonraki güncellemede aktif olacak (birden fazla).</div>
+                </div>
+              )}
+
+              {/* Fatura */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                <div className="text-sm font-bold text-slate-800">Fatura</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Fatura No"><input className="inp" value={faturaNo} onChange={(e) => setFaturaNo(e.target.value)} /></Field>
+                  <Field label="Fatura Tarihi"><input type="date" className="inp" value={faturaTarihi} onChange={(e) => setFaturaTarihi(e.target.value)} /></Field>
+                </div>
+                <div className="text-xs text-slate-400">Fatura dosyası yüklemesi sonraki güncellemede aktif olacak.</div>
+              </div>
+
+              {/* Periyodik Kontrol Raporu */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                <div className="text-sm font-bold text-slate-800">Periyodik Kontrol Raporu</div>
+                <Field label="Rapor Tarihi"><input type="date" className="inp" value={periyodikTarihi} onChange={(e) => setPeriyodikTarihi(e.target.value)} /></Field>
+                <div className="text-xs text-slate-400">Rapor dosyası yüklemesi sonraki güncellemede aktif olacak.</div>
+              </div>
+
+              <Field label="Asansör Kimlik No"><input className="inp" value={asansorKimlikNo} onChange={(e) => setAsansorKimlikNo(e.target.value)} placeholder="Örn. 34-XX-XXXX" /></Field>
+            </Section>
+          )}
+
+          {step === S_ASANSOR && (
             <Section title="Asansör teknik bilgileri" desc="Tüm alanlar zorunludur. Kişi sayısı beyan yüküne göre otomatik gelir.">
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Asansör Tipi (Sınıf) *" full>
@@ -715,7 +863,7 @@ export default function DataEntryWizard(props: Props) {
             </Section>
           )}
 
-          {step === 3 && (
+          {step === S_EKIPMAN && (
             <Section title="Kritik ekipmanlar" desc="Tümü zorunludur. Önce marka, sonra model seçin.">
               <div className="space-y-4">
                 {equipCards.map((cat) => {
@@ -769,15 +917,21 @@ export default function DataEntryWizard(props: Props) {
                           <div className="space-y-2">
                             {Array.from({ length: multiN }).map((_, i) => {
                               const v = sel.seriList?.[i] ?? "";
+                              const pasif = isPasifSeri(cat.code, i);
                               return (
                                 <div key={i} className="flex items-center gap-2">
                                   <span className="w-24 shrink-0 text-xs font-semibold text-slate-600">{seriEtiket(cat.code, i)}</span>
-                                  <input
-                                    value={v}
-                                    onChange={(e) => setSeriAt(cat.key, i, e.target.value)}
-                                    placeholder="Seri no"
-                                    className={"inp" + (showErrors && !v.trim() ? " !border-red-300 !bg-red-50" : "")}
-                                  />
+                                  {pasif ? (
+                                    <input value="Giriş yapılamaz" disabled
+                                      className="inp !bg-slate-100 !text-slate-400 !border-slate-200 cursor-not-allowed italic" />
+                                  ) : (
+                                    <input
+                                      value={v}
+                                      onChange={(e) => setSeriAt(cat.key, i, e.target.value)}
+                                      placeholder="Seri no"
+                                      className={"inp" + (showErrors && !v.trim() ? " !border-red-300 !bg-red-50" : "")}
+                                    />
+                                  )}
                                 </div>
                               );
                             })}
@@ -807,21 +961,120 @@ export default function DataEntryWizard(props: Props) {
             </Section>
           )}
 
-          {step === 4 && (
-            <Section title="Önizleme" desc="Bilgileri kontrol edip kaydedin.">
+          {step === S_ISLEM && (
+            <Section title="Dosya İşlemleri" desc="Dosyayı oluştur, gönder ve teslim durumunu yönet.">
               {showErrors && totalMissing > 0 && (
                 <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                  {totalMissing} zorunlu alan eksik. Kaydetmeden önce tüm adımlardaki kırmızı alanları doldurun.
+                  {totalMissing} zorunlu alan eksik. İşlemlerden önce tüm adımlardaki kırmızı alanları doldurun.
                 </div>
               )}
+
+              {/* Üst: özet */}
               <div className="bg-white border border-slate-200 rounded-xl p-4">
                 <SummRow k="Asansör Tipi" v={isHid ? "Hidrolik" : "Elektrikli"} />
-                <SummRow k="Firma" v={company?.short_name} /><SummRow k="Dosya No" v={dosyaNo} />
+                <SummRow k="Firma" v={company?.short_name} /><SummRow k="Proje / Dosya No" v={dosyaNo} />
                 <SummRow k="Bina" v={binaAdi} /><SummRow k="Kapasite" v={beyanYuku ? `${beyanYuku} kg · ${kisi ?? "—"} kişi` : "—"} />
                 <SummRow k="Kat / Durak" v={`${katAdedi || "—"} / ${durakAdedi || "—"}`} />
                 <SummRow k="Seçili ekipman" v={`${selectedEquipCount} / ${equipCards.length}`} />
               </div>
-              {error && <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
+
+              {/* Dosya oluşturma */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                <div className="text-sm font-bold text-slate-800">Dosya Oluştur</div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" disabled title="Hangi belgeleri kullanacağı sonra tanımlanacak"
+                    className="text-sm font-bold px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-400 inline-flex items-center gap-1 cursor-not-allowed">
+                    <span className="material-symbols-rounded text-[18px]">domain</span> Belediye Tescil Dosyası Oluştur
+                  </button>
+                  <button type="button" disabled={saving} onClick={() => handleSave({ gotoBelge: true })}
+                    className="gs-btn text-sm font-bold px-4 py-2.5 rounded-lg inline-flex items-center gap-1">
+                    <span className="material-symbols-rounded text-[18px]">description</span> Teknik Dosya Oluştur
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a href={mailto(`${dosyaNo} — Teknik Dosya`, musteriMetni())}
+                    className="text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1">
+                    <span className="material-symbols-rounded text-[16px]">mail</span> Müşteriye e-posta
+                  </a>
+                  <a href={waLink(musteriMetni())} target="_blank" rel="noreferrer"
+                    className="text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1">
+                    <span className="material-symbols-rounded text-[16px]">chat</span> WhatsApp
+                  </a>
+                  <button type="button" onClick={() => kopyala("musteri", musteriMetni())}
+                    className="text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1">
+                    <span className="material-symbols-rounded text-[16px]">content_copy</span> {kopyalandi === "musteri" ? "Kopyalandı" : "Metni kopyala"}
+                  </button>
+                </div>
+                <div className="text-xs text-slate-400">"Teknik Dosya Oluştur" kaydeder ve belgelerin listelendiği ekrana götürür.</div>
+              </div>
+
+              {/* Asansör Projesi (DWG) */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-bold text-slate-800">Asansör Projesi (DWG)</div>
+                  <button type="button" disabled title="Dosya yükleme sonraki güncellemede aktif olacak"
+                    className="text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-400 inline-flex items-center gap-1 cursor-not-allowed">
+                    <span className="material-symbols-rounded text-[16px]">upload_file</span> DWG Yükle
+                  </button>
+                </div>
+                <Field label="Proje No"><input className="inp !bg-slate-50" value={dosyaNo} readOnly /></Field>
+              </div>
+
+              {/* Fatura durumu + fiyat */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                <div className="text-sm font-bold text-slate-800">Fatura</div>
+                <div className="flex gap-2">
+                  {[{ v: "faturali", t: "FATURALI" }, { v: "faturasiz", t: "FATURASIZ" }].map((o) => (
+                    <button key={o.v} type="button" onClick={() => setFaturali(o.v)}
+                      className={`px-4 py-2.5 rounded-lg text-sm font-bold border transition-colors ${faturali === o.v ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
+                      style={faturali === o.v ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)" } : undefined}>
+                      {o.t}
+                    </button>
+                  ))}
+                </div>
+                {faturali === "faturali" && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-slate-500">Fatura bilgileri (Belgeler adımından): No <b>{faturaNo || "—"}</b> · Tarih <b>{faturaTarihi || "—"}</b></div>
+                    <Field label="Fiyat (TL)"><input className="inp" value={fiyat} onChange={(e) => setFiyat(e.target.value)} placeholder="Örn. 25000" inputMode="decimal" /></Field>
+                  </div>
+                )}
+              </div>
+
+              {/* Teslim durumu */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                <div className="text-sm font-bold text-slate-800">Teslim Durumu</div>
+                <div className="flex gap-2">
+                  {[{ v: "taslak", t: "Taslakta Bırak" }, { v: "teslim", t: "Teslim Edildi" }].map((o) => (
+                    <button key={o.v} type="button" onClick={() => setTeslimDurumu(o.v)}
+                      className={`px-4 py-2.5 rounded-lg text-sm font-bold border transition-colors ${teslimDurumu === o.v ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
+                      style={teslimDurumu === o.v ? { background: "linear-gradient(135deg,#16a34a,#15803d)" } : undefined}>
+                      {o.t}
+                    </button>
+                  ))}
+                </div>
+                {teslimDurumu === "teslim" && (
+                  <div className="space-y-3">
+                    <Field label="Teslim Tarihi"><input type="date" className="inp" value={teslimTarihi} onChange={(e) => setTeslimTarihi(e.target.value)} /></Field>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-xs font-bold text-slate-600 mb-1">Muhasebe bildirimi</div>
+                      <pre className="text-xs text-slate-700 whitespace-pre-wrap font-sans">{muhasebeMetni()}</pre>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <a href={mailto(`${dosyaNo} — Muhasebe Bildirimi`, muhasebeMetni())}
+                          className="text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-white inline-flex items-center gap-1">
+                          <span className="material-symbols-rounded text-[16px]">send</span> Muhasebeye Gönder (e-posta)
+                        </a>
+                        <button type="button" onClick={() => kopyala("muhasebe", muhasebeMetni())}
+                          className="text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-white inline-flex items-center gap-1">
+                          <span className="material-symbols-rounded text-[16px]">content_copy</span> {kopyalandi === "muhasebe" ? "Kopyalandı" : "Metni kopyala"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {error && <div className="mt-1 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
+              <p className="text-xs text-slate-400">Kaydetmek için sağ üstteki {isEdit ? "Güncelle" : "Kaydet"} düğmesini kullanın. Dosya yüklemeleri (Yapı Ruhsatı, Modül G, Fatura, Periyodik, DWG) sonraki güncellemede aktif olacak.</p>
             </Section>
           )}
         </div>

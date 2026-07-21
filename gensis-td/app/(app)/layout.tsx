@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { bildirimSayisi } from "@/lib/bildirimSayisi";
+import { onaySayisi } from "@/lib/onaySayisi";
 import SignOutButton from "@/components/SignOutButton";
 import SideNav from "@/components/SideNav";
 
@@ -19,9 +20,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .single();
 
   const rol = profile?.role ?? "customer";
+  const isStaff = rol === "admin" || rol === "gensis";
   let bildirimCount = 0;
+  let onayCount = 0;
   try {
-    bildirimCount = await bildirimSayisi(createAdminClient(), rol, profile?.company_id ?? null);
+    const admin = createAdminClient();
+    bildirimCount = await bildirimSayisi(admin, rol, profile?.company_id ?? null);
+    if (isStaff) onayCount = await onaySayisi(admin);
   } catch {
     /* sayaç alınamazsa menü yine çalışır */
   }
@@ -37,7 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <img src="/logo.png" alt="GENSIS" style={{ height: 26, width: "auto" }} />
         </div>
 
-        <SideNav isAdmin={rol === "admin"} bildirimCount={bildirimCount} />
+        <SideNav role={rol} bildirimCount={bildirimCount} onayCount={onayCount} />
 
         <div className="p-3">
           <div className="flex items-center gap-3 bg-[#eef1f8] rounded-xl p-3">
