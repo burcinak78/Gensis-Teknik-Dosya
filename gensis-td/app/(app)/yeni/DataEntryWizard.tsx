@@ -998,13 +998,21 @@ export default function DataEntryWizard(props: Props) {
               <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
                 <div className="text-sm font-bold text-slate-800">Dosya Oluştur</div>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" disabled title="Hangi belgeleri kullanacağı sonra tanımlanacak"
-                    className="text-sm font-bold px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-400 inline-flex items-center gap-1 cursor-not-allowed">
-                    <span className="material-symbols-rounded text-[18px]">domain</span> Belediye Tescil Dosyası Oluştur
-                  </button>
                   <button type="button" disabled={saving} onClick={() => handleSave({ gotoBelge: true })}
                     className="gs-btn text-sm font-bold px-4 py-2.5 rounded-lg inline-flex items-center gap-1">
-                    <span className="material-symbols-rounded text-[18px]">description</span> Teknik Dosya Oluştur
+                    <span className="material-symbols-rounded text-[18px]">description</span> Full TD Oluştur
+                  </button>
+                  <button type="button" disabled title="İçerik daha sonra tanımlanacak"
+                    className="text-sm font-bold px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-400 inline-flex items-center gap-1 cursor-not-allowed">
+                    <span className="material-symbols-rounded text-[18px]">domain</span> Tescil Dosyası Oluştur
+                  </button>
+                  <button type="button" disabled title="İçerik daha sonra tanımlanacak"
+                    className="text-sm font-bold px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-400 inline-flex items-center gap-1 cursor-not-allowed">
+                    <span className="material-symbols-rounded text-[18px]">verified</span> OK için TD Oluştur
+                  </button>
+                  <button type="button" disabled title="İçerik daha sonra tanımlanacak"
+                    className="text-sm font-bold px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-400 inline-flex items-center gap-1 cursor-not-allowed">
+                    <span className="material-symbols-rounded text-[18px]">fact_check</span> PK Başvuru Dosyası Oluştur
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -1021,7 +1029,7 @@ export default function DataEntryWizard(props: Props) {
                     <span className="material-symbols-rounded text-[16px]">content_copy</span> {kopyalandi === "musteri" ? "Kopyalandı" : "Metni kopyala"}
                   </button>
                 </div>
-                <div className="text-xs text-slate-400">"Teknik Dosya Oluştur" kaydeder ve belgelerin listelendiği ekrana götürür.</div>
+                <div className="text-xs text-slate-400">"Full TD Oluştur" kaydeder ve belgelerin listelendiği ekrana götürür. Diğer üç dosya türünün içeriği daha sonra tanımlanacak.</div>
               </div>
 
               {/* Asansör Projesi (DWG) */}
