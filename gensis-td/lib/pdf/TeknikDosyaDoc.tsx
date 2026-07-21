@@ -377,6 +377,43 @@ function DocHead({ firma, title }: { firma: any; title: string }) {
   );
 }
 
+// ---- Tarih yardımcıları (tüm belgelerde GG/AA/YYYY) ----
+const pad2 = (n: number) => String(n).padStart(2, "0");
+function parseDate(x: any): Date | null {
+  if (!x && x !== 0) return null;
+  if (x instanceof Date) return isNaN(x.getTime()) ? null : x;
+  const s = String(x).trim();
+  if (!s) return null;
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/);
+  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+// GG/AA/YYYY; tarih değilse orijinali (ya da boş) döndür
+function fmtTR(x: any): string {
+  const d = parseDate(x);
+  return d ? `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}` : (x ? String(x) : "");
+}
+// PK tarihi − 2 gün; hafta sonuna denk gelirse bir önceki Cuma'ya
+function minus2Friday(x: any): Date | null {
+  const d = parseDate(x);
+  if (!d) return null;
+  const r = new Date(d);
+  r.setDate(r.getDate() - 2);
+  const wd = r.getDay(); // 0 Paz, 6 Cmt
+  if (wd === 6) r.setDate(r.getDate() - 1);
+  else if (wd === 0) r.setDate(r.getDate() - 2);
+  return r;
+}
+function addYears(d: Date | null, y: number): Date | null {
+  if (!d) return null;
+  const r = new Date(d);
+  r.setFullYear(r.getFullYear() + y);
+  return r;
+}
+
 type Ctx = ReturnType<typeof buildCtx>;
 function buildCtx(data: any) {
   const d = data || {};
@@ -386,19 +423,29 @@ function buildCtx(data: any) {
   const kap = d.kapasite || {};
   const inp = d.input_data || d;
   const ekipman: Record<string, any> = d.ekipman || {};
-  const bugun = new Date().toLocaleDateString("tr-TR");
-  const tarih = d.dosya_tarihi || bugun;
+  const bugun = fmtTR(new Date());
+  const tarih = d.dosya_tarihi ? fmtTR(d.dosya_tarihi) : bugun;
   const fname = v(firma.unvan || firma.kisa_ad);
   const kisi = d.kisi_sayisi ?? kap.kisi;
   const adaParsel = [inp.ada, inp.parsel].filter(Boolean).join(" / ");
   const eqEntries = Object.entries(ekipman);
   // asansör tipine göre belge dallanması
   const isHid = inp.asansor_tipi === "hidrolik";
+  const aski = String(inp.aski_tipi || "").trim();
   const tahrikTuru = isHid ? "HİDROLİK ENDİREKT TAHRİK" : "ELEKTRİKLİ DİREKT TAHRİK";
   const projeTuru = isHid ? "HİDROLİK ASANSÖR" : "ELEKTRİKLİ ASANSÖR";
   const asansorTuru = isHid ? "Hidrolik Yük Asansörü" : "Elektrikli İnsan Asansörü";
   const garantiSinif = isHid ? "SINIF IV" : "SINIF I";
-  return { d, firma, modul, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, tahrikTuru, projeTuru, asansorTuru, garantiSinif };
+  // Periyodik kontrol tarihinden türeyen tarihler
+  const pkTarihi = fmtTR(inp.periyodik_tarihi);           // periyodik kontrol tarihi
+  const servisD = minus2Friday(inp.periyodik_tarihi);     // düzenleme / servise verildiği = PK − 2 gün (hafta sonu → Cuma)
+  const servisTarihi = servisD ? fmtTR(servisD) : "";
+  const garantiBitis = servisD ? fmtTR(addYears(servisD, 3)) : "";
+  // Malın cinsi: tahrik türü (ELEKTRİKLİ/HİDROLİK) + askıya göre DİREKT/ENDİREKT
+  const malinCinsi = (isHid ? "HİDROLİK" : "ELEKTRİKLİ") + " " + (aski.startsWith("1/1") ? "DİREKT TAHRİK" : "ENDİREKT TAHRİK");
+  const faturaNo = v(inp.fatura_no);
+  const faturaTarihi = fmtTR(inp.fatura_tarihi);
+  return { d, firma, modul, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi };
 }
 
 // Her belge için render fonksiyonu (code -> Page)
@@ -547,17 +594,17 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <Text style={st.formTitle}>GARANTİ BELGESİ</Text>
       <Text style={st.formSub}>EK-3</Text>
       <View style={st.fBox}>
-        <FRow l="BELGE DÜZENLEME TARİHİ" val={c.tarih} />
-        <FRow l="BELGE EN SON GEÇERLİLİK TARİHİ" val="" />
+        <FRow l="BELGE DÜZENLEME TARİHİ" val={c.servisTarihi} />
+        <FRow l="BELGE EN SON GEÇERLİLİK TARİHİ" val={c.garantiBitis} />
         <FSection>ASANSÖR MONTE EDENİN / İMALATÇININ / İTHALATÇININ / DAĞITICININ</FSection>
         <FRow l="ÜNVANI" val={c.firma.unvan} />
         <FRow l="ADRESİ" val={c.firma.adres} />
         <FRow l="TELEFON VE FAKS NUMARASI, DİĞER İLETİŞİM BİLGİLERİ" val={c.firma.telefon} />
         <FSection>FATURANIN</FSection>
-        <FRow l="TARİHİ" val="" />
-        <FRow l="SAYISI" val="" />
+        <FRow l="TARİHİ" val={c.faturaTarihi} />
+        <FRow l="SAYISI" val={c.faturaNo} />
         <FSection>MALIN</FSection>
-        <FRow l="CİNSİ" val={c.tahrikTuru} />
+        <FRow l="CİNSİ" val={c.malinCinsi} />
         <FRow l="MARKASI" val={c.firma.tescilli_marka} />
         <FRow l="MODELİ" val={c.garantiSinif} />
         <FRow l="SERİ NUMARASI" val={c.inp.asansor_seri_no} />
