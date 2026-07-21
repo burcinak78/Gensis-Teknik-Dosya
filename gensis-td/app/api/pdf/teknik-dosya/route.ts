@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     belgeler.length === 0 ? undefined : belgeler.length === 1 ? belgeler[0] : belgeler;
 
   const buffer = await renderToBuffer(
-    React.createElement(TeknikDosyaDoc, { data: ctx, only }) as any
+    React.createElement(TeknikDosyaDoc, { data: ctx, only, assetBase: `${proto}://${host}` }) as any
   );
 
   const dosyaNo = (ctx as any)?.dosya_no ?? projectId;
