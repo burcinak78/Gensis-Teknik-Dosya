@@ -266,6 +266,7 @@ function teknikKomponentPage(c: any) {
       <KInfo sub l="Ebatlar" val={ebat(c.inp.kapi_genislik, c.inp.kapi_yukseklik)} unit="mm." />
 
       <KSection>KABİN</KSection>
+      <KInfo sub l="Tipi" val={c.inp.kabin_tipi} />
       <KInfo sub l="Ebatları" val={ebat(c.inp.kabin_genislik, c.inp.kabin_derinlik)} unit="mm." />
       <KInfo sub l="Ağırlığı" val={c.inp.kabin_agirligi || c.kap?.kabin_agirlik} unit="Kg." />
 
@@ -742,7 +743,9 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     </Page>
   ),
 
-  seyir_defteri: (c) => (
+  seyir_defteri: (c) => {
+    const tall = { minHeight: 34 } as const;
+    return (
     <Page key="seyir_defteri" size="A4" style={st.page} wrap>
       <Text style={st.formTitle}>ASANSÖR SEYİR DEFTERİ</Text>
       <View style={{ height: 6 }} />
@@ -751,60 +754,81 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FRow l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
         <FRow l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
         <FRow l="Asansör Seri No" val={c.inp.asansor_seri_no} />
+        <FRow l="Asansör Kimlik No" val={c.inp.asansor_kimlik_no} />
         <FRow l="Yapımcı Firma" val={c.firma.unvan} />
         <FRow l="Yapımcı Firma Adresi" val={c.firma.adres} />
-        <FRow l="Asansörün Servise Verildiği Tarih" val={c.tarih} />
+        <FRow l="Asansörün Servise Verildiği Tarih" val={c.servisTarihi} />
         <FRow l="Bakım Sözleşmesi Tarihi" val="" />
       </View>
 
-      <Text style={[st.sec, { marginTop: 14 }]}>ÖNEMLİ REVİZYON VE DEĞİŞİKLİKLER</Text>
+      <Text style={[st.sec, { marginTop: 10 }]}>ASANSÖR TEKNİK ÖZELLİKLERİ</Text>
+      <View style={st.fBox}>
+        <FRow l="Askı Tipi" val={c.inp.aski_tipi} />
+        <FRow l="Seyir Mesafesi" val={c.inp.seyir_mesafesi ? `${c.inp.seyir_mesafesi} m` : ""} />
+        <FRow l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg · ${v(c.kisi)} kişi` : ""} />
+        <FRow l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} />
+        <FRow l="Kat / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
+        <FRow l="Kapı Tipi ve Ebatı" val={[c.inp.kat_kapisi, ebat(c.inp.kapi_genislik, c.inp.kapi_yukseklik)].filter(Boolean).join(" · ")} />
+        <FRow l="Kabin Ebatları ve Ağırlığı" val={[ebat(c.inp.kabin_genislik, c.inp.kabin_derinlik), (c.inp.kabin_agirligi || c.kap?.kabin_agirlik) ? `${c.inp.kabin_agirligi || c.kap?.kabin_agirlik} kg` : ""].filter(Boolean).join(" · ")} />
+        {!c.isHid && <FRow l="Karşı Ağırlık Yeri ve Ağırlığı" val={[c.inp.karsi_agirlik_yeri, (c.inp.karsi_agirlik_agirligi || c.kap?.karsi_agirlik) ? `${c.inp.karsi_agirlik_agirligi || c.kap?.karsi_agirlik} kg` : ""].filter(Boolean).join(" · ")} />}
+      </View>
+
+      <Text style={[st.sec, { marginTop: 12 }]}>ÖNEMLİ REVİZYON VE DEĞİŞİKLİKLER</Text>
       <View style={st.tbl}>
         <View style={st.trow}>
-          <Text style={[st.thcell, { width: "34%" }]}>Yapılan Revizyon veya Değişiklik</Text>
-          <Text style={[st.thcell, { width: "22%" }]}>Yapımcı</Text>
-          <Text style={[st.thcell, { width: "28%" }]}>Adres ve Telefonu</Text>
-          <Text style={[st.thcell, { width: "16%" }]}>Tarih</Text>
+          <Text style={[st.thcell, { width: "6%" }]}>No</Text>
+          <Text style={[st.thcell, { width: "48%" }]}>Yapılan Revizyon veya Değişiklik</Text>
+          <Text style={[st.thcell, { width: "16%" }]}>Yapımcı</Text>
+          <Text style={[st.thcell, { width: "18%" }]}>Adres ve Telefonu</Text>
+          <Text style={[st.thcell, { width: "12%" }]}>Tarih</Text>
         </View>
-        {[...Array(7)].map((_, i) => (
+        {[...Array(8)].map((_, i) => (
           <View style={st.trow} key={i}>
-            <Text style={[st.tcellTall, { width: "34%" }]}> </Text>
-            <Text style={[st.tcellTall, { width: "22%" }]}> </Text>
-            <Text style={[st.tcellTall, { width: "28%" }]}> </Text>
-            <Text style={[st.tcellTall, { width: "16%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "6%", textAlign: "center" }]}>{i + 1}</Text>
+            <Text style={[st.tcellTall, tall, { width: "48%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "16%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "18%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "12%" }]}> </Text>
           </View>
         ))}
       </View>
 
-      <Text style={[st.sec, { marginTop: 14 }]} break>YASAL VE PERİYODİK KONTROLLER</Text>
+      <Text style={[st.sec, { marginTop: 12 }]} break>YASAL VE PERİYODİK KONTROLLER</Text>
       <View style={st.tbl}>
         <View style={st.trow}>
-          <Text style={[st.thcell, { width: "8%" }]}>No</Text>
+          <Text style={[st.thcell, { width: "6%" }]}>No</Text>
           <Text style={[st.thcell, { width: "30%" }]}>Kontrolü Yapan Kuruluş</Text>
-          <Text style={[st.thcell, { width: "31%" }]}>Kontrolü Gerçekleştiren{"\n"}Adı-Soyadı / Unvanı</Text>
+          <Text style={[st.thcell, { width: "33%" }]}>Kontrolü Gerçekleştiren{"\n"}Adı-Soyadı / Unvanı</Text>
           <Text style={[st.thcell, { width: "16%" }]}>Kaşe / İmza</Text>
           <Text style={[st.thcell, { width: "15%" }]}>Tarih</Text>
         </View>
-        {[...Array(5)].map((_, i) => (
+        {[...Array(7)].map((_, i) => (
           <View style={st.trow} key={i}>
-            <Text style={[st.tcellTall, { width: "8%", textAlign: "center" }]}>{i + 1}</Text>
-            <Text style={[st.tcellTall, { width: "30%" }]}> </Text>
-            <Text style={[st.tcellTall, { width: "31%" }]}> </Text>
-            <Text style={[st.tcellTall, { width: "16%" }]}> </Text>
-            <Text style={[st.tcellTall, { width: "15%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "6%", textAlign: "center" }]}>{i + 1}</Text>
+            <Text style={[st.tcellTall, tall, { width: "30%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "33%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "16%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "15%" }]}> </Text>
           </View>
         ))}
       </View>
 
-      <Text style={[st.sec, { marginTop: 14 }]}>BİLDİRİLMESİ GEREKEN ÖNEMLİ OLAYLAR (KURTARMA OPERASYONLARI, KAZALAR vb.)</Text>
+      <Text style={[st.sec, { marginTop: 12 }]}>BİLDİRİLMESİ GEREKEN ÖNEMLİ OLAYLAR (KURTARMA OPERASYONLARI, KAZALAR vb.)</Text>
       <View style={st.tbl}>
         <View style={st.trow}>
-          <Text style={[st.thcell, { width: "8%" }]}>No</Text>
-          <Text style={[st.thcell, { width: "92%" }]}>Olay Açıklaması / Tarih</Text>
+          <Text style={[st.thcell, { width: "6%" }]}>No</Text>
+          <Text style={[st.thcell, { width: "50%" }]}>Olay Açıklaması</Text>
+          <Text style={[st.thcell, { width: "22%" }]}>Kaydı Yapan</Text>
+          <Text style={[st.thcell, { width: "12%" }]}>Tarih</Text>
+          <Text style={[st.thcell, { width: "10%" }]}>İmza</Text>
         </View>
-        {[...Array(5)].map((_, i) => (
+        {[...Array(7)].map((_, i) => (
           <View style={st.trow} key={i}>
-            <Text style={[st.tcellTall, { width: "8%", textAlign: "center" }]}>{i + 1}</Text>
-            <Text style={[st.tcellTall, { width: "92%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "6%", textAlign: "center" }]}>{i + 1}</Text>
+            <Text style={[st.tcellTall, tall, { width: "50%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "22%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "12%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "10%" }]}> </Text>
           </View>
         ))}
       </View>
@@ -815,23 +839,45 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       </Text>
       <Footer firma={c.fname} />
     </Page>
-  ),
+    );
+  },
 
   egitim_tutanagi: (c) => (
     <Page key="egitim_tutanagi" size="A4" style={st.page}>
       <DocHead firma={c.firma} title="ASANSÖRDE MAHSUR KALAN KİŞİLERİN KURTARILMASI EĞİTİMİ" />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
       <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
+      <R l="Servise Veriliş Tarihi" val={c.servisTarihi} />
       <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
+      <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
+      <Text style={st.sec}>EĞİTİM İÇERİĞİ</Text>
       <Text style={st.p}>
-        Aşağıda listede ismi bulunan kişilere, yetkili kişi tarafından asansörde mahsur kalan
+        Aşağıda listede ismi bulunan kişilere, yetkili kişi tarafından, asansörde mahsur kalan
         kişilerin kurtarılmasına yönelik eğitim verilmiştir.
       </Text>
-      <View style={st.signWrap}>
-        <View style={st.signBox}><Text style={st.signLine}>Eğitimi Veren (İsim / İmza)</Text></View>
-        <View style={st.signBox}><Text style={st.signLine}>Eğitimi Alan (İsim / İmza)</Text></View>
+      <R l="Eğitim Verilen Yer" val="" />
+      <Text style={[st.sec, { marginTop: 10 }]}>EĞİTİMİ ALANLAR</Text>
+      <View style={st.tbl}>
+        <View style={st.trow}>
+          <Text style={[st.thcell, { width: "6%" }]}>No</Text>
+          <Text style={[st.thcell, { width: "60%" }]}>İsim Soyisim</Text>
+          <Text style={[st.thcell, { width: "34%" }]}>İmza</Text>
+        </View>
+        {[...Array(6)].map((_, i) => (
+          <View style={st.trow} key={i}>
+            <Text style={[st.tcellTall, { minHeight: 26, width: "6%", textAlign: "center" }]}>{i + 1}</Text>
+            <Text style={[st.tcellTall, { minHeight: 26, width: "60%" }]}> </Text>
+            <Text style={[st.tcellTall, { minHeight: 26, width: "34%" }]}> </Text>
+          </View>
+        ))}
       </View>
-      <Text style={{ marginTop: 14, color: "#6b7280" }}>Tarih: {c.tarih}</Text>
+      <View style={{ marginTop: 16, width: "55%" }}>
+        <View style={st.fBox}>
+          <FRow l="Eğitimi Veren — İsim Soyisim" val="" />
+          <FRow l="İmza" val="" />
+        </View>
+      </View>
+      <Text style={{ marginTop: 14, color: "#6b7280" }}>Tarih : ...../...../.........</Text>
       <Footer firma={c.fname} />
     </Page>
   ),
@@ -841,25 +887,40 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <DocHead firma={c.firma} title="ASANSÖR ve DOKÜMAN TESLİM TUTANAĞI" />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
       <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
+      <R l="Servise Veriliş Tarihi" val={c.servisTarihi} />
       <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
-      <Text style={st.sec}>Asansör Sahibine Verilen Doküman Listesi</Text>
+      <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
+      <Text style={st.sec}>ASANSÖR SAHİBİNE VERİLEN DOKÜMAN LİSTESİ</Text>
       {[
-        "AT Uygunluk Beyanı", "Asansör Teknik Özellikleri", "Güvenlik Ekipmanları Listesi",
+        "AB Uygunluk Beyanı", "Asansör Teknik Özellikleri", "Güvenlik Ekipmanları Listesi",
         "Asansör Projesi", "Güvenlik Ekipmanları CE ve Test Belgeleri",
         "Güvenlik Ekipmanları Kullanma Kılavuzları, Şema ve Diyagramları",
         "Asansör Kullanma Kılavuzu", "Asansör Kurtarma Talimatı", "Asansör Seyir Defteri",
         "Diğer (Belirtiniz)",
       ].map((t, i) => (
         <View style={[st.listRow, { alignItems: "center" }]} key={i}>
-          <View style={st.ckbox} />
           <Text style={st.listNo}>{i + 1}.</Text>
-          <Text>{t}</Text>
+          <Text style={{ flex: 1 }}>{t}</Text>
+          <View style={st.ckbox} />
         </View>
       ))}
       <Text style={st.p}>
-        Yukarıda belirtilen dokümanları eksiksiz ve asansörü/asansörleri çalışır durumda teslim aldım.
+        Yukarıda belirtilen dokümanları eksiksiz ve asansörü / asansörleri çalışır vaziyette teslim aldım.
       </Text>
-      <Text style={{ marginTop: 8, color: "#6b7280" }}>Tarih: {c.tarih}</Text>
+      <View style={[st.tbl, { marginTop: 10 }]}>
+        <View style={st.trow}>
+          <Text style={[st.thcell, { width: "16%" }]}>Tarih</Text>
+          <Text style={[st.thcell, { width: "16%" }]}>Yer</Text>
+          <Text style={[st.thcell, { width: "34%" }]}>Asansör Sahibi{"\n"}Ad – Soyad / Kaşe / İmza</Text>
+          <Text style={[st.thcell, { width: "34%" }]}>Montaj Firması{"\n"}Ad – Soyad / Kaşe / İmza</Text>
+        </View>
+        <View style={st.trow}>
+          <Text style={[st.tcellTall, { minHeight: 54, width: "16%" }]}> </Text>
+          <Text style={[st.tcellTall, { minHeight: 54, width: "16%" }]}> </Text>
+          <Text style={[st.tcellTall, { minHeight: 54, width: "34%" }]}> </Text>
+          <Text style={[st.tcellTall, { minHeight: 54, width: "34%" }]}> </Text>
+        </View>
+      </View>
       <Footer firma={c.fname} />
     </Page>
   ),
