@@ -334,22 +334,17 @@ const CAT_LABEL: Record<string, string> = {
   fren_blogu: "Fren Bloğu", kumanda: "Kumanda Panosu", motor: "Makine Motoru",
 };
 
-const BAKIM_MADDELERI: [string, string][] = [
-  ["MADDE 2 – Sözleşmenin Konusu ve Kapsamı",
-    "Sözleşme, yukarıda adresi belirtilen asansörü/asansörleri kapsar. Konusu, asansörün aylık periyodik bakımının yapılmasıdır."],
-  ["MADDE 3 – Bakımın Tarifi",
-    "Bakım; makine, cihaz ve aksamların normal olarak çalışan bir asansör tesisinin teknik özelliklerine uygun çalışır durumda tutulmasıdır."],
-  ["MADDE 4 – Bakım Malzemesi",
-    "Yağ, üstüpü vb. bakım ile ilgili sarf malzemeleri müşteri tarafından temin edilecektir."],
-  ["MADDE 5 – Bakım ve Kontrolün İfa Şekli",
-    "Asansör ayda bir defa kontrol edilerek bakımı yapılacaktır. Yüklenici, müşterinin belirleyeceği en az 2 kişiye acil durumlarda kurtarma eğitimi verecektir. Anormal durum tespitinde asansör, bakım ekibi gelene kadar servis dışı bırakılacaktır."],
-  ["MADDE 6 – Bakıma Yetkili Olanlar",
-    "Yüklenicinin görevlendirdiği elemandan başka hiçbir yabancı asansör makine dairesine giremez."],
-  ["MADDE 7 – Tamirat, Tadilat ve Değişiklik",
-    "Tabii aşınma, harici tesir veya yabancı müdahalesi kaynaklı işler bakım kapsamı dışındadır. Parça değişimi müşteriye bildirilecek ve onayı ile yapılacaktır."],
-  ["MADDE 9 – Sözleşme Müddeti ve Fesih",
-    "İşbu sözleşme imzalandığı tarihten itibaren 1 (bir) yıl için geçerlidir. Taraflardan biri haklı sebeple sözleşmeyi feshedebilir."],
-];
+function BsMadde({ no, baslik, children }: { no: number | string; baslik: string; children: any }) {
+  return (
+    <View style={{ marginTop: 7 }}>
+      <Text style={{ fontWeight: "bold", color: "#1e2a5b", fontSize: 9 }}>{`MADDE ${no} – ${baslik}`}</Text>
+      {typeof children === "string"
+        ? <Text style={{ textAlign: "justify", fontSize: 8.6, lineHeight: 1.35, marginTop: 2 }}>{children}</Text>
+        : children}
+    </View>
+  );
+}
+const bsP = { textAlign: "justify" as const, fontSize: 8.6, lineHeight: 1.35, marginTop: 3 };
 
 const v = (x: any) => (x !== undefined && x !== null && String(x).trim() !== "" ? String(x) : "—");
 
@@ -649,21 +644,139 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   bakim_sozlesmesi: (c) => (
     <Page key="bakim_sozlesmesi" size="A4" style={st.page} wrap>
-      <DocHead firma={c.firma} title="ASANSÖR BAKIM SÖZLEŞMESİ" />
-      <R l="Yüklenici (Bakım Firması)" val={c.firma.unvan} />
-      <R l="Müşteri (Yapı Sahibi)" val={c.inp.yapi_sahibi} />
-      <R l="Asansör Adresi" val={c.d.montaj_adresi} />
-      {BAKIM_MADDELERI.map(([b, m], i) => (
-        <View key={i} style={{ marginTop: 8 }} wrap={false}>
-          <Text style={{ fontWeight: "bold", color: NAVY, fontSize: 9.5 }}>{b}</Text>
-          <Text style={{ textAlign: "justify", fontSize: 9.5 }}>{m}</Text>
+      <Text style={[st.formTitle, { marginBottom: 4 }]}>ASANSÖR BAKIM SÖZLEŞMESİ</Text>
+
+      <BsMadde no={1} baslik="AKİTLER">
+        <View style={{ flexDirection: "row", marginTop: 3 }}>
+          <View style={{ flex: 1, borderWidth: 0.6, borderColor: "#94a3b8", padding: 5, marginRight: 8 }}>
+            <Text style={{ fontWeight: "bold", fontSize: 8.6 }}>Bakım Yapan (1)</Text>
+            <Text style={{ fontSize: 8.4, marginTop: 2 }}>Ünvanı : {v(c.firma.unvan)}</Text>
+            <Text style={{ fontSize: 8.4 }}>Adresi : {v(c.firma.adres)}</Text>
+            <Text style={{ fontSize: 7.6, color: "#64748b", marginTop: 3 }}>1) İşbu sözleşmede (YÜKLENİCİ) kelimesi ile ifade edilmiştir.</Text>
+          </View>
+          <View style={{ flex: 1, borderWidth: 0.6, borderColor: "#94a3b8", padding: 5 }}>
+            <Text style={{ fontWeight: "bold", fontSize: 8.6 }}>Müşteri (2)</Text>
+            <Text style={{ fontSize: 8.4, marginTop: 2 }}>Ünvanı : {v(c.inp.yapi_sahibi)}</Text>
+            <Text style={{ fontSize: 8.4 }}>Adresi : {v(c.inp.yapi_sahibi_adresi)}</Text>
+            <Text style={{ fontSize: 7.6, color: "#64748b", marginTop: 3 }}>2) İş bu sözleşmede (MÜŞTERİ) kelimesi ile ifade edilmiştir.</Text>
+          </View>
         </View>
-      ))}
-      <Text style={st.sec}>MADDE 12 – Bakım Ücreti</Text>
-      <R l="Aylık Bakım Ücreti" val={c.inp.bakim_ucreti} />
-      <View style={st.signWrap}>
-        <View style={st.signBox}><Text style={st.signLine}>Yüklenici</Text><Text style={{ fontSize: 9 }}>{c.fname}</Text></View>
-        <View style={st.signBox}><Text style={st.signLine}>Müşteri</Text><Text style={{ fontSize: 9 }}>{v(c.inp.yapi_sahibi)}</Text></View>
+      </BsMadde>
+
+      <BsMadde no={2} baslik="SÖZLEŞMENİN KONUSU VE KAPSAMI">
+        {`Sözleşme, ${v(c.d.montaj_adresi)} adresi/adreslerinde bulunan ve özellikleri Madde 11'de belirtilen asansörü/asansörleri kapsar, sözleşmenin konusu asansör aylık periyodik bakım hizmetinin sağlanmasıdır.`}
+      </BsMadde>
+
+      <BsMadde no={3} baslik="BAKIMIN TARİFİ">
+        Bakım; bilimum makine, cihaz ve akşamların her bakımdan normal olarak çalışan bir asansör tesisinin teknik özelliklerine uygun olarak çalışır vaziyette bulundurulmasını temin için yüklenicinin yetkili bakım personeli tarafından yapılan temizlik, yağlama, ayar, muayene ve deneylerin tamamıdır. Bakımlar TS 12255 ve TS EN 13015+A1 standardına uygun yapılır. Yürürlükte olan Bilim Sanayi ve Teknoloji Bakanlığı tarafından yayınlanan Asansör İşletme ve Bakım Yönetmeliği hükümlerine tabiidir.
+      </BsMadde>
+
+      <View style={{ marginTop: 6 }}>
+        <Text style={{ fontWeight: "bold", color: "#1e2a5b", fontSize: 9 }}>BAKIMI GERÇEKLEŞTİRECEK OLAN PERSONELİN BİLGİLERİ</Text>
+        <View style={{ flexDirection: "row", marginTop: 3 }}>
+          {[0, 1].map((k) => (
+            <View key={k} style={{ flex: 1, borderWidth: 0.6, borderColor: "#94a3b8", padding: 4, marginRight: k === 0 ? 8 : 0 }}>
+              <Text style={{ fontSize: 8.4 }}>Ad, Soyad : </Text>
+              <Text style={{ fontSize: 8.4, marginTop: 2 }}>İletişim No : </Text>
+              <Text style={{ fontSize: 8.4, marginTop: 2 }}>MYK Belge No : </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <BsMadde no={4} baslik="BAKIM MALZEMESİ">
+        Yağ, üstüpü vb. gibi bakım ile ilgili sarf malzemeleri müşteri tarafından temin edilecektir.
+      </BsMadde>
+
+      <BsMadde no={5} baslik="BAKIM VE KONTROLÜN İFA ŞEKLİ">
+        <View>
+          <Text style={bsP}>Asansör(Asansörler), ayda bir defa kontrol edilerek bakımı yapılacaktır. Ani olarak vuku bulan arızalar müşteri tarafından mesai saatleri içinde bildirildiği saatten itibaren en geç 4(dört) saat içinde ilgili bakım ekibi bakım mahallîne ulaşacaktır.</Text>
+          <Text style={bsP}>Yüklenici tarafından Müşterinin belirleyeceği en az 2(iki) kişiye acil durumlarda kurtarma konusunda eğitim verilecektir ve bu durum tutanakla kayıt altına alınacaktır.</Text>
+          <Text style={bsP}>Mesai saatleri dışında arızaya müdahale hususunda ücret talep edilmesi veya bedelsiz olarak müdahale edilmesi hususu iş bu sözleşmenin 16. Maddesinde belirlenecek özel şartlar dahilinde değerlendirilecektir.</Text>
+          <Text style={bsP}>Asansörde anormal bir durum tespit edildiğinde, bakım ekibi gelinceye kadar asansör servis dışı bırakılacaktır.</Text>
+        </View>
+      </BsMadde>
+
+      <BsMadde no={6} baslik="BAKIM VE KONTROLE YETKİLİ OLANLAR">
+        Yüklenicinin görevlendirdiği elemandan başka hiçbir yabancı asansör makine dairesine giremez (Asansörde mahsur kalma durumunda yükleniciden eğitim almış müşteri temsilcisi hariç.), tesisatlara el süremez.
+      </BsMadde>
+
+      <BsMadde no={7} baslik="YAPILACAK TAMİRAT TADİLAT VE DEĞİŞİKLİK İŞLERİ">
+        <View>
+          <Text style={bsP}>Asansörün bakımı ile ilgili olmayan, tabii aşınma, yıpranma, kırılma, malzeme konstrüksiyon hatası, harici tesirler, yabancıların müdahalesi ve benzeri sebeplerden doğan tamirat ve bazı akşamların değiştirilmesi kayıtsız şartsız müşteri hesabına yapılır.</Text>
+          <Text style={bsP}>Tamirat veya bazı parçaların değişmesi gerekliliği müşteriye bildirilecek müşterinin onayı ile yapılacaktır. Onayın gerçekleştirilmesine kadar olan sürede ve yüklenicinin gerekli malzemeyi temini için gerekli ola makul bir sürede asansörün işlememesinden yüklenici sorumlu tutulmayacaktır. Ayrıca ilgili yönetmeliklerde ancak Asansör Monte eden tanımına giren yükleniciler tarafından yapılabileceği tarif edilen değişiklikleri ancak monte eden tanımına uyan yükleniciler yapabilirler.</Text>
+        </View>
+      </BsMadde>
+
+      <BsMadde no={8} baslik="TEKNİK VE İDARİ TALİMAT VE KURALLARA RİAYETSİZLİK">
+        Asansör tesislerinde teknik ve idari kurallara aykırı emniyet tertibatı ve yetersiz emniyet tedbirleri tespitinde keyfiyet müşteriye bildirilir. Eğer müşteri bildirilen noksanlıkların ve aykırılıkların düzeltilmesi için gerekli tedbir ve malzemelerin yüklenici tarafından müşteri nam ve hesabına karşılanmasına olur vermez ve zaaf gösterirse vuku bulan veya bulması olası kaza ve kazalarda kendisi sorumlu olacaktır. Yüklenici tarafından yazılı olarak müşteriye bildirilen veya teklif edilen tadilat, tamirat, değişiklik ve ilave işleri ile emniyet tertibatlarıyla ilgili işlerin müşteri tarafından yaptırılmaması veya yükleniciye yapması için gerekli onayı vermemesi durumunda yüklenici taahhüdünden vazgeçebilir sözleşmeyi tek taraflı olarak fesih edebilir. Bu hususta yüklenici sorumlu tutulamaz. Aynı şekilde firmanın sözleşme şartlarına uymamasının tespiti durumunda da müşteri hiçbir ihtara gerek olmadan tek taraflı olarak sözleşmeyi fesih edebilir.
+      </BsMadde>
+
+      <BsMadde no={9} baslik="SÖZLEŞME MÜDDETİ VE FESİH">
+        İşbu sözleşme imzalandığı tarihten itibaren 1(bir) yıl için geçerlidir. Taraflardan herhangi biri haklı sebep göstermek kaydı ile sözleşmeyi tek taraflı olarak fesih edebilir. Sözleşmenin haksız olarak feshi halinde, haksız feshi yapan taraf diğer taraftan sözleşmeden doğan zararı karşılamakla yükümlüdür.
+      </BsMadde>
+
+      <BsMadde no={10} baslik="ANLAŞMAZLIKLARIN ÇÖZÜMÜ">
+        {`İş bu sözleşmeden doğan anlaşmazlıkların vukuunda ${v(c.firma.sehir) || "……………………"} Mahkemeleri ve İcra daireleri yetkilidir.`}
+      </BsMadde>
+
+      <BsMadde no={11} baslik="ASANSÖRÜN(ASANSÖRLERİN) ÖZELLİKLERİ">
+        <View style={[st.tbl, { marginTop: 3 }]}>
+          <View style={st.trow}>
+            <Text style={[st.thcell, { width: "20%" }]}>ASANSÖR SERİ NUMARASI</Text>
+            <Text style={[st.thcell, { width: "13%" }]}>BEYAN YÜKÜ</Text>
+            <Text style={[st.thcell, { width: "13%" }]}>BEYAN HIZI</Text>
+            <Text style={[st.thcell, { width: "11%" }]}>DURAK ADEDİ</Text>
+            <Text style={[st.thcell, { width: "24%" }]}>ASANSÖRÜN TİPİ</Text>
+            <Text style={[st.thcell, { width: "19%" }]}>ASANSÖR KİMLİK NUMARASI</Text>
+          </View>
+          <View style={st.trow}>
+            <Text style={[st.tcell, { width: "20%" }]}>{v(c.inp.asansor_seri_no)}</Text>
+            <Text style={[st.tcell, { width: "13%" }]}>{c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : ""}</Text>
+            <Text style={[st.tcell, { width: "13%" }]}>{c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""}</Text>
+            <Text style={[st.tcell, { width: "11%" }]}>{v(c.d.durak_adedi)}</Text>
+            <Text style={[st.tcell, { width: "24%" }]}>{c.malinCinsi}</Text>
+            <Text style={[st.tcell, { width: "19%" }]}>{v(c.inp.asansor_kimlik_no)}</Text>
+          </View>
+        </View>
+      </BsMadde>
+
+      <BsMadde no={12} baslik="ASANSÖRÜN(ASANSÖRLERİN) BAKIM ÜCRETİ">
+        <View>
+          <Text style={bsP}>Asansörün / Asansörlerin aylık bakım ücreti toplam .................... - TL  (Yalnız: ............................................... Türk Lirası \ ........................................................ Kuruş)’tur. Fiyatlara %20 KDV dahildir. / değildir.</Text>
+          <Text style={bsP}>Bakım ücreti ve müşterinin onayı ile yüklenici tarafından yapılan tamiratların ve değişen malzemelerin bedeli müşteri tarafından fatura karşılığı nakden veya yüklenicinin bildireceği Banka hesap numarasına hesaben ödenecektir.</Text>
+        </View>
+      </BsMadde>
+
+      <BsMadde no={13} baslik="VERGİ, RESİM VE HARÇLAR">
+        İşbu sözleşmeden olan sözleşme damga vergisini taraflar kendi yükümlülükleri oranında ödeyecektir. Sözleşme kapsamındaki tüm vergi, resim ve harçlar ile İş ve Sosyal Güvenlik Kanunları karşısındaki yükümlülük Yükleniciye aittir.
+      </BsMadde>
+
+      <BsMadde no={14} baslik="PERİYODİK MUAYENE">
+        Mevcut Asansör İşletme ve Bakım Yönetmeliği kapsamında ilgili yerel yönetim kuruluşu adına A Tipi muayene kuruluşlarına yaptırılması zorunlu olan Asansör Yıllık Periyodik muayeneleri ile ilgili ücretler müşteri tarafından ödenir, ödemeye ilişkin makbuz veya faturanın ibrazıyla müşteriden tahsil edilir.
+      </BsMadde>
+
+      <BsMadde no={15} baslik="GARANTİ">
+        Takılan malzemeler ve yapılan işçilik 2(iki) yıl Şirket Garantisi altındadır. Garanti, Şirket ve Müşteri arasındaki bakım sözleşmesinin garanti süresince kesintisiz olarak devam etmesi şartına bağlıdır.
+      </BsMadde>
+
+      <BsMadde no={16} baslik="ÖZEL ŞARTLAR">
+        <View>
+          <Text style={bsP}>VARSA AŞAĞIDA ASANSÖR ÜZERİNDEKİ KUMANDA VEYA CİHAZLARDA ŞİFRELEME YAPILDI İSE ŞİFRE VEYA KODLARI BELİRTİNİZ</Text>
+          <View style={{ borderWidth: 0.6, borderColor: "#94a3b8", height: 40, marginTop: 4 }} />
+        </View>
+      </BsMadde>
+
+      <BsMadde no={17} baslik="YÜRÜRLÜLÜK">
+        <View>
+          <Text style={bsP}>Bu madde dahil 17 maddeden itibaren ibaret olan İşbu sözleşme taraflarca okunmuş ve 2(iki) nüsha ve 2(iki) sayfa olarak   ……. / ……. / …….   tarihinde tanzim ve imza edilmiştir.</Text>
+          <Text style={bsP}>İşbu sözleşme   ……. / ……. / …….   tarihinde yürürlüğe girer.</Text>
+        </View>
+      </BsMadde>
+
+      <View style={{ flexDirection: "row", marginTop: 24 }}>
+        <View style={{ flex: 1, alignItems: "center" }}><Text style={{ fontSize: 9, fontWeight: "bold" }}>YÜKLENİCİ (İsim, Kaşe, İmza)</Text></View>
+        <View style={{ flex: 1, alignItems: "center" }}><Text style={{ fontSize: 9, fontWeight: "bold" }}>MÜŞTERİ (İsim, Kaşe, İmza)</Text></View>
       </View>
       <Footer firma={c.fname} />
     </Page>
