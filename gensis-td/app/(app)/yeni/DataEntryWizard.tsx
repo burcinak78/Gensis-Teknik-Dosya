@@ -198,7 +198,8 @@ export default function DataEntryWizard(props: Props) {
   const [existingFiles, setExistingFiles] = useState<ProjectFile[]>(init?.files ?? []);
   const addFiles = (kind: string, list: FileList | null) => {
     if (!list || !list.length) return;
-    setPending((p) => ({ ...p, [kind]: [...(p[kind] ?? []), ...Array.from(list)] }));
+    const arr = Array.from(list); // input temizlenmeden ÖNCE yakala (updater içinde geç okuma boş döndürüyordu)
+    setPending((p) => ({ ...p, [kind]: [...(p[kind] ?? []), ...arr] }));
   };
   const removeStaged = (kind: string, i: number) => setPending((p) => ({ ...p, [kind]: (p[kind] ?? []).filter((_, j) => j !== i) }));
   async function silExisting(id: string) {
