@@ -788,7 +788,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       </View>
 
       <Text style={[st.sec, { marginTop: 12 }]}>ÖNEMLİ REVİZYON VE DEĞİŞİKLİKLER</Text>
-      <View style={st.tbl}>
+      <View style={[st.tbl, { flexGrow: 1 }]}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
           <Text style={[st.thcell, { width: "48%" }]}>Yapılan Revizyon veya Değişiklik</Text>
@@ -797,7 +797,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <Text style={[st.thcell, { width: "12%" }]}>Tarih</Text>
         </View>
         {[...Array(8)].map((_, i) => (
-          <View style={st.trow} key={i}>
+          <View style={[st.trow, { flexGrow: 1 }]} key={i}>
             <Text style={[st.tcellTall, tall, { width: "6%", textAlign: "center" }]}>{i + 1}</Text>
             <Text style={[st.tcellTall, tall, { width: "48%" }]}> </Text>
             <Text style={[st.tcellTall, tall, { width: "16%" }]}> </Text>
@@ -808,7 +808,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       </View>
 
       <Text style={[st.sec, { marginTop: 12 }]} break>YASAL VE PERİYODİK KONTROLLER</Text>
-      <View style={st.tbl}>
+      <View style={[st.tbl, { flexGrow: 1 }]}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
           <Text style={[st.thcell, { width: "30%" }]}>Kontrolü Yapan Kuruluş</Text>
@@ -817,7 +817,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <Text style={[st.thcell, { width: "15%" }]}>Tarih</Text>
         </View>
         {[...Array(7)].map((_, i) => (
-          <View style={st.trow} key={i}>
+          <View style={[st.trow, { flexGrow: 1 }]} key={i}>
             <Text style={[st.tcellTall, tall, { width: "6%", textAlign: "center" }]}>{i + 1}</Text>
             <Text style={[st.tcellTall, tall, { width: "30%" }]}> </Text>
             <Text style={[st.tcellTall, tall, { width: "33%" }]}> </Text>
@@ -828,7 +828,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       </View>
 
       <Text style={[st.sec, { marginTop: 12 }]}>BİLDİRİLMESİ GEREKEN ÖNEMLİ OLAYLAR (KURTARMA OPERASYONLARI, KAZALAR vb.)</Text>
-      <View style={st.tbl}>
+      <View style={[st.tbl, { flexGrow: 1 }]}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
           <Text style={[st.thcell, { width: "50%" }]}>Olay Açıklaması</Text>
@@ -837,7 +837,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <Text style={[st.thcell, { width: "10%" }]}>İmza</Text>
         </View>
         {[...Array(7)].map((_, i) => (
-          <View style={st.trow} key={i}>
+          <View style={[st.trow, { flexGrow: 1 }]} key={i}>
             <Text style={[st.tcellTall, tall, { width: "6%", textAlign: "center" }]}>{i + 1}</Text>
             <Text style={[st.tcellTall, tall, { width: "50%" }]}> </Text>
             <Text style={[st.tcellTall, tall, { width: "22%" }]}> </Text>
