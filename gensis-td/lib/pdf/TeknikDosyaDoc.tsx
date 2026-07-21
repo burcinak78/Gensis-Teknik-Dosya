@@ -257,6 +257,7 @@ function teknikKomponentPage(c: any) {
       <KInfo l="SEYİR MESAFESİ" val={c.inp.seyir_mesafesi} unit="m." />
       <KInfo l="BEYAN YÜKÜ" val={c.d.beyan_yuku_kg} unit="Kg." />
       <KInfo l="BEYAN HIZI" val={c.d.beyan_hizi} unit="m/s" />
+      <KInfo l="ASKI TİPİ" val={c.inp.aski_tipi} />
       <KInfo l="KAT ADEDİ" val={c.d.kat_adedi} />
       <KInfo l="DURAK ADEDİ" val={c.d.durak_adedi} />
 
@@ -892,6 +893,11 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   son_kontrol_formu: (c) => (
     <Page key="son_kontrol_formu" size="A4" style={st.page} wrap>
       <DocHead firma={c.firma} title="ASANSÖR SON KONTROL FORMU (EN 81-20 / 28 / 70 / 73)" />
+      <View style={[st.fBox, { marginBottom: 8 }]}>
+        <FRow l="Montaj Adresi" val={c.d.montaj_adresi} />
+        <FRow l="Ada / Pafta / Parsel" val={[c.inp.ada, c.inp.pafta, c.inp.parsel].filter(Boolean).join(" / ")} />
+        <FRow l="Asansör Seri No" val={c.inp.asansor_seri_no} />
+      </View>
       <View style={st.skHead} fixed>
         <Text style={st.skNo}>#</Text>
         <Text style={st.skItem}>Kontrol Maddesi</Text>
