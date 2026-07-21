@@ -23,6 +23,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     companyDocsRes,
     projectRes,
     equipRes,
+    filesRes,
   ] = await Promise.all([
     supabase
       .from("companies")
@@ -46,6 +47,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
       .from("project_equipment")
       .select("category_id, slot, brand_id, model_id, seri_no, seri_list")
       .eq("project_id", params.id),
+    supabase.from("project_files").select("id, kind, original_name").eq("project_id", params.id).order("uploaded_at"),
   ]);
 
   const project = projectRes.data as any;
@@ -134,6 +136,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     fiyat: s(inp.fiyat),
     teslimDurumu: s(inp.teslim_durumu) || "taslak",
     teslimTarihi: s(inp.teslim_tarihi),
+    files: (filesRes.data ?? []) as any,
     makineMuhId: project.makine_muhendis_id ?? "",
     elektrikMuhId: project.elektrik_muhendis_id ?? "",
     equip,

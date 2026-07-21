@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { saveDraftProject, updateDraftProject, type DraftPayload } from "./actions";
+import { saveDraftProject, updateDraftProject, uploadProjectFile, deleteProjectFile, type DraftPayload } from "./actions";
 
 type Company = {
   id: string; short_name: string; legal_name: string; address: string | null;
@@ -21,6 +21,7 @@ type Lookup = { list_key: string; value: string; sort_order: number };
 type District = { id: string; name: string };
 type Engineer = { id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null };
 type CompanyDoc = { id: string; company_id: string; doc_type: string; belge_no: string | null; valid_until: string | null };
+type ProjectFile = { id: string; kind: string; original_name: string | null };
 
 type EquipInit = Record<string, { brandId?: string; modelId?: string; seriNo?: string; seriList?: string[] }>;
 // Düzenleme modunda mevcut projeyi dolduran başlangıç verisi
@@ -45,6 +46,7 @@ export type InitialData = {
   modulG?: { belge_no: string; verilis: string; gecerlilik: string; nb_id: string };
   faturaNo?: string; faturaTarihi?: string; periyodikTarihi?: string;
   faturali?: string; fiyat?: string; teslimDurumu?: string; teslimTarihi?: string;
+  files?: ProjectFile[];
 };
 
 type Props = {
@@ -191,6 +193,20 @@ export default function DataEntryWizard(props: Props) {
   const [teslimDurumu, setTeslimDurumu] = useState(init?.teslimDurumu ?? "taslak");
   const [teslimTarihi, setTeslimTarihi] = useState(init?.teslimTarihi ?? "");
   const [kopyalandi, setKopyalandi] = useState<string>("");
+  // Yüklenecek (staged) ve mevcut dosyalar
+  const [pending, setPending] = useState<Record<string, File[]>>({});
+  const [existingFiles, setExistingFiles] = useState<ProjectFile[]>(init?.files ?? []);
+  const addFiles = (kind: string, list: FileList | null) => {
+    if (!list || !list.length) return;
+    setPending((p) => ({ ...p, [kind]: [...(p[kind] ?? []), ...Array.from(list)] }));
+  };
+  const removeStaged = (kind: string, i: number) => setPending((p) => ({ ...p, [kind]: (p[kind] ?? []).filter((_, j) => j !== i) }));
+  async function silExisting(id: string) {
+    if (!confirm("Bu dosya silinsin mi?")) return;
+    const r = await deleteProjectFile(id);
+    if (r.ok) setExistingFiles((s) => s.filter((f) => f.id !== id));
+    else alert("Silinemedi: " + (r.error ?? ""));
+  }
 
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -436,11 +452,29 @@ export default function DataEntryWizard(props: Props) {
     };
 
     const res = isEdit ? await updateDraftProject(init!.id, payload) : await saveDraftProject(payload);
+    if (!res.ok) { setSaving(false); setError(res.error); return; }
+
+    // Staged dosyaları yükle
+    if (res.id) {
+      for (const kind of Object.keys(pending)) {
+        for (const file of pending[kind] ?? []) {
+          const fd = new FormData();
+          fd.set("project_id", res.id); fd.set("kind", kind); fd.set("file", file);
+          if (kind === "modul_g_belge" || kind === "modul_g_rapor") {
+            fd.set("belge_no", modulG.belge_no); fd.set("issue_date", modulG.verilis);
+            fd.set("valid_until", modulG.gecerlilik); fd.set("notified_body_id", modulG.nb_id);
+          } else if (kind === "fatura") { fd.set("fatura_no", faturaNo); fd.set("fatura_tarihi", faturaTarihi); }
+          else if (kind === "periyodik_kontrol") { fd.set("report_date", periyodikTarihi); }
+          else if (kind === "asansor_projesi") { fd.set("proje_no", dosyaNo); }
+          await uploadProjectFile(fd);
+        }
+      }
+      setPending({});
+    }
+
     setSaving(false);
-    if (res.ok) {
-      if (opts?.gotoBelge && res.id) { router.push(`/panel/${res.id}`); return; }
-      setSavedId(res.id); router.refresh();
-    } else setError(res.error);
+    if (opts?.gotoBelge && res.id) { router.push(`/panel/${res.id}`); return; }
+    setSavedId(res.id); router.refresh();
   }
 
   if (savedId) {
@@ -577,18 +611,9 @@ export default function DataEntryWizard(props: Props) {
 
           {step === 1 && (
             <Section title="Yapı ruhsatı bilgileri" desc="Tüm alanlar zorunludur.">
-              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-bold text-slate-800 text-sm">Yapı Ruhsatı Ekle</div>
-                    <div className="text-xs text-slate-500">Yapı ruhsatı dosyasını (PDF/görsel) yükleyin.</div>
-                  </div>
-                  <button type="button" disabled title="Dosya yükleme sonraki güncellemede aktif olacak"
-                    className="text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-400 inline-flex items-center gap-1 cursor-not-allowed">
-                    <span className="material-symbols-rounded text-[16px]">upload_file</span> Dosya Yükle
-                  </button>
-                </div>
-              </div>
+              <FileZone label="Yapı Ruhsatı Ekle" accept="application/pdf,image/*"
+                staged={pending["yapi_ruhsati"] ?? []} existing={existingFiles.filter((f) => f.kind === "yapi_ruhsati")}
+                onAdd={(l) => addFiles("yapi_ruhsati", l)} onRemoveStaged={(i) => removeStaged("yapi_ruhsati", i)} onDelete={silExisting} />
               <Field label="Bina Adı *"><input className={"inp" + ec(binaAdi)} value={binaAdi} onChange={(e) => setBinaAdi(e.target.value)} /></Field>
               <Field label="Montaj Adresi *"><input className={"inp" + ec(montajAdresi)} value={montajAdresi} onChange={(e) => setMontajAdresi(e.target.value)} /></Field>
               <div className="grid grid-cols-2 gap-4">
@@ -674,7 +699,12 @@ export default function DataEntryWizard(props: Props) {
                     <Field label="Veriliş Tarihi"><input type="date" className="inp" value={modulG.verilis} onChange={(e) => setModulG({ ...modulG, verilis: e.target.value })} /></Field>
                     <Field label="Geçerlilik Tarihi"><input type="date" className="inp" value={modulG.gecerlilik} onChange={(e) => setModulG({ ...modulG, gecerlilik: e.target.value })} /></Field>
                   </div>
-                  <div className="text-xs text-slate-400">Modül G belgesi ve raporu dosya yüklemesi sonraki güncellemede aktif olacak (birden fazla).</div>
+                  <FileZone label="Modül G Belgesini Yükle" accept="application/pdf,image/*"
+                    staged={pending["modul_g_belge"] ?? []} existing={existingFiles.filter((f) => f.kind === "modul_g_belge")}
+                    onAdd={(l) => addFiles("modul_g_belge", l)} onRemoveStaged={(i) => removeStaged("modul_g_belge", i)} onDelete={silExisting} />
+                  <FileZone label="Modül G Raporunu Yükle" accept="application/pdf,image/*"
+                    staged={pending["modul_g_rapor"] ?? []} existing={existingFiles.filter((f) => f.kind === "modul_g_rapor")}
+                    onAdd={(l) => addFiles("modul_g_rapor", l)} onRemoveStaged={(i) => removeStaged("modul_g_rapor", i)} onDelete={silExisting} />
                 </div>
               )}
 
@@ -685,14 +715,18 @@ export default function DataEntryWizard(props: Props) {
                   <Field label="Fatura No"><input className="inp" value={faturaNo} onChange={(e) => setFaturaNo(e.target.value)} /></Field>
                   <Field label="Fatura Tarihi"><input type="date" className="inp" value={faturaTarihi} onChange={(e) => setFaturaTarihi(e.target.value)} /></Field>
                 </div>
-                <div className="text-xs text-slate-400">Fatura dosyası yüklemesi sonraki güncellemede aktif olacak.</div>
+                <FileZone label="Fatura Yükle" accept="application/pdf,image/*"
+                  staged={pending["fatura"] ?? []} existing={existingFiles.filter((f) => f.kind === "fatura")}
+                  onAdd={(l) => addFiles("fatura", l)} onRemoveStaged={(i) => removeStaged("fatura", i)} onDelete={silExisting} />
               </div>
 
               {/* Periyodik Kontrol Raporu */}
               <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
                 <div className="text-sm font-bold text-slate-800">Periyodik Kontrol Raporu</div>
                 <Field label="Rapor Tarihi"><input type="date" className="inp" value={periyodikTarihi} onChange={(e) => setPeriyodikTarihi(e.target.value)} /></Field>
-                <div className="text-xs text-slate-400">Rapor dosyası yüklemesi sonraki güncellemede aktif olacak.</div>
+                <FileZone label="Periyodik Kontrol Raporu Yükle" accept="application/pdf,image/*"
+                  staged={pending["periyodik_kontrol"] ?? []} existing={existingFiles.filter((f) => f.kind === "periyodik_kontrol")}
+                  onAdd={(l) => addFiles("periyodik_kontrol", l)} onRemoveStaged={(i) => removeStaged("periyodik_kontrol", i)} onDelete={silExisting} />
               </div>
 
               <Field label="Asansör Kimlik No"><input className="inp" value={asansorKimlikNo} onChange={(e) => setAsansorKimlikNo(e.target.value)} placeholder="Örn. 34-XX-XXXX" /></Field>
@@ -1034,14 +1068,11 @@ export default function DataEntryWizard(props: Props) {
 
               {/* Asansör Projesi (DWG) */}
               <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-bold text-slate-800">Asansör Projesi (DWG)</div>
-                  <button type="button" disabled title="Dosya yükleme sonraki güncellemede aktif olacak"
-                    className="text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-400 inline-flex items-center gap-1 cursor-not-allowed">
-                    <span className="material-symbols-rounded text-[16px]">upload_file</span> DWG Yükle
-                  </button>
-                </div>
+                <div className="text-sm font-bold text-slate-800">Asansör Projesi (DWG)</div>
                 <Field label="Proje No"><input className="inp !bg-slate-50" value={dosyaNo} readOnly /></Field>
+                <FileZone label="Asansör Projesi Yükle (DWG)" accept=".dwg,application/acad,image/vnd.dwg,application/dwg,application/octet-stream"
+                  staged={pending["asansor_projesi"] ?? []} existing={existingFiles.filter((f) => f.kind === "asansor_projesi")}
+                  onAdd={(l) => addFiles("asansor_projesi", l)} onRemoveStaged={(i) => removeStaged("asansor_projesi", i)} onDelete={silExisting} />
               </div>
 
               {/* Fatura durumu + fiyat */}
@@ -1100,7 +1131,7 @@ export default function DataEntryWizard(props: Props) {
               </div>
 
               {error && <div className="mt-1 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
-              <p className="text-xs text-slate-400">Kaydetmek için sağ üstteki {isEdit ? "Güncelle" : "Kaydet"} düğmesini kullanın. Dosya yüklemeleri (Yapı Ruhsatı, Modül G, Fatura, Periyodik, DWG) sonraki güncellemede aktif olacak.</p>
+              <p className="text-xs text-slate-400">Kaydetmek için sağ üstteki {isEdit ? "Güncelle" : "Kaydet"} düğmesini kullanın. Yüklediğiniz dosyalar (Yapı Ruhsatı, Modül G, Fatura, Periyodik, DWG) kayıtla birlikte yüklenir.</p>
             </Section>
           )}
         </div>
@@ -1132,6 +1163,34 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
 }
 function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (<div className={full ? "col-span-2" : undefined}><label className="block text-xs font-semibold text-slate-700 mb-1.5">{label}</label>{children}</div>);
+}
+function FileZone({
+  label, accept, staged, existing, onAdd, onRemoveStaged, onDelete,
+}: {
+  label: string; accept?: string; staged: File[]; existing: ProjectFile[];
+  onAdd: (l: FileList | null) => void; onRemoveStaged: (i: number) => void; onDelete: (id: string) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
+      <div className="text-sm font-semibold text-slate-800">{label}</div>
+      {existing.map((f) => (
+        <div key={f.id} className="flex items-center justify-between text-xs">
+          <a href={`/api/belge/proje?id=${f.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
+            <span className="material-symbols-rounded text-[15px]">description</span>{f.original_name ?? "dosya"}
+          </a>
+          <button type="button" onClick={() => onDelete(f.id)} className="text-red-500 hover:underline">Sil</button>
+        </div>
+      ))}
+      {staged.map((f, i) => (
+        <div key={i} className="flex items-center justify-between text-xs text-slate-600">
+          <span className="inline-flex items-center gap-1"><span className="material-symbols-rounded text-[15px] text-amber-600">upload_file</span>{f.name} <span className="text-slate-400">· kaydedilecek</span></span>
+          <button type="button" onClick={() => onRemoveStaged(i)} className="text-red-500 hover:underline">Kaldır</button>
+        </div>
+      ))}
+      <input type="file" accept={accept} multiple onChange={(e) => { onAdd(e.target.files); e.target.value = ""; }}
+        className="text-xs w-full file:mr-2 file:text-xs file:font-semibold file:border-0 file:bg-brand-light file:text-brand file:px-2 file:py-1 file:rounded-md" />
+    </div>
+  );
 }
 function AutoRow({ k, v }: { k: string; v?: string | null }) {
   return (<div className="flex justify-between gap-3 py-1.5 border-b border-dashed border-slate-200 last:border-0 text-sm"><span className="text-slate-500">{k}</span><span className="font-semibold text-right">{v || "—"}</span></div>);

@@ -1,7 +1,9 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export type SaveResult =
   | { ok: true; id: string }
@@ -155,6 +157,70 @@ export async function updateDraftProject(id: string, payload: DraftPayload): Pro
   revalidatePath("/panel");
   revalidatePath(`/panel/${id}`);
   return { ok: true, id };
+}
+
+// ---------- Projeye dosya yükle (Yapı Ruhsatı, Modül G, Fatura, Periyodik, DWG) ----------
+const PROJE_KIND = ["yapi_ruhsati", "modul_g_belge", "modul_g_rapor", "fatura", "periyodik_kontrol", "asansor_projesi"];
+export async function uploadProjectFile(formData: FormData): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Oturum bulunamadı." };
+  const project_id = String(formData.get("project_id") || "");
+  const kind = String(formData.get("kind") || "");
+  const file = formData.get("file") as File | null;
+  if (!project_id || !kind || !file || file.size === 0) return { ok: false, error: "Eksik bilgi." };
+  if (!PROJE_KIND.includes(kind)) return { ok: false, error: "Geçersiz dosya türü." };
+
+  // Erişim kontrolü (RLS): kullanıcı bu projeyi görebiliyor mu?
+  const { data: proj } = await supabase.from("projects").select("id").eq("id", project_id).maybeSingle();
+  if (!proj) return { ok: false, error: "Proje bulunamadı veya yetkiniz yok." };
+
+  const admin = createAdminClient();
+  const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+  const path = `proje/${project_id}/${kind}-${randomUUID()}.${ext}`;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const { error: upErr } = await admin.storage.from("documents").upload(path, bytes, {
+    contentType: file.type || "application/octet-stream", upsert: false,
+  });
+  if (upErr) return { ok: false, error: "Dosya yüklenemedi: " + upErr.message };
+
+  // Aynı proje+kind içinde sona ekle (sort_order = mevcut adet)
+  const { count } = await admin.from("project_files").select("id", { count: "exact", head: true }).eq("project_id", project_id).eq("kind", kind);
+
+  const row: Record<string, any> = {
+    project_id, kind, storage_path: path, original_name: file.name, sort_order: count ?? 0,
+    belge_no: String(formData.get("belge_no") || "") || null,
+    issue_date: String(formData.get("issue_date") || "") || null,
+    valid_until: String(formData.get("valid_until") || "") || null,
+    notified_body_id: String(formData.get("notified_body_id") || "") || null,
+    report_date: String(formData.get("report_date") || "") || null,
+    fatura_no: String(formData.get("fatura_no") || "") || null,
+    fatura_tarihi: String(formData.get("fatura_tarihi") || "") || null,
+    proje_no: String(formData.get("proje_no") || "") || null,
+    uploaded_by: user.id,
+  };
+  const { data, error } = await admin.from("project_files").insert(row).select("id").single();
+  if (error || !data) return { ok: false, error: error?.message ?? "Dosya kaydedilemedi." };
+  revalidatePath(`/panel/${project_id}`);
+  return { ok: true, id: data.id };
+}
+
+// ---------- Proje dosyasını sil ----------
+export async function deleteProjectFile(id: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Oturum bulunamadı." };
+  if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+  const admin = createAdminClient();
+  const { data: f } = await admin.from("project_files").select("storage_path, project_id").eq("id", id).maybeSingle();
+  if (!f) return { ok: false, error: "Kayıt bulunamadı." };
+  // Erişim kontrolü
+  const { data: proj } = await supabase.from("projects").select("id").eq("id", f.project_id).maybeSingle();
+  if (!proj) return { ok: false, error: "Yetkiniz yok." };
+  if (f.storage_path) await admin.storage.from("documents").remove([f.storage_path]);
+  const { error } = await admin.from("project_files").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 // ---------- Teknik dosyayı tamamen sil ----------
