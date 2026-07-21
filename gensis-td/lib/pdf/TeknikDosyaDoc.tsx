@@ -520,16 +520,15 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     const eq = c.ekipman;
     const guv: [string, any][] = [
       ["Durak kapılarını kilitleme tertibatı", eq.kapi_kilidi || {}],
-      ["Kabinin düşmesini/kontrolsüz hareketini engelleyen tertibatlar", eq.fren_blogu || eq.kabin_kilidi || {}],
+      ["Kabinin düşmesini veya kontrolsüz hareket etmesini engelleyen tertibatlar", eq.fren_blogu || {}],
       ["Aşırı hız sınırlayıcı tertibatlar", eq.hiz_regulatoru || {}],
       ["Kabin Tamponu", eq.tampon_kabin || eq.tampon || {}],
       ["Ağırlık Tamponu", eq.tampon_agirlik || {}],
-      ["Elektrikli güvenlik tertibatları", eq.kumanda || {}],
+      ["Elektronik aksamları içeren güvenlik şalterleri şeklindeki elektrikli güvenlik tertibatları", eq.kumanda || {}],
     ];
     return (
       <Page key="tescil" size="A4" style={st.pageForm}>
-        <Text style={st.formTitle}>YENİ ASANSÖR İÇİN TESCİL BELGESİ</Text>
-        <Text style={st.formSub}>EK-1</Text>
+        <Text style={st.formTitle}>EK-1: YENİ ASANSÖR İÇİN TESCİL BELGESİ</Text>
         <View style={st.fBox}>
           <FRow l="TESCİL TARİHİ" val="" />
           <FRow l="TESCİL KAYIT NUMARASI" val="" />
@@ -545,7 +544,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <FRow l="ASANSÖRÜN MARKASI" val={c.firma.tescilli_marka} />
           <FRow l="ASANSÖRÜN SERİ NUMARASI" val={c.inp.asansor_seri_no} />
           <FRow l="ASANSÖRÜN İMAL YILI" val={c.d.imal_yili} />
-          <FRow l="ASANSÖRÜN TAHRİK TÜRÜ" val={c.tahrikTuru} />
+          <FRow l="ASANSÖRÜN TAHRİK TÜRÜ" val={c.malinCinsi} />
           <FRow l="ASANSÖRÜN HIZI" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} />
           <FRow l="ASANSÖRÜN KAPASİTESİ VEYA BEYAN YÜKÜ" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : ""} />
           <FRow l="ASANSÖRÜN DURAK SAYISI" val={c.d.durak_adedi} />
@@ -567,23 +566,29 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <FSection>MEVZUAT</FSection>
           <FRow l="YÖNETMELİK ADI" val="ASANSÖR YÖNETMELİĞİ (2014/33/AB)" />
           <FSection>AT UYGUNLUK BEYANINA DAİR BİLGİLER</FSection>
-          <FRow l="BEYAN TARİHİ" val={c.tarih} />
+          <FRow l="BEYAN TARİHİ" val={c.servisTarihi} />
           <FRow l="İMZA SAHİBİNİN ADI VE SOYADI" val={c.firma.yetkili} />
           <FSection>UYGUNLUK BELGESİNE DAİR BİLGİLER</FSection>
-          <FRow l="BELGE NUMARASI" val={c.modul.belge_no} />
-          <FRow l="BELGE DÜZENLENME TARİHİ" val={c.modul.tarih} />
-          <FRow l="ONAYLANMIŞ KURULUŞUN ADI" val={c.modul.onaylanmis_kurulus} />
-          <FRow l="ONAYLANMIŞ KURULUŞUN KİMLİK NUMARASI" val={c.modul.kurulus_no} />
+          <FRow l="BELGE NUMARASI" val={c.inp.modul_belge_no || c.modul.belge_no} />
+          <FRow l="BELGE DÜZENLENME TARİHİ" val={fmtTR(c.inp.modul_belge_tarihi) || c.modul.tarih} />
+          <FRow l="ONAYLANMIŞ KURULUŞUN ADI" val={c.inp.modul_onaylanmis_kurulus || c.modul.onaylanmis_kurulus} />
+          <FRow l="ONAYLANMIŞ KURULUŞUN KİMLİK NUMARASI" val={c.inp.modul_kurulus_no || c.modul.kurulus_no} />
+          <FSection>SANAYİ SİCİL BELGESİNE DAİR BİLGİLER</FSection>
+          <FRow l="BELGE TARİHİ" val={fmtTR(c.inp.sanayi_sicil_tarihi)} />
+          <FRow l="BELGE NUMARASI" val={c.inp.sanayi_sicil_no} />
           <FSection>TSE HİZMET YETERLİLİK BELGESİNE DAİR BİLGİLER</FSection>
-          <FRow l="BELGENİN GEÇERLİLİK SÜRESİ" val="1 YIL" />
+          <FRow l="BELGENİN DÜZENLENDİĞİ TARİH" val={fmtTR(c.inp.tse_tarihi)} />
+          <FRow l="BELGENİN GEÇERLİLİK SÜRESİ" val={fmtTR(c.inp.tse_gecerlilik)} />
           <FSection>GARANTİ BELGESİNE DAİR BİLGİLER</FSection>
+          <FRow l="DÜZENLENDİĞİ TARİH" val={c.servisTarihi} />
           <FRow l="GARANTİ SÜRESİ" val="3 YIL" />
         </View>
         <Text style={{ fontSize: 7.3, marginTop: 6, textAlign: "justify" }}>
-          {v(c.d.montaj_adresi)} adresinde monte edilen ve {c.tarih} tarihinde piyasaya arz edilmiş olan asansörün tescili yapılmıştır.
+          {v(c.d.montaj_adresi)} adresinde monte edilen ve {c.servisTarihi} Tarihinde piyasaya arz edilmiş olan asansörün tescili, 06.04.2019 tarihli ve 30737 sayılı Resmî Gazete’de yayımlanan Asansör İşletme ve Bakım Yönetmeliğine göre yapılmıştır.
         </Text>
-        <View style={{ marginTop: 14, alignItems: "flex-end" }}>
-          <Text style={{ fontSize: 7.3, textAlign: "center" }}>İLGİLİ İDARE ADINA İMZA YETKİLİSİNİN{"\n"}İMZA VE MÜHÜR</Text>
+        <View style={{ marginTop: 14, alignSelf: "flex-end", borderWidth: 1, borderColor: "#9aa4b2", width: 240 }}>
+          <Text style={{ fontSize: 7.3, textAlign: "center", padding: 4, borderBottomWidth: 1, borderColor: "#9aa4b2", fontWeight: "bold" }}>İLGİLİ İDARE ADINA İMZA YETKİLİSİNİN</Text>
+          <Text style={{ fontSize: 7.3, textAlign: "center", paddingTop: 4, height: 46 }}>İMZA VE MÜHÜR</Text>
         </View>
       </Page>
     );

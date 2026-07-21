@@ -38,7 +38,7 @@ export default async function YeniPage() {
       .order("beyan_yuku_kg"),
     supabase.from("lookup_values").select("list_key, value, sort_order").order("sort_order"),
     supabase.from("engineers").select("id, full_name, discipline, chamber_reg_no, company_id").order("full_name").limit(2000),
-    supabase.from("company_documents").select("id, company_id, doc_type, belge_no, valid_until").limit(5000),
+    supabase.from("company_documents").select("id, company_id, doc_type, belge_no, issue_date, valid_until, notified_body_id").limit(5000),
   ]);
 
   const companyList = companies.data ?? [];

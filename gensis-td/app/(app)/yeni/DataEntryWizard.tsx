@@ -20,7 +20,7 @@ type Capacity = { beyan_yuku_kg: number; kisi_sayisi: number | null; kabin_agirl
 type Lookup = { list_key: string; value: string; sort_order: number };
 type District = { id: string; name: string };
 type Engineer = { id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null };
-type CompanyDoc = { id: string; company_id: string; doc_type: string; belge_no: string | null; valid_until: string | null };
+type CompanyDoc = { id: string; company_id: string; doc_type: string; belge_no: string | null; issue_date: string | null; valid_until: string | null; notified_body_id: string | null };
 type ProjectFile = { id: string; kind: string; original_name: string | null };
 
 type EquipInit = Record<string, { brandId?: string; modelId?: string; seriNo?: string; seriList?: string[] }>;
@@ -422,6 +422,18 @@ export default function DataEntryWizard(props: Props) {
         return { category_id: card.catId, slot: card.slot, brand_id: val.brandId ?? null, model_id: val.modelId ?? null, certificate_id: model?.certificate_id ?? null, seri_no, seri_list };
       });
 
+    // Tescil belgesi için müşteri belgelerinden çözümle (kayıt anında snapshot)
+    const cdocs = (props.companyDocuments ?? []).filter((d) => d.company_id === companyId);
+    const ssDoc = cdocs.find((d) => d.doc_type === "sanayi_sicil");
+    const tseDoc = cdocs.find((d) => d.doc_type === "tse_hyb");
+    let modulBelgeNo = "", modulBelgeTarihi = "", modulNbId = "";
+    if (modulSecim === "G") { modulBelgeNo = modulG.belge_no; modulBelgeTarihi = modulG.verilis; modulNbId = modulG.nb_id; }
+    else {
+      const selDoc = cdocs.find((d) => modulBelgeIds.includes(d.id));
+      if (selDoc) { modulBelgeNo = selDoc.belge_no ?? ""; modulBelgeTarihi = selDoc.issue_date ?? ""; modulNbId = selDoc.notified_body_id ?? ""; }
+    }
+    const modulNb = props.notifiedBodies.find((n) => n.id === modulNbId);
+
     const payload: DraftPayload = {
       company_id: companyId, dosya_no: dosyaNo, dosya_tarihi: dosyaTarihi || null,
       makine_muhendis_id: makineMuhId || null, elektrik_muhendis_id: elektrikMuhId || null,
@@ -447,6 +459,11 @@ export default function DataEntryWizard(props: Props) {
         modul_secim: modulSecim, modul_belge_ids: modulBelgeIds,
         modul_g: modulG, fatura_no: faturaNo, fatura_tarihi: faturaTarihi, periyodik_tarihi: periyodikTarihi,
         faturali, fiyat, teslim_durumu: teslimDurumu, teslim_tarihi: teslimTarihi, proje_no: dosyaNo,
+        // Tescil vb. için müşteri belgelerinden çözümlenen değerler
+        sanayi_sicil_no: ssDoc?.belge_no ?? "", sanayi_sicil_tarihi: ssDoc?.issue_date ?? "",
+        tse_tarihi: tseDoc?.issue_date ?? "", tse_gecerlilik: tseDoc?.valid_until ?? "",
+        modul_belge_no: modulBelgeNo, modul_belge_tarihi: modulBelgeTarihi,
+        modul_onaylanmis_kurulus: modulNb?.name ?? "", modul_kurulus_no: modulNb?.identity_no ?? "",
       },
       equipment,
     };
