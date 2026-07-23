@@ -25,9 +25,18 @@ export default async function PanelPage() {
     supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "delivered"),
     supabase.from("projects").select("*", { count: "exact", head: true }).gte("created_at", monthStart),
     supabase.from("projects")
-      .select("id, dosya_no, status, bina_adi, beyan_yuku_kg, kat_adedi, created_at, companies(short_name)")
+      .select("id, dosya_no, status, bina_adi, beyan_yuku_kg, kat_adedi, created_at, input_data, companies(short_name)")
       .order("created_at", { ascending: false }).limit(100),
   ]);
+
+  const projeler = (list.data ?? []).map((p: any) => {
+    const inp = p.input_data ?? {};
+    return {
+      ...p,
+      ada_parsel: [inp.ada, inp.parsel].filter(Boolean).join(" / "),
+      seri_no: inp.asansor_seri_no ?? "",
+    };
+  });
 
   return (
     <div>
@@ -51,7 +60,7 @@ export default async function PanelPage() {
           <Stat icon="task_alt" color="#15803d" value={delivered.count ?? 0} label="Teslim edildi" />
         </div>
 
-        <PanelTable projects={(list.data ?? []) as any} />
+        <PanelTable projects={projeler as any} />
       </div>
     </div>
   );

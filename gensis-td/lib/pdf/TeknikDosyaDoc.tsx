@@ -89,9 +89,9 @@ const st = StyleSheet.create({
 const KW = { ad: "26%", kat: "8%", marka: "14%", tip: "14%", seri: "14%", sert: "12%", kur: "12%" };
 
 // Resmi form yardımcıları
-function FRow({ l, val }: { l: string; val?: any }) {
+function FRow({ l, val, tall }: { l: string; val?: any; tall?: number }) {
   return (
-    <View style={st.fRow}>
+    <View style={[st.fRow, tall ? { minHeight: tall, alignItems: "flex-start" as const } : null]}>
       <Text style={st.fLabel}>{l}</Text>
       <Text style={st.fVal}>{val !== undefined && val !== null && String(val).trim() !== "" ? String(val) : ""}</Text>
     </View>
@@ -624,9 +624,9 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FSection>MALIN</FSection>
         <FRow l="CİNSİ" val={c.malinCinsi} />
         <FRow l="MARKASI" val={c.firma.tescilli_marka} />
-        <FRow l="MODELİ" val={c.garantiSinif} />
+        <FRow l="MODELİ" val={c.inp.asansor_sinifi ? String(c.inp.asansor_sinifi).split(":")[0].trim() : c.garantiSinif} />
         <FRow l="SERİ NUMARASI" val={c.inp.asansor_seri_no} />
-        <FRow l="TESLİM TARİHİ" val={c.tarih} />
+        <FRow l="TESLİM TARİHİ" val={`…../…../${new Date().getFullYear()}`} />
         <FRow l="TESLİM ADRESİ" val={c.d.montaj_adresi} />
         <FRow l="ADA VE PARSEL NO" val={c.adaParsel} />
         <FRow l="AZAMİ TAMİR SÜRESİ" val="15 GÜN" />
@@ -637,8 +637,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FRow l="TELEFON VE FAKS NUMARASI, DİĞER İLETİŞİM BİLGİLERİ" val={c.firma.telefon} />
         <FSection>ONAY</FSection>
         <FRow l="FİRMA YETKİLİSİNİN ADI VE SOYADI" val={c.firma.yetkili} />
-        <FRow l="FİRMA YETKİLİSİNİN İMZASI" val="" />
-        <FRow l="FİRMA KAŞESİ" val="" />
+        <FRow l="FİRMA YETKİLİSİNİN İMZASI" val="" tall={52} />
+        <FRow l="FİRMA KAŞESİ" val="" tall={52} />
       </View>
       <Footer firma={c.fname} />
     </Page>
