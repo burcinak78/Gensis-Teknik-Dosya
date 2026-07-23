@@ -14,7 +14,7 @@ type Category = { id: string; code: string; name: string; sort_order: number; dr
 type Brand = { id: string; category_id: string; name: string };
 type Model = { id: string; brand_id: string; name: string; certificate_id: string | null };
 type Certificate = { id: string; cert_no: string; notified_body_id: string | null };
-type NotifiedBody = { id: string; identity_no: string | null; name: string };
+type NotifiedBody = { id: string; identity_no: string | null; name: string; address?: string | null };
 type Province = { id: number; name: string };
 type Capacity = { beyan_yuku_kg: number; kisi_sayisi: number | null; kabin_agirlik_kg: number | null; karsi_agirlik_kg: number | null };
 type Lookup = { list_key: string; value: string; sort_order: number };
@@ -435,6 +435,16 @@ export default function DataEntryWizard(props: Props) {
     }
     const modulNb = props.notifiedBodies.find((n) => n.id === modulNbId);
 
+    // Uygunluk Beyanı: Modül B ve Modül E belgeleri (firma CE belgelerinden)
+    const nbInfo = (id?: string | null) => {
+      const n = props.notifiedBodies.find((x) => x.id === id);
+      return { ad: n?.name ?? "", no: n?.identity_no ?? "", adres: n?.address ?? "" };
+    };
+    const ceB = cdocs.find((d) => d.doc_type === "ce_b" && modulBelgeIds.includes(d.id)) || cdocs.find((d) => d.doc_type === "ce_b");
+    const ceE = cdocs.find((d) => d.doc_type === "ce_e" && modulBelgeIds.includes(d.id)) || cdocs.find((d) => d.doc_type === "ce_e");
+    const bNb = nbInfo(ceB?.notified_body_id);
+    const eNb = nbInfo(ceE?.notified_body_id);
+
     const payload: DraftPayload = {
       company_id: companyId, dosya_no: dosyaNo, dosya_tarihi: dosyaTarihi || null,
       makine_muhendis_id: makineMuhId || null, elektrik_muhendis_id: elektrikMuhId || null,
@@ -465,6 +475,9 @@ export default function DataEntryWizard(props: Props) {
         tse_tarihi: tseDoc?.issue_date ?? "", tse_gecerlilik: tseDoc?.valid_until ?? "",
         modul_belge_no: modulBelgeNo, modul_belge_tarihi: modulBelgeTarihi,
         modul_onaylanmis_kurulus: modulNb?.name ?? "", modul_kurulus_no: modulNb?.identity_no ?? "",
+        // Uygunluk Beyanı — Modül B / Modül E
+        ub_b_belge_no: ceB?.belge_no ?? "", ub_b_nb: bNb.ad, ub_b_nb_no: bNb.no, ub_b_nb_adres: bNb.adres,
+        ub_e_belge_no: ceE?.belge_no ?? "", ub_e_nb: eNb.ad, ub_e_nb_no: eNb.no, ub_e_nb_adres: eNb.adres,
       },
       equipment,
     };

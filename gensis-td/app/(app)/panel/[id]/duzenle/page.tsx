@@ -33,7 +33,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     supabase.from("equipment_brands").select("id, category_id, name").order("name"),
     supabase.from("equipment_models").select("id, brand_id, name, certificate_id").order("name"),
     supabase.from("certificates").select("id, cert_no, notified_body_id"),
-    supabase.from("notified_bodies").select("id, identity_no, name"),
+    supabase.from("notified_bodies").select("id, identity_no, name, address"),
     supabase.from("provinces").select("id, name").order("name"),
     supabase
       .from("capacity_table")

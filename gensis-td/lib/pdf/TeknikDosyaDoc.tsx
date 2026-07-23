@@ -787,27 +787,62 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   muh_taahhut_makine: (c) => taahhutPage(c, "makine"),
   muh_taahhut_elektrik: (c) => taahhutPage(c, "elektrik"),
 
-  uygunluk_beyani: (c) => (
-    <Page key="uygunluk_beyani" size="A4" style={st.page}>
-      <DocHead firma={c.firma} title="UYGUNLUK BEYANI" />
-      <Text style={st.p}>
-        Aşağıda teknik bilgileri verilen asansörün; 2014/33/AB Asansör Yönetmeliği ve ilgili
-        uyumlaştırılmış standartlar (TS EN 81-20 / TS EN 81-50) hükümlerine uygun olarak tasarlandığını,
-        imal ve monte edildiğini beyan ederiz.
-      </Text>
-      <Text style={st.sec}>Asansör Bilgileri</Text>
-      <R l="Bina / İl" val={[c.d.bina_adi, c.d.il].filter(Boolean).join(" · ")} />
-      <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : undefined} />
-      <R l="Kişi Sayısı" val={c.kisi} />
-      <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
-      <R l="Kat / Durak" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
-      <Text style={st.sec}>Belgelendirme</Text>
-      <R l="Uygunluk Modülü" val={c.d.modul} />
-      <R l="Onaylanmış Kuruluş" val={c.modul.onaylanmis_kurulus} />
-      <R l="Modül Belge No" val={c.modul.belge_no} />
-      <Footer firma={c.fname} />
-    </Page>
-  ),
+  uygunluk_beyani: (c) => {
+    const tip = c.isHid ? "Hidrolik Yük Asansörü" : "Elektrikli Yolcu Asansörü";
+    const yer = v(c.firma.sehir) || "BURSA";
+    return (
+      <Page key="uygunluk_beyani" size="A4" style={st.page}>
+        <Text style={st.formTitle}>AB UYGUNLUK BEYANI</Text>
+        <View style={{ height: 10 }} />
+        <R l="Montaj Firması" val={`${v(c.firma.unvan)}${c.firma.adres ? "\n" + v(c.firma.adres) : ""}`} />
+        <Text style={[st.p, { marginTop: 8 }]}>
+          Aşağıda tanımı, modeli ve seri numarası verilen asansörün belirtilen standartlara ve direktiflere
+          uygun olduğunu beyan ederiz.
+        </Text>
+        <View style={{ height: 4 }} />
+        <R l="Asansörün Tipi" val={tip} />
+        <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg. - ${v(c.kisi)} Kişilik` : ""} />
+        <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} />
+        <R l="Kat Adedi / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
+        <R l="İmal Yılı" val={c.d.imal_yili} />
+        <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
+        <R l="Asansör Kimlik No" val={c.inp.asansor_kimlik_no} />
+        <R l="Montaj Adresi" val={c.d.montaj_adresi} />
+        <R l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
+        <R l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
+        <View style={{ height: 6 }} />
+        <R l="Uygulanan Standart" val="TS EN 81–20:2020, TS EN 81-50:2020, TS EN 81-70:2021, TS EN 81-28+AC:2019" />
+        <Text style={{ fontSize: 9, marginTop: 3, color: "#6b7280" }}>ve Direktifler:</Text>
+        {[
+          "2014/33 AB EK IV-B / EK X ( Modül B+E )",
+          "2006 / 42 / AT Makine Emniyeti Yönetmeliği",
+          "2014/35 AB Alçak Gerilim Yönetmeliği",
+          "2014/30 AB Elektromanyetik Uyumluluk Yönetmeliği",
+        ].map((t, i) => (
+          <Text key={i} style={{ fontSize: 9, marginLeft: 14, marginTop: 1 }}>• {t}</Text>
+        ))}
+        <Text style={st.sec}>MODÜL B</Text>
+        <R l="Onaylanmış Kuruluş" val={c.inp.ub_b_nb} />
+        <R l="Ünvanı ve Adresi" val={c.inp.ub_b_nb_adres} />
+        <R l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_b_nb_no} />
+        <R l="MODÜL B Belge No" val={c.inp.ub_b_belge_no} />
+        <Text style={st.sec}>MODÜL E</Text>
+        <R l="Onaylanmış Kuruluş" val={c.inp.ub_e_nb} />
+        <R l="Ünvanı ve Adresi" val={c.inp.ub_e_nb_adres} />
+        <R l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_e_nb_no} />
+        <R l="MODÜL E Belge No" val={c.inp.ub_e_belge_no} />
+        <Text style={[st.p, { marginTop: 8 }]}>
+          {v(c.firma.unvan)} olarak, yukarıda bilgileri verilmiş olan ürünün yukarıdaki Avrupa Birliği direktifine,
+          standartlara ve bunların gerektiği şartlara uygun olduğunu beyan ederiz.
+        </Text>
+        <View style={{ height: 10 }} />
+        <R l="Yetkili Kişi" val={c.firma.yetkili} />
+        <R l="İmzanın Yeri ve Tarihi" val={`${yer} — …../…../……`} />
+        <R l="Kaşe / İmza" val="" />
+        <Footer firma={c.fname} />
+      </Page>
+    );
+  },
 
   yazili_beyanname: (c) => (
     <Page key="yazili_beyanname" size="A4" style={st.page}>
