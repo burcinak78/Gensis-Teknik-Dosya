@@ -1,12 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { uploadTakipFile } from "@/lib/takipUpload";
 import {
-  deleteTakipDoc, saveBekliyorAciklama, completeTakipProje,
+  uploadTakipDoc, deleteTakipDoc, saveBekliyorAciklama, completeTakipProje,
 } from "./actions";
 
 type Company = { id: string; short_name: string; legal_name: string | null; city: string | null };
@@ -179,8 +177,6 @@ function DurumModal({
   const [err, setErr] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const completed = row.durum === "TAMAMLANDI";
   const isBekliyor = row.durum === "BEKLIYOR";
@@ -190,7 +186,9 @@ function DurumModal({
     if (!list || list.length === 0) return;
     setBusy(true); setErr(null);
     for (const file of Array.from(list)) {
-      const res = await uploadTakipFile(supabase, row.id, "tamamlanan_proje", file);
+      const fd = new FormData();
+      fd.set("takip_id", row.id); fd.set("kind", "tamamlanan_proje"); fd.set("file", file);
+      const res = await uploadTakipDoc(fd);
       if (!res.ok) { setBusy(false); return setErr(res.error); }
     }
     setBusy(false);
@@ -263,8 +261,11 @@ function DurumModal({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">1. Tamamlanan Projeyi Yükle *</label>
-                <input ref={fileRef} type="file" multiple onChange={(e) => { uploadTamamlanan(e.target.files); e.currentTarget.value = ""; }}
-                  className="text-xs file:mr-2 file:font-semibold file:border-0 file:bg-brand-light file:text-brand file:px-2 file:py-1 file:rounded-md" />
+                <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-brand bg-brand-light px-3 py-2 rounded-lg hover:bg-brand/10 w-fit">
+                  <span className="material-symbols-rounded text-[16px]">attach_file</span>
+                  Dosya Seç (çoklu)
+                  <input type="file" multiple className="hidden" onChange={(e) => { uploadTamamlanan(e.target.files); e.currentTarget.value = ""; }} />
+                </label>
                 {tamamlananDocs.length > 0 && (
                   <ul className="mt-1 space-y-0.5">
                     {tamamlananDocs.map((d) => (

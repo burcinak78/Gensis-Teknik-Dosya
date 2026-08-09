@@ -52,6 +52,8 @@ create table if not exists public.takip_projeler (
   siparis_tarihi        date,
   company_id            uuid references public.companies(id),
   ada_parsel            text,
+  ada                   text,
+  parsel                text,
   is_adi                text,
   asansor_sayisi        int,
   asansor_tipi          text check (asansor_tipi in ('MR','MRL','HD_YUK','HD_INSAN')),
@@ -78,6 +80,9 @@ create table if not exists public.takip_projeler (
 );
 create index if not exists takip_projeler_sorumlu_idx on public.takip_projeler(proje_sorumlusu_id);
 create index if not exists takip_projeler_muh_idx on public.takip_projeler(muhasebeye_gonderildi, muhasebe_durumu);
+-- Mevcut tabloya ada/parsel kolonlarını ekle (daha önce oluşturulmuşsa)
+alter table public.takip_projeler add column if not exists ada text;
+alter table public.takip_projeler add column if not exists parsel text;
 
 -- ---------- 4) Proje dokümanları (çoklu yükleme) ----------
 -- kind: mimari_proje | elektrik_projesi | statik_projesi | olcu_formu | yapi_ruhsati | diger | tamamlanan_proje

@@ -42,7 +42,8 @@ export type TakipPayload = {
   proje_tipi: "mimari" | "uygulama";
   siparis_tarihi: string | null;
   company_id: string;
-  ada_parsel: string | null;
+  ada: string | null;
+  parsel: string | null;
   is_adi: string | null;
   asansor_sayisi: number | null;
   asansor_tipi: string | null;
@@ -77,7 +78,9 @@ export async function createTakipProje(p: TakipPayload): Promise<Result> {
       proje_tipi: p.proje_tipi,
       siparis_tarihi: p.siparis_tarihi,
       company_id: p.company_id,
-      ada_parsel: p.ada_parsel,
+      ada: p.ada,
+      parsel: p.parsel,
+      ada_parsel: [p.ada, p.parsel].filter(Boolean).join(" / ") || null,
       is_adi: p.is_adi,
       asansor_sayisi: p.asansor_sayisi,
       asansor_tipi: p.asansor_tipi,

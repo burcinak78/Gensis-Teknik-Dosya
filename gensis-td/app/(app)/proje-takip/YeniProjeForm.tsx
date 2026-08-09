@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { createTakipProje, createQuickCompany, type TakipPayload } from "./actions";
-import { uploadTakipFile } from "@/lib/takipUpload";
+import { createTakipProje, uploadTakipDoc, createQuickCompany, type TakipPayload } from "./actions";
 
 type Company = { id: string; short_name: string; legal_name: string | null; city: string | null };
 type Province = { id: number; name: string };
@@ -42,7 +41,7 @@ export default function YeniProjeForm({
   const [companies, setCompanies] = useState<Company[]>(companiesInit);
 
   const [f, setF] = useState<Record<string, string>>({
-    proje_tipi: "mimari", siparis_tarihi: "", company_id: "", ada_parsel: "", is_adi: "",
+    proje_tipi: "mimari", siparis_tarihi: "", company_id: "", ada: "", parsel: "", is_adi: "",
     asansor_sayisi: "", asansor_tipi: "", province_id: "", district_id: "",
     fiyat: "", fatura_tipi: "faturasiz", proje_sorumlusu_id: "", tahmini_tamamlanma: "",
   });
@@ -109,7 +108,8 @@ export default function YeniProjeForm({
       proje_tipi: f.proje_tipi as any,
       siparis_tarihi: f.siparis_tarihi || null,
       company_id: f.company_id,
-      ada_parsel: f.ada_parsel || null,
+      ada: f.ada || null,
+      parsel: f.parsel || null,
       is_adi: f.is_adi || null,
       asansor_sayisi: f.asansor_sayisi ? Number(f.asansor_sayisi) : null,
       asansor_tipi: f.asansor_tipi || null,
@@ -125,15 +125,17 @@ export default function YeniProjeForm({
     const res = await createTakipProje(payload);
     if (!res.ok) { setBusy(false); setProgress(""); return setErr(res.error); }
 
-    // Dosyaları yükle — hataları topla
+    // Dosyaları yükle (Teknik Dosya ile aynı: sunucu action + FormData)
     const failed: string[] = [];
     const all = Object.entries(files);
-    let done = 0;
     const total = all.reduce((n, [, arr]) => n + arr.length, 0);
+    let done = 0;
     for (const [kind, arr] of all) {
       for (const file of arr) {
         setProgress(`Dosyalar yükleniyor… (${++done}/${total})`);
-        const up = await uploadTakipFile(supabase, res.id!, kind, file);
+        const fd = new FormData();
+        fd.set("takip_id", res.id!); fd.set("kind", kind); fd.set("file", file);
+        const up = await uploadTakipDoc(fd);
         if (!up.ok) failed.push(`${file.name}: ${up.error}`);
       }
     }
@@ -146,6 +148,8 @@ export default function YeniProjeForm({
     router.push("/proje-takip");
     router.refresh();
   }
+
+  const cityOptions = provinces.map((p) => p.name);
 
   return (
     <div>
@@ -189,7 +193,10 @@ export default function YeniProjeForm({
                 <div className="grid grid-cols-3 gap-2">
                   <input className={inp} placeholder="Kısa Ad *" value={nc.short_name} onChange={(e) => setNc((s) => ({ ...s, short_name: e.target.value }))} />
                   <input className={inp} placeholder="Ünvan (ops.)" value={nc.legal_name} onChange={(e) => setNc((s) => ({ ...s, legal_name: e.target.value }))} />
-                  <input className={inp} placeholder="Şehir (ops.)" value={nc.city} onChange={(e) => setNc((s) => ({ ...s, city: e.target.value }))} />
+                  <select className={inp} value={nc.city} onChange={(e) => setNc((s) => ({ ...s, city: e.target.value }))}>
+                    <option value="">Şehir seçiniz…</option>
+                    {cityOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
                 {addErr && <div className="text-xs text-red-600">{addErr}</div>}
                 <div className="flex justify-end">
@@ -203,8 +210,9 @@ export default function YeniProjeForm({
             )}
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Ada / Parsel"><input className={inp} value={f.ada_parsel} onChange={(e) => set("ada_parsel", e.target.value)} /></Field>
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="Ada"><input className={inp} value={f.ada} onChange={(e) => set("ada", e.target.value)} /></Field>
+            <Field label="Parsel"><input className={inp} value={f.parsel} onChange={(e) => set("parsel", e.target.value)} /></Field>
             <Field label="İşin Adı"><input className={inp} value={f.is_adi} onChange={(e) => set("is_adi", e.target.value)} /></Field>
           </div>
 
@@ -251,30 +259,20 @@ export default function YeniProjeForm({
             <span className="text-xl font-extrabold text-navy">{money(toplam)}</span>
           </div>
 
-          {/* Dokümanlar */}
+          {/* Dokümanlar — Teknik Dosya ile aynı Dosya Seç bileşeni, çoklu dosya */}
           <div>
             <h3 className="font-bold text-sm mb-2">Dokümanlar {f.proje_tipi === "uygulama" ? "(Uygulama)" : "(Mimari)"}</h3>
             <div className="space-y-2">
               {slots.map((s) => (
-                <div key={s.kind} className={`border rounded-lg px-3 py-2 ${touched && s.required && (files[s.kind] ?? []).length === 0 ? "border-red-400 bg-red-50" : "border-slate-200"}`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <label className="text-xs font-semibold text-slate-700">
-                      {s.label} {s.required ? <span className="text-red-500">*</span> : <span className="text-slate-400">(ops.)</span>}
-                    </label>
-                    <input type="file" multiple onChange={(e) => { addFiles(s.kind, e.target.files); e.currentTarget.value = ""; }}
-                      className="text-xs file:mr-2 file:font-semibold file:border-0 file:bg-brand-light file:text-brand file:px-2 file:py-1 file:rounded-md" />
-                  </div>
-                  {(files[s.kind] ?? []).length > 0 && (
-                    <ul className="mt-1 space-y-0.5">
-                      {(files[s.kind] ?? []).map((file, i) => (
-                        <li key={i} className="flex items-center justify-between text-[11px] text-slate-600">
-                          <span className="truncate">📎 {file.name}</span>
-                          <button type="button" onClick={() => removeFile(s.kind, i)} className="text-red-500 hover:underline ml-2">kaldır</button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                <FileZone
+                  key={s.kind}
+                  label={s.label}
+                  required={s.required}
+                  invalid={touched && s.required && (files[s.kind] ?? []).length === 0}
+                  staged={files[s.kind] ?? []}
+                  onAdd={(l) => addFiles(s.kind, l)}
+                  onRemove={(i) => removeFile(s.kind, i)}
+                />
               ))}
             </div>
           </div>
@@ -308,4 +306,35 @@ export default function YeniProjeForm({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div><label className="block text-xs font-semibold text-slate-600 mb-1">{label}</label>{children}</div>;
+}
+
+// Teknik Dosya'daki FileZone ile aynı davranış: "Dosya Seç" + çoklu dosya + seçilenleri listeler.
+function FileZone({
+  label, required, invalid, staged, onAdd, onRemove,
+}: {
+  label: string; required: boolean; invalid: boolean; staged: File[];
+  onAdd: (l: FileList | null) => void; onRemove: (i: number) => void;
+}) {
+  return (
+    <div className={`rounded-xl border bg-white p-3 space-y-2 ${invalid ? "border-red-400 bg-red-50" : "border-slate-200"}`}>
+      <div className="text-sm font-semibold text-slate-800">
+        {label} {required ? <span className="text-red-500">*</span> : <span className="text-slate-400 text-xs font-normal">(opsiyonel)</span>}
+      </div>
+      {staged.map((f, i) => (
+        <div key={i} className="flex items-center justify-between text-xs text-slate-600">
+          <span className="inline-flex items-center gap-1">
+            <span className="material-symbols-rounded text-[15px] text-amber-600">upload_file</span>
+            {f.name} <span className="text-slate-400">· kaydedilecek</span>
+          </span>
+          <button type="button" onClick={() => onRemove(i)} className="text-red-500 hover:underline">Kaldır</button>
+        </div>
+      ))}
+      <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-brand bg-brand-light px-3 py-2 rounded-lg hover:bg-brand/10 w-fit">
+        <span className="material-symbols-rounded text-[16px]">attach_file</span>
+        Dosya Seç (çoklu)
+        <input type="file" multiple className="hidden"
+          onChange={(e) => { onAdd(e.target.files); e.target.value = ""; }} />
+      </label>
+    </div>
+  );
 }
