@@ -34,8 +34,8 @@ const SLOTS_UYGULAMA: UploadSlot[] = [
 ];
 
 export default function YeniProjeForm({
-  companies: companiesInit, provinces, sorumlular,
-}: { companies: Company[]; provinces: Province[]; sorumlular: Sorumlu[] }) {
+  companies: companiesInit, provinces, sorumlular, nextNo,
+}: { companies: Company[]; provinces: Province[]; sorumlular: Sorumlu[]; nextNo: number | null }) {
   const router = useRouter();
   const supabase = createClient();
   const [companies, setCompanies] = useState<Company[]>(companiesInit);
@@ -163,6 +163,12 @@ export default function YeniProjeForm({
 
       <div className="p-8 gs-fade max-w-4xl">
         <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
+          {/* Proje No — en üstte */}
+          <div className="flex items-center justify-between bg-navy/5 border border-navy/10 rounded-xl px-4 py-3">
+            <span className="text-sm font-semibold text-slate-600">Proje No</span>
+            <span className="text-2xl font-extrabold text-navy">{nextNo ?? "—"}</span>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <Field label="Proje Tipi *">
               <select className={inp} value={f.proje_tipi} onChange={(e) => set("proje_tipi", e.target.value)}>

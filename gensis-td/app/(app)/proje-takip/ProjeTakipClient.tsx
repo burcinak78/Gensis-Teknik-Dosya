@@ -112,7 +112,6 @@ export default function ProjeTakipClient({
                   <th className={th}>Sorumlu</th>
                   <th className={th}>Tah. Tamamlanma</th>
                   <th className={th}>Durum</th>
-                  <th className={th}></th>
                 </tr>
               </thead>
               <tbody>
@@ -132,16 +131,18 @@ export default function ProjeTakipClient({
                     <td className={td + " text-slate-600"}>{sorumluAd(r.proje_sorumlusu_id)}</td>
                     <td className={td + " text-slate-500"}>{dt(r.tahmini_tamamlanma)}</td>
                     <td className={td}>
-                      <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${DURUM_BADGE[r.durum] ?? "bg-slate-100 text-slate-600"}`}>{r.durum}</span>
+                      <button onClick={() => setDurumRow(r)} title="Tamamlanma durumunu aç"
+                        className={r.durum === "HAZIRLANIYOR"
+                          ? "text-xs font-semibold text-slate-600 hover:underline"
+                          : `text-[11px] font-bold px-2 py-1 rounded-full hover:opacity-80 ${DURUM_BADGE[r.durum] ?? "bg-slate-100 text-slate-600"}`}>
+                        {r.durum}
+                      </button>
                       {r.muhasebe?.cariye_islendi && <span className="block text-[10px] text-green-600 font-semibold mt-0.5">Teslim edildi</span>}
-                    </td>
-                    <td className={td + " text-right"}>
-                      <button onClick={() => setDurumRow(r)} className="text-xs font-bold text-brand hover:underline">Tamamlanma Durumu</button>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={15} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok. Sağ üstten “Yeni Proje” ile başlayın.</td></tr>
+                  <tr><td colSpan={14} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok. Sağ üstten “Yeni Proje” ile başlayın.</td></tr>
                 )}
               </tbody>
             </table>
@@ -174,24 +175,26 @@ function DurumModal({
   const [teslimTipi, setTeslimTipi] = useState(row.teslim_tipi ?? "");
   const [adet, setAdet] = useState(row.hard_copy_adedi ? String(row.hard_copy_adedi) : "");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
+  const [staged, setStaged] = useState<File[]>([]);
+  const [existingDocs, setExistingDocs] = useState<Doc[]>(row.docs.filter((d) => d.kind === "tamamlanan_proje"));
   const router = useRouter();
 
   const completed = row.durum === "TAMAMLANDI";
   const isBekliyor = row.durum === "BEKLIYOR";
-  const tamamlananDocs = row.docs.filter((d) => d.kind === "tamamlanan_proje");
 
-  async function uploadTamamlanan(list: FileList | null) {
+  function addStaged(list: FileList | null) {
     if (!list || list.length === 0) return;
-    setBusy(true); setErr(null);
-    for (const file of Array.from(list)) {
-      const fd = new FormData();
-      fd.set("takip_id", row.id); fd.set("kind", "tamamlanan_proje"); fd.set("file", file);
-      const res = await uploadTakipDoc(fd);
-      if (!res.ok) { setBusy(false); return setErr(res.error); }
-    }
-    setBusy(false);
+    setStaged((s) => [...s, ...Array.from(list)]);
+    setErr(null);
+  }
+  function removeStaged(i: number) { setStaged((s) => s.filter((_, idx) => idx !== i)); }
+  async function deleteExisting(id: string) {
+    const res = await deleteTakipDoc(id);
+    if (!res.ok) return setErr(res.error);
+    setExistingDocs((d) => d.filter((x) => x.id !== id));
     router.refresh();
   }
 
@@ -207,11 +210,20 @@ function DurumModal({
 
   async function tamamla() {
     setTouched(true); setErr(null);
-    if (tamamlananDocs.length === 0) return setErr("Önce tamamlanan projeyi yükleyin.");
+    if (existingDocs.length + staged.length === 0) return setErr("Önce tamamlanan projeyi ekleyin (Dosya Seç).");
     if (!tarih) return setErr("Tamamlanma tarihi zorunludur.");
     if (!teslimTipi) return setErr("Teslim tipi seçiniz.");
     if (teslimTipi === "hard_copy" && (!adet || Number(adet) < 1)) return setErr("Hard Copy adedi giriniz.");
     setBusy(true);
+    // Önce bekleyen dosyaları yükle (Yeni Proje ile aynı yöntem)
+    for (let i = 0; i < staged.length; i++) {
+      setProgress(`Dosyalar yükleniyor… (${i + 1}/${staged.length})`);
+      const fd = new FormData();
+      fd.set("takip_id", row.id); fd.set("kind", "tamamlanan_proje"); fd.set("file", staged[i]);
+      const up = await uploadTakipDoc(fd);
+      if (!up.ok) { setBusy(false); setProgress(""); return setErr(`${staged[i].name}: ${up.error}`); }
+    }
+    setProgress("");
     const res = await completeTakipProje(row.id, {
       tamamlanma_tarihi: tarih, teslim_tipi: teslimTipi as any,
       hard_copy_adedi: teslimTipi === "hard_copy" ? Number(adet) : null,
@@ -228,7 +240,9 @@ function DurumModal({
           <span className="font-semibold">{firmaAd}</span>
           <span className="text-slate-400">•</span>
           <span className="text-slate-500">Sorumlu: {sorumluAd}</span>
-          <span className={`ml-auto text-[11px] font-bold px-2 py-1 rounded-full ${DURUM_BADGE[row.durum]}`}>{row.durum}</span>
+          {row.durum === "HAZIRLANIYOR"
+            ? <span className="ml-auto text-xs font-semibold text-slate-600">{row.durum}</span>
+            : <span className={`ml-auto text-[11px] font-bold px-2 py-1 rounded-full ${DURUM_BADGE[row.durum]}`}>{row.durum}</span>}
         </div>
 
         {completed ? (
@@ -260,18 +274,32 @@ function DurumModal({
               <h3 className="font-bold text-sm">Projeyi Tamamla</h3>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">1. Tamamlanan Projeyi Yükle *</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">1. Tamamlanan Projeyi Ekle *</label>
                 <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-brand bg-brand-light px-3 py-2 rounded-lg hover:bg-brand/10 w-fit">
                   <span className="material-symbols-rounded text-[16px]">attach_file</span>
                   Dosya Seç (çoklu)
-                  <input type="file" multiple className="hidden" onChange={(e) => { uploadTamamlanan(e.target.files); e.currentTarget.value = ""; }} />
+                  <input type="file" multiple className="hidden" onChange={(e) => { addStaged(e.target.files); e.currentTarget.value = ""; }} />
                 </label>
-                {tamamlananDocs.length > 0 && (
-                  <ul className="mt-1 space-y-0.5">
-                    {tamamlananDocs.map((d) => (
+                {/* Yüklenmiş dosyalar */}
+                {existingDocs.length > 0 && (
+                  <ul className="mt-2 space-y-0.5">
+                    {existingDocs.map((d) => (
                       <li key={d.id} className="flex items-center justify-between text-[11px]">
-                        <a href={`/api/belge/takip?id=${d.id}`} target="_blank" rel="noreferrer" className="text-brand hover:underline truncate">📎 {d.original_name ?? "belge"}</a>
-                        <button onClick={async () => { await deleteTakipDoc(d.id); router.refresh(); }} className="text-red-500 hover:underline ml-2">sil</button>
+                        <a href={`/api/belge/takip?id=${d.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-navy font-semibold hover:underline truncate">
+                          <span className="material-symbols-rounded text-[14px]">description</span>{d.original_name ?? "belge"}
+                        </a>
+                        <button type="button" onClick={() => deleteExisting(d.id)} className="text-red-500 hover:underline ml-2">Sil</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {/* Seçilen (henüz kaydedilmemiş) dosyalar */}
+                {staged.length > 0 && (
+                  <ul className="mt-1 space-y-0.5">
+                    {staged.map((file, i) => (
+                      <li key={i} className="flex items-center justify-between text-[11px] text-slate-600">
+                        <span className="inline-flex items-center gap-1"><span className="material-symbols-rounded text-[14px] text-amber-600">upload_file</span>{file.name} <span className="text-slate-400">· kaydedilecek</span></span>
+                        <button type="button" onClick={() => removeStaged(i)} className="text-red-500 hover:underline ml-2">Kaldır</button>
                       </li>
                     ))}
                   </ul>
@@ -297,6 +325,7 @@ function DurumModal({
                 </Field>
               )}
 
+              {progress && <p className="text-xs text-slate-500 text-center">{progress}</p>}
               <button disabled={busy} onClick={tamamla} className="w-full gs-btn text-sm font-bold px-5 py-2.5 rounded-xl disabled:opacity-50">
                 {busy ? "İşleniyor…" : "Tamamlandı ve Muhasebeye Gönder"}
               </button>
