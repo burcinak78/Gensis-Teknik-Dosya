@@ -1,9 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Svg, Path, Image } from "@react-pdf/renderer";
 import { TEKNIK_DOSYA_BELGELERI } from "./belgeler";
-import { KILAVUZ_11, KILAVUZ_12 } from "./kilavuz_data";
-import { KULLANIM_KLAVUZU, BAKIM_KLAVUZU, SON_KONTROL } from "./belge_icerik";
-import { KULLANIM_KLAVUZU_HID, BAKIM_KLAVUZU_HID } from "./belge_icerik_hidrolik";
+import { SON_KONTROL } from "./belge_icerik";
 
 // Birleşik Teknik Dosya — belgeleri tek PDF'te birleştirir VEYA tek belge üretir (only).
 // Veri = project_render_context (jsonb). Font 'Roboto' route'ta register edilir.
@@ -1089,43 +1087,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     </Page>
   ),
 
-  kullanim_klavuzu: (c) => {
-    // Askı tipine göre: 1/1 → Kılavuz 1.1, 2/1 & 4/1 → Kılavuz 1.2
-    const bloklar = String(c.aski).startsWith("1/1") ? KILAVUZ_11 : KILAVUZ_12;
-    return (
-      <Page key="kullanim_klavuzu" size="A4" style={st.page} wrap>
-        <DocHead firma={c.firma} title="ASANSÖR KULLANMA KILAVUZU" />
-        {bloklar.map((b, i) => {
-          if (b.t === "img") {
-            return (
-              <View key={i} style={{ alignItems: "center", marginVertical: 6 }} wrap={false}>
-                {c.assetBase ? <Image src={`${c.assetBase}/kilavuz/${b.src}`} style={{ width: b.w }} /> : null}
-                {b.cap ? <Text style={{ fontSize: 8, color: "#64748b", marginTop: 2 }}>{b.cap}</Text> : null}
-              </View>
-            );
-          }
-          if (b.t === "h") {
-            return <Text key={i} style={{ fontWeight: "bold", color: "#1e2a5b", fontSize: 10, marginTop: 9, marginBottom: 2 }}>{b.x}</Text>;
-          }
-          return <Text key={i} style={{ fontSize: 8.6, textAlign: "justify", lineHeight: 1.35, marginTop: 2 }}>{b.x}</Text>;
-        })}
-        <Footer firma={c.fname} />
-      </Page>
-    );
-  },
-
-  bakim_klavuzu: (c) => (
-    <Page key="bakim_klavuzu" size="A4" style={st.page} wrap>
-      <DocHead firma={c.firma} title="ASANSÖR BAKIM KILAVUZU" />
-      {(c.isHid ? BAKIM_KLAVUZU_HID : BAKIM_KLAVUZU).map((t, i) => (
-        <View key={i} style={st.klvItem} wrap={false}>
-          <Text style={st.klvNo}>{i + 1}.</Text>
-          <Text style={st.klvText}>{t}</Text>
-        </View>
-      ))}
-      <Footer firma={c.fname} />
-    </Page>
-  ),
+  // "kullanma_bakim_klavuzu" belgesi üretilmez; hazır PDF (asansör/askı tipine göre)
+  // PDF route'unda footer'a firma adı eklenerek dosyaya eklenir.
 
   son_kontrol_formu: (c) => (
     <Page key="son_kontrol_formu" size="A4" style={st.page} wrap>

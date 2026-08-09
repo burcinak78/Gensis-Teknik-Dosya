@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import React from "react";
 import { Font, renderToBuffer } from "@react-pdf/renderer";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TeknikDosyaDoc } from "@/lib/pdf/TeknikDosyaDoc";
@@ -50,6 +51,12 @@ export async function GET(req: NextRequest) {
   const codes = TEKNIK_DOSYA_BELGELERI
     .filter((b) => b.hazir && (!only || only.includes(b.code)))
     .map((b) => b.code);
+
+  // Kullanma ve Bakım Kılavuzu: asansör tipi + askı tipine göre hazır PDF
+  const cIsHid = (ctx as any)?.asansor_tipi === "hidrolik";
+  const cAski = String((ctx as any)?.aski_tipi || "");
+  const kilavuzFile = cIsHid ? "KK_HID.pdf" : (cAski.startsWith("1/1") ? "KK_E_MR.pdf" : "KK_E_MRL.pdf");
+  const firmaAdi = (ctx as any)?.firma?.unvan || (ctx as any)?.firma?.kisa_ad || "";
 
   // ---------- Yüklenmiş ekleri topla (hata olursa eksiz üret) ----------
   const admin = createAdminClient();
@@ -156,8 +163,40 @@ export async function GET(req: NextRequest) {
     );
     await addPdfBytes(new Uint8Array(buf));
   }
+  // Hazır kılavuz PDF'i getir, her sayfasının footer'ına firma adını yaz, ekle
+  let robotoBytes: Uint8Array | null = null;
+  async function addKilavuz() {
+    try {
+      const res = await fetch(`${assetBase}/kilavuz/${kilavuzFile}`);
+      if (!res.ok) return;
+      const doc = await PDFDocument.load(new Uint8Array(await res.arrayBuffer()), { ignoreEncryption: true });
+      if (firmaAdi) {
+        try {
+          if (!robotoBytes) {
+            const fr = await fetch(`${assetBase}/fonts/Roboto-Regular.ttf`);
+            if (fr.ok) robotoBytes = new Uint8Array(await fr.arrayBuffer());
+          }
+          if (robotoBytes) {
+            doc.registerFontkit(fontkit);
+            const font = await doc.embedFont(robotoBytes);
+            const size = 8;
+            const tw = font.widthOfTextAtSize(firmaAdi, size);
+            for (const pg of doc.getPages()) {
+              const { width } = pg.getSize();
+              pg.drawText(firmaAdi, { x: Math.max(20, (width - tw) / 2), y: 16, size, font, color: rgb(0.42, 0.45, 0.5) });
+            }
+          }
+        } catch { /* footer eklenemezse kılavuz yine eklenir */ }
+      }
+      const pages = await finalDoc.copyPages(doc, doc.getPageIndices());
+      pages.forEach((p) => finalDoc.addPage(p));
+    } catch { /* kılavuz alınamazsa atla */ }
+  }
 
   for (const code of codes) {
+    // Kullanma ve Bakım Kılavuzu: üretilmez; hazır PDF (firma footer'lı) eklenir
+    if (code === "kullanma_bakim_klavuzu") { await addKilavuz(); continue; }
+
     // Son Kontrol Formu: Modül G seçildiyse ve rapor yüklendiyse onun yerine Modül G raporu
     if (code === "son_kontrol_formu" && attach.isG && (attach.pf["modul_g_rapor"]?.length)) {
       for (const p of attach.pf["modul_g_rapor"]) await addFile("documents", p);
