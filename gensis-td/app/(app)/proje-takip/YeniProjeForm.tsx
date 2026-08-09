@@ -71,7 +71,6 @@ export default function YeniProjeForm({
   // Revizyon modu
   const [revMode, setRevMode] = useState(false);
   const [rev, setRev] = useState({ rev_no: "", rev_tarihi: "", fiyat: "", fatura_tipi: "faturasiz", rev_aciklama: "" });
-  const [revFiles, setRevFiles] = useState<File[]>([]);
 
   // Hızlı müşteri ekleme
   const [showAdd, setShowAdd] = useState(false);
@@ -97,9 +96,11 @@ export default function YeniProjeForm({
     }
   }
 
+  // "diger" çoklu; diğerleri tek (yeni seçim öncekini değiştirir)
   function addFiles(kind: string, list: FileList | null) {
     if (!list || list.length === 0) return;
-    setFiles((s) => ({ ...s, [kind]: [...(s[kind] ?? []), ...Array.from(list)] }));
+    const multiple = kind === "diger";
+    setFiles((s) => ({ ...s, [kind]: multiple ? [...(s[kind] ?? []), ...Array.from(list)] : [Array.from(list)[0]] }));
   }
   function removeFile(kind: string, idx: number) {
     setFiles((s) => ({ ...s, [kind]: (s[kind] ?? []).filter((_, i) => i !== idx) }));
@@ -110,8 +111,6 @@ export default function YeniProjeForm({
     setExistingDocs((d) => d.filter((x) => x.id !== id));
     router.refresh();
   }
-  function addRevFiles(list: FileList | null) { if (list?.length) setRevFiles((s) => [...s, ...Array.from(list)]); }
-  function removeRevFile(i: number) { setRevFiles((s) => s.filter((_, idx) => idx !== i)); }
 
   async function quickAdd() {
     setAddErr(null);
@@ -150,7 +149,8 @@ export default function YeniProjeForm({
     };
   }
 
-  async function uploadStaged(id: string): Promise<string[]> {
+  // Bekleyen dosyaları hedef kayda yükle (tek-tip dosyalar sunucuda öncekini siler)
+  async function uploadStaged(targetId: string): Promise<string[]> {
     const failed: string[] = [];
     const all = Object.entries(files);
     const total = all.reduce((n, [, arr]) => n + arr.length, 0);
@@ -159,7 +159,7 @@ export default function YeniProjeForm({
       for (const file of arr) {
         setProgress(`Dosyalar yükleniyor… (${++done}/${total})`);
         const fd = new FormData();
-        fd.set("takip_id", id); fd.set("kind", kind); fd.set("file", file);
+        fd.set("takip_id", targetId); fd.set("kind", kind); fd.set("file", file);
         const up = await uploadTakipDoc(fd);
         if (!up.ok) failed.push(`${file.name}: ${up.error}`);
       }
@@ -168,44 +168,35 @@ export default function YeniProjeForm({
     return failed;
   }
 
-  // ---- Revizyon kaydet ----
-  async function submitRevision() {
-    setTouched(true); setErr(null);
-    if (!edit) return;
-    if (!rev.rev_no.trim()) return setErr("Revizyon numarası zorunludur.");
-    if (revFiles.length === 0) return setErr("Revize projeyi yükleyin (en az bir dosya).");
-    setBusy(true); setProgress("Revizyon oluşturuluyor…");
-    const res = await createRevision(edit.id, {
-      rev_no: rev.rev_no.trim(),
-      rev_tarihi: rev.rev_tarihi || null,
-      fiyat: revFiyatNum,
-      fatura_tipi: rev.fatura_tipi as any,
-      rev_aciklama: rev.rev_aciklama || null,
-    });
-    if (!res.ok) { setBusy(false); setProgress(""); return setErr(res.error); }
-    const failed: string[] = [];
-    for (let i = 0; i < revFiles.length; i++) {
-      setProgress(`Revize proje yükleniyor… (${i + 1}/${revFiles.length})`);
-      const fd = new FormData();
-      fd.set("takip_id", res.id!); fd.set("kind", "revize_proje"); fd.set("file", revFiles[i]);
-      const up = await uploadTakipDoc(fd);
-      if (!up.ok) failed.push(`${revFiles[i].name}: ${up.error}`);
-    }
-    setBusy(false); setProgress("");
-    if (failed.length) return setErr("Revizyon oluşturuldu ancak bazı dosyalar yüklenemedi:\n" + failed.join("\n"));
-    router.push("/proje-takip"); router.refresh();
-  }
-
-  // ---- Yeni / Güncelle kaydet ----
   async function submit() {
-    if (revMode) return submitRevision();
     setTouched(true); setErr(null);
+
+    // --- Revizyon ---
+    if (revMode && edit) {
+      if (!rev.rev_no.trim()) return setErr("Revizyon numarası zorunludur.");
+      setBusy(true); setProgress("Revizyon oluşturuluyor…");
+      const res = await createRevision(edit.id, {
+        rev_no: rev.rev_no.trim(),
+        rev_tarihi: rev.rev_tarihi || null,
+        fiyat: revFiyatNum,
+        fatura_tipi: rev.fatura_tipi as any,
+        rev_aciklama: rev.rev_aciklama || null,
+      });
+      if (!res.ok) { setBusy(false); setProgress(""); return setErr(res.error); }
+      // Yüklenen dosyalar orijinal (ana) kayıttaki dosyayı değiştirir — dokümanlar zorunlu değil
+      const failed = await uploadStaged(edit.id);
+      setBusy(false);
+      if (failed.length) return setErr("Revizyon oluşturuldu ancak bazı dosyalar yüklenemedi:\n" + failed.join("\n"));
+      router.push("/proje-takip"); router.refresh();
+      return;
+    }
+
+    // --- Yeni / Güncelle ---
     if (!f.company_id) return setErr("Firma seçiniz.");
     if (!f.proje_tipi) return setErr("Proje tipi seçiniz.");
-    // Zorunlu dokümanlar (mevcut yüklenenler de sayılır)
     for (const s of slots) {
       const have = (files[s.kind] ?? []).length + existingDocs.filter((d) => d.kind === s.kind).length;
-      if (s.required && have === 0) return setErr(`${s.label} zorunludur (en az bir dosya).`);
+      if (s.required && have === 0) return setErr(`${s.label} zorunludur (bir dosya seçin).`);
     }
     setBusy(true); setProgress(isEdit ? "Güncelleniyor…" : "Proje kaydı oluşturuluyor…");
     const payload = buildPayload();
@@ -222,6 +213,29 @@ export default function YeniProjeForm({
   }
 
   const projeNoText = isEdit ? String(edit!.proje_no) : (nextNo ?? "—");
+
+  // Dokümanlar bölümü — hem yeni, hem güncelle, hem revizyonda aynı slotlar
+  const documentsSection = (
+    <div>
+      <h3 className="font-bold text-sm mb-2">
+        Dokümanlar {f.proje_tipi === "uygulama" ? "(Uygulama)" : "(Mimari)"}
+        {revMode && <span className="text-slate-400 font-normal"> · opsiyonel, yüklenen orijinal dosyayı değiştirir</span>}
+      </h3>
+      <div className="space-y-2">
+        {slots.map((s) => (
+          <DocSlot key={s.kind} label={s.label}
+            required={!revMode && s.required}
+            multiple={s.kind === "diger"}
+            invalid={!revMode && touched && s.required && (files[s.kind] ?? []).length + existingDocs.filter((d) => d.kind === s.kind).length === 0}
+            existing={existingDocs.filter((d) => d.kind === s.kind)}
+            staged={files[s.kind] ?? []}
+            onAdd={(l) => addFiles(s.kind, l)}
+            onRemoveStaged={(i) => removeFile(s.kind, i)}
+            onDeleteExisting={deleteExisting} />
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -278,12 +292,10 @@ export default function YeniProjeForm({
               <Field label="Revizyon Açıklaması">
                 <textarea rows={2} className={inp} value={rev.rev_aciklama} onChange={(e) => setRevF("rev_aciklama", e.target.value)} placeholder="Revizyon nedeni / kapsamı…" />
               </Field>
-              <DocSlot label="Revize Proje" required invalid={touched && revFiles.length === 0}
-                existing={[]} staged={revFiles} onAdd={addRevFiles} onRemoveStaged={removeRevFile} onDeleteExisting={() => {}} />
             </div>
           )}
 
-          {/* Ana form — revizyon modunda devralınan bilgiler (referans) */}
+          {/* Ana bilgiler — revizyonda ana projeden devralınır (referans, kilitli) */}
           <div className={revMode ? "opacity-60 pointer-events-none" : ""}>
             <div className="space-y-5">
               {revMode && <p className="text-xs text-slate-500">Aşağıdaki bilgiler ana projeden devralınır (revizyonda değiştirilmez).</p>}
@@ -385,36 +397,24 @@ export default function YeniProjeForm({
                   </div>
                 </>
               )}
+            </div>
+          </div>
 
-              {/* Dokümanlar (revizyon modunda gizli) */}
-              {!revMode && (
-                <div>
-                  <h3 className="font-bold text-sm mb-2">Dokümanlar {f.proje_tipi === "uygulama" ? "(Uygulama)" : "(Mimari)"}</h3>
-                  <div className="space-y-2">
-                    {slots.map((s) => (
-                      <DocSlot key={s.kind} label={s.label} required={s.required}
-                        invalid={touched && s.required && (files[s.kind] ?? []).length + existingDocs.filter((d) => d.kind === s.kind).length === 0}
-                        existing={existingDocs.filter((d) => d.kind === s.kind)}
-                        staged={files[s.kind] ?? []}
-                        onAdd={(l) => addFiles(s.kind, l)}
-                        onRemoveStaged={(i) => removeFile(s.kind, i)}
-                        onDeleteExisting={deleteExisting} />
-                    ))}
-                  </div>
-                </div>
-              )}
+          {/* Dokümanlar — her modda aktif */}
+          {documentsSection}
 
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Proje Sorumlusu">
-                  <select className={inp} value={f.proje_sorumlusu_id} onChange={(e) => set("proje_sorumlusu_id", e.target.value)}>
-                    <option value="">Seçiniz…</option>
-                    {sorumlular.map((s) => <option key={s.id} value={s.id}>{s.full_name ?? "—"}</option>)}
-                  </select>
-                </Field>
-                <Field label="Tahmini Tamamlanma Tarihi">
-                  <input type="date" className={inp} value={f.tahmini_tamamlanma} onChange={(e) => set("tahmini_tamamlanma", e.target.value)} />
-                </Field>
-              </div>
+          {/* Sorumlu / tarih — revizyonda devralınır (kilitli) */}
+          <div className={revMode ? "opacity-60 pointer-events-none" : ""}>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Proje Sorumlusu">
+                <select className={inp} value={f.proje_sorumlusu_id} onChange={(e) => set("proje_sorumlusu_id", e.target.value)}>
+                  <option value="">Seçiniz…</option>
+                  {sorumlular.map((s) => <option key={s.id} value={s.id}>{s.full_name ?? "—"}</option>)}
+                </select>
+              </Field>
+              <Field label="Tahmini Tamamlanma Tarihi">
+                <input type="date" className={inp} value={f.tahmini_tamamlanma} onChange={(e) => set("tahmini_tamamlanma", e.target.value)} />
+              </Field>
             </div>
           </div>
 
@@ -439,16 +439,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 // Mevcut yüklenen + yeni seçilen dosyaları gösteren yükleme kutusu (Teknik Dosya FileZone ile aynı davranış)
 function DocSlot({
-  label, required, invalid, existing, staged, onAdd, onRemoveStaged, onDeleteExisting,
+  label, required, multiple, invalid, existing, staged, onAdd, onRemoveStaged, onDeleteExisting,
 }: {
-  label: string; required: boolean; invalid: boolean;
+  label: string; required: boolean; multiple: boolean; invalid: boolean;
   existing: Doc[]; staged: File[];
   onAdd: (l: FileList | null) => void; onRemoveStaged: (i: number) => void; onDeleteExisting: (id: string) => void;
 }) {
   return (
     <div className={`rounded-xl border bg-white p-3 space-y-2 ${invalid ? "border-red-400 bg-red-50" : "border-slate-200"}`}>
       <div className="text-sm font-semibold text-slate-800">
-        {label} {required ? <span className="text-red-500">*</span> : <span className="text-slate-400 text-xs font-normal">(opsiyonel)</span>}
+        {label} {required ? <span className="text-red-500">*</span> : <span className="text-slate-400 text-xs font-normal">({multiple ? "çoklu, opsiyonel" : "tek dosya, opsiyonel"})</span>}
       </div>
       {existing.map((d) => (
         <div key={d.id} className="flex items-center justify-between text-xs">
@@ -460,14 +460,14 @@ function DocSlot({
       ))}
       {staged.map((file, i) => (
         <div key={i} className="flex items-center justify-between text-xs text-slate-600">
-          <span className="inline-flex items-center gap-1"><span className="material-symbols-rounded text-[15px] text-amber-600">upload_file</span>{file.name} <span className="text-slate-400">· kaydedilecek</span></span>
+          <span className="inline-flex items-center gap-1"><span className="material-symbols-rounded text-[15px] text-amber-600">upload_file</span>{file.name} <span className="text-slate-400">· kaydedilecek{!multiple && existing.length > 0 ? " (öncekini değiştirir)" : ""}</span></span>
           <button type="button" onClick={() => onRemoveStaged(i)} className="text-red-500 hover:underline">Kaldır</button>
         </div>
       ))}
       <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-brand bg-brand-light px-3 py-2 rounded-lg hover:bg-brand/10 w-fit">
         <span className="material-symbols-rounded text-[16px]">attach_file</span>
-        Dosya Seç (çoklu)
-        <input type="file" multiple className="hidden" onChange={(e) => { onAdd(e.target.files); e.currentTarget.value = ""; }} />
+        {multiple ? "Dosya Seç (çoklu)" : "Dosya Seç"}
+        <input type="file" multiple={multiple} className="hidden" onChange={(e) => { onAdd(e.target.files); e.currentTarget.value = ""; }} />
       </label>
     </div>
   );

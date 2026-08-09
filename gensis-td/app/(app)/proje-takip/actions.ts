@@ -203,6 +203,8 @@ export async function createRevision(parentId: string, r: RevizyonPayload): Prom
 
 // ---------- Doküman yükle ----------
 const TAKIP_KIND = ["mimari_proje", "elektrik_projesi", "statik_projesi", "olcu_formu", "yapi_ruhsati", "diger", "tamamlanan_proje", "revize_proje"];
+// Tek dosyalık türler: yeni yükleme öncekini siler. "diger" ve "tamamlanan_proje" çokludur.
+const SINGLE_KINDS = ["mimari_proje", "elektrik_projesi", "statik_projesi", "olcu_formu", "yapi_ruhsati"];
 export async function uploadTakipDoc(formData: FormData): Promise<Result> {
   try {
     const actor = await assertStaff();
@@ -219,6 +221,13 @@ export async function uploadTakipDoc(formData: FormData): Promise<Result> {
       contentType: file.type || "application/octet-stream", upsert: false,
     });
     if (upErr) return { ok: false, error: "Dosya yüklenemedi: " + upErr.message };
+    // Tek-dosyalık türlerde yeni yükleme öncekini siler (Diğer/Tamamlanan hariç)
+    if (SINGLE_KINDS.includes(kind)) {
+      const { data: prev } = await admin.from("takip_dokumanlar").select("id, storage_path").eq("takip_id", takip_id).eq("kind", kind);
+      const paths = (prev ?? []).map((p: any) => p.storage_path).filter(Boolean);
+      if (paths.length) await admin.storage.from("documents").remove(paths);
+      if ((prev ?? []).length) await admin.from("takip_dokumanlar").delete().eq("takip_id", takip_id).eq("kind", kind);
+    }
     const { data, error } = await admin.from("takip_dokumanlar").insert({
       takip_id, kind, storage_path: path, original_name: file.name, uploaded_by: actor.userId,
     }).select("id").single();
