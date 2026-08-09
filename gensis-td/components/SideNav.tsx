@@ -6,25 +6,30 @@ import { usePathname } from "next/navigation";
 type Item = { href: string; label: string; icon: string; match: (p: string) => boolean; badge?: number };
 
 export default function SideNav({
-  role, bildirimCount = 0, onayCount = 0,
-}: { role: string; bildirimCount?: number; onayCount?: number }) {
+  role, bildirimCount = 0, onayCount = 0, takipCount = 0, muhasebeCount = 0,
+}: { role: string; bildirimCount?: number; onayCount?: number; takipCount?: number; muhasebeCount?: number }) {
   const path = usePathname();
   const isAdmin = role === "admin";
   const isStaff = role === "admin" || role === "gensis";
-  const isCustomer = !isStaff;
+  const isMuhasebeci = role === "muhasebeci";
+  const isCustomer = !isStaff && !isMuhasebeci;
 
   const items: Item[] = [
     { href: "/bildirimler", label: "Bildirimler", icon: "notifications", match: (p) => p.startsWith("/bildirimler"), badge: bildirimCount },
   ];
   if (isStaff) items.push({ href: "/onaylar", label: "Onay Bekleyenler", icon: "rate_review", match: (p) => p.startsWith("/onaylar"), badge: onayCount });
-  items.push(
+  if (isStaff) items.push(
     { href: "/proje-onay", label: "Proje Onay Dosyası", icon: "fact_check", match: (p) => p.startsWith("/proje-onay") },
     { href: "/panel", label: "Asansör Teknik Dosyası", icon: "note_add", match: (p) => p === "/panel" || p.startsWith("/panel/") || p === "/yeni" },
+    { href: "/proje-takip", label: "Proje Takip", icon: "table_view", match: (p) => p.startsWith("/proje-takip"), badge: takipCount },
   );
   if (isCustomer) items.push(
+    { href: "/proje-onay", label: "Proje Onay Dosyası", icon: "fact_check", match: (p) => p.startsWith("/proje-onay") },
+    { href: "/panel", label: "Asansör Teknik Dosyası", icon: "note_add", match: (p) => p === "/panel" || p.startsWith("/panel/") || p === "/yeni" },
     { href: "/firmam", label: "Firmam", icon: "apartment", match: (p) => p.startsWith("/firmam") },
     { href: "/muhendislerim", label: "Mühendislerim", icon: "engineering", match: (p) => p.startsWith("/muhendislerim") },
   );
+  if (isAdmin || isMuhasebeci) items.push({ href: "/muhasebe", label: "Muhasebe", icon: "account_balance", match: (p) => p.startsWith("/muhasebe"), badge: muhasebeCount });
   if (isAdmin) items.push({ href: "/admin", label: "Yönetim", icon: "admin_panel_settings", match: (p) => p.startsWith("/admin") });
 
   return (

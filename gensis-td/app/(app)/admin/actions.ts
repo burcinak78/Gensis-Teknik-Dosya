@@ -164,7 +164,7 @@ export async function createUser(form: {
   try {
     await assertAdmin();
     if (!form.email || !form.password) return { ok: false, error: "E-posta ve şifre zorunlu." };
-    if (!["admin", "gensis", "customer"].includes(form.role)) return { ok: false, error: "Geçersiz rol." };
+    if (!["admin", "gensis", "customer", "muhasebeci"].includes(form.role)) return { ok: false, error: "Geçersiz rol." };
     const admin = createAdminClient();
     const { data: created, error: cErr } = await admin.auth.admin.createUser({
       email: form.email,
@@ -173,8 +173,8 @@ export async function createUser(form: {
       user_metadata: { full_name: form.full_name },
     });
     if (cErr || !created?.user) return { ok: false, error: cErr?.message ?? "Kullanıcı oluşturulamadı." };
-    // Admin/Gensis personeli otomatik Gensis firmasına bağlanır (müşteriye değil)
-    const staff = form.role === "admin" || form.role === "gensis";
+    // Admin/Gensis/Muhasebeci personeli otomatik Gensis firmasına bağlanır (müşteriye değil)
+    const staff = form.role === "admin" || form.role === "gensis" || form.role === "muhasebeci";
     const companyId = staff ? await ensureGensisCompany(admin) : form.company_id || null;
     // profil satırı trigger ile oluşur; rol ve firmayı ata
     const { error: pErr } = await admin.from("profiles").upsert(
@@ -202,10 +202,10 @@ export async function updateUser(form: {
   try {
     await assertAdmin();
     if (!form.id) return { ok: false, error: "Kullanıcı bulunamadı." };
-    if (!["admin", "gensis", "customer"].includes(form.role)) return { ok: false, error: "Geçersiz rol." };
+    if (!["admin", "gensis", "customer", "muhasebeci"].includes(form.role)) return { ok: false, error: "Geçersiz rol." };
     const admin = createAdminClient();
-    // Admin/Gensis personeli otomatik Gensis firmasına bağlanır
-    const staff = form.role === "admin" || form.role === "gensis";
+    // Admin/Gensis/Muhasebeci personeli otomatik Gensis firmasına bağlanır
+    const staff = form.role === "admin" || form.role === "gensis" || form.role === "muhasebeci";
     const companyId = staff ? await ensureGensisCompany(admin) : form.company_id || null;
     const { error: pErr } = await admin
       .from("profiles")

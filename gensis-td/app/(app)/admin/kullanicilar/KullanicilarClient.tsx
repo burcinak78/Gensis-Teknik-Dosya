@@ -9,7 +9,7 @@ type User = {
   company_id: string | null; email: string; companies?: { short_name: string } | null;
 };
 type Company = { id: string; short_name: string };
-const ROL: Record<string, string> = { admin: "Admin", gensis: "Gensis Kullanıcı", customer: "Müşteri" };
+const ROL: Record<string, string> = { admin: "Admin", gensis: "Gensis Kullanıcı", muhasebeci: "Muhasebeci", customer: "Müşteri" };
 
 export default function KullanicilarClient({
   users, companies, defaultCompanyId,
@@ -56,7 +56,7 @@ export default function KullanicilarClient({
     else setMsg({ ok: false, text: res.error });
   }
 
-  const staff = form.role === "admin" || form.role === "gensis";
+  const staff = form.role === "admin" || form.role === "gensis" || form.role === "muhasebeci";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
@@ -125,6 +125,7 @@ export default function KullanicilarClient({
             <select value={form.role} onChange={(e) => set("role", e.target.value)} className={inp}>
               <option value="customer">Müşteri</option>
               <option value="gensis">Gensis Kullanıcı</option>
+              <option value="muhasebeci">Muhasebeci</option>
               <option value="admin">Admin</option>
             </select>
           </div>

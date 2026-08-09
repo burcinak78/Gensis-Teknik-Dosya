@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { bildirimSayisi } from "@/lib/bildirimSayisi";
 import { onaySayisi } from "@/lib/onaySayisi";
+import { takipBildirimSayisi, muhasebeBekleyenSayisi } from "@/lib/takipSayisi";
 import SignOutButton from "@/components/SignOutButton";
 import SideNav from "@/components/SideNav";
 
@@ -23,14 +24,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const isStaff = rol === "admin" || rol === "gensis";
   let bildirimCount = 0;
   let onayCount = 0;
+  let takipCount = 0;
+  let muhasebeCount = 0;
   try {
     const admin = createAdminClient();
     bildirimCount = await bildirimSayisi(admin, rol, profile?.company_id ?? null);
     if (isStaff) onayCount = await onaySayisi(admin);
+    if (isStaff) takipCount = await takipBildirimSayisi(admin, user.id);
+    if (rol === "admin" || rol === "muhasebeci") muhasebeCount = await muhasebeBekleyenSayisi(admin);
   } catch {
     /* sayaç alınamazsa menü yine çalışır */
   }
-  const rolTr = rol === "admin" ? "Admin" : rol === "gensis" ? "Gensis Kullanıcı" : "Müşteri";
+  const rolTr = rol === "admin" ? "Admin" : rol === "gensis" ? "Gensis Kullanıcı" : rol === "muhasebeci" ? "Muhasebeci" : "Müşteri";
   const adSoyad = profile?.full_name ?? user.email ?? "";
   const bas = adSoyad.trim().slice(0, 2).toUpperCase() || "GT";
 
@@ -42,7 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <img src="/logo.png" alt="GENSIS" style={{ height: 26, width: "auto" }} />
         </div>
 
-        <SideNav role={rol} bildirimCount={bildirimCount} onayCount={onayCount} />
+        <SideNav role={rol} bildirimCount={bildirimCount} onayCount={onayCount} takipCount={takipCount} muhasebeCount={muhasebeCount} />
 
         <div className="p-3">
           <div className="flex items-center gap-3 bg-[#eef1f8] rounded-xl p-3">

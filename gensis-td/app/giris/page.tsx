@@ -22,7 +22,7 @@ export default function GirisPage() {
       setError("Giriş başarısız: " + error.message);
       return;
     }
-    router.push("/panel");
+    router.push("/");
     router.refresh();
   }
 
