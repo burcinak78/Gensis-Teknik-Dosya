@@ -48,21 +48,33 @@ export default function ProjeTakipClient({
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [f, setF] = useState({ projeNo: "", adaParsel: "", tip: "", firma: "", isAdi: "", sorumlu: "", durum: "" });
   const [durumRow, setDurumRow] = useState<Row | null>(null);
+  const setFilter = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
 
   const sorumluAd = (id: string | null) => sorumlular.find((s) => s.id === id)?.full_name ?? "—";
   const firmaAd = (id: string | null) => companies.find((c) => c.id === id)?.short_name ?? "—";
 
+  const tc = (v: unknown) => String(v ?? "").toLocaleLowerCase("tr");
   const filtered = useMemo(() => {
     const s = q.trim().toLocaleLowerCase("tr");
-    if (!s) return rows;
-    return rows.filter((r) =>
-      String(r.proje_no).includes(s) ||
-      (firmaAd(r.company_id) ?? "").toLocaleLowerCase("tr").includes(s) ||
-      (r.is_adi ?? "").toLocaleLowerCase("tr").includes(s) ||
-      (r.ada_parsel ?? "").toLocaleLowerCase("tr").includes(s)
-    );
-  }, [q, rows]);
+    return rows.filter((r) => {
+      if (s) {
+        const hay = [String(r.proje_no), firmaAd(r.company_id), r.is_adi, r.ada_parsel, sorumluAd(r.proje_sorumlusu_id)]
+          .map(tc).join(" ");
+        if (!hay.includes(s)) return false;
+      }
+      if (f.projeNo && !String(r.proje_no).includes(f.projeNo.trim())) return false;
+      if (f.adaParsel && !tc(r.ada_parsel).includes(tc(f.adaParsel))) return false;
+      if (f.tip && r.proje_tipi !== f.tip) return false;
+      if (f.firma && r.company_id !== f.firma) return false;
+      if (f.isAdi && !tc(r.is_adi).includes(tc(f.isAdi))) return false;
+      if (f.sorumlu && r.proje_sorumlusu_id !== f.sorumlu) return false;
+      if (f.durum && r.durum !== f.durum) return false;
+      return true;
+    });
+  }, [q, f, rows]);
 
   function rowClass(r: Row) {
     const muhDone = !!r.muhasebe?.cariye_islendi;
@@ -74,6 +86,8 @@ export default function ProjeTakipClient({
 
   const th = "px-3 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap";
   const td = "px-3 py-2 text-sm whitespace-nowrap";
+  const fInp = "w-full text-xs px-2 py-1 border border-slate-200 rounded focus:outline-none focus:border-brand";
+  const fTh = "px-3 py-1.5 align-top";
 
   return (
     <div>
@@ -88,9 +102,15 @@ export default function ProjeTakipClient({
       </div>
 
       <div className="p-8 gs-fade">
-        <div className="mb-4 relative max-w-md">
-          <span className="material-symbols-rounded text-[20px] absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Proje no, firma, işin adı, ada/parsel…" className={inp + " pl-10"} />
+        <div className="mb-4 flex items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <span className="material-symbols-rounded text-[20px] absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ara: proje no, firma, işin adı, ada/parsel, sorumlu…" className={inp + " pl-10"} />
+          </div>
+          <button onClick={() => setShowFilters((v) => !v)}
+            className={`inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg border ${showFilters ? "bg-brand-light text-brand border-brand/30" : "text-slate-600 border-slate-200 hover:bg-slate-50"}`}>
+            <span className="material-symbols-rounded text-[18px]">filter_list</span> Filtrele
+          </button>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
@@ -99,39 +119,60 @@ export default function ProjeTakipClient({
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className={th}>Proje No</th>
-                  <th className={th}>Tip</th>
-                  <th className={th}>Sipariş Tar.</th>
-                  <th className={th}>Firma</th>
                   <th className={th}>Ada/Parsel</th>
+                  <th className={th}>Tip</th>
+                  <th className={th}>Firma</th>
                   <th className={th}>İşin Adı</th>
-                  <th className={th}>Asn. Sayısı</th>
-                  <th className={th}>Asn. Tipi</th>
-                  <th className={th}>İl / İlçe</th>
-                  <th className={th}>Fiyat</th>
-                  <th className={th}>Toplam</th>
+                  <th className={th}>Sipariş Tar.</th>
                   <th className={th}>Sorumlu</th>
-                  <th className={th}>Tah. Tamamlanma</th>
+                  <th className={th}>Tamamlanma Tar.</th>
                   <th className={th}>Durum</th>
                 </tr>
+                {showFilters && (
+                  <tr className="bg-white border-b border-slate-200">
+                    <th className={fTh}><input className={fInp} value={f.projeNo} onChange={(e) => setFilter("projeNo", e.target.value)} placeholder="No" /></th>
+                    <th className={fTh}><input className={fInp} value={f.adaParsel} onChange={(e) => setFilter("adaParsel", e.target.value)} placeholder="Ada/Parsel" /></th>
+                    <th className={fTh}>
+                      <select className={fInp} value={f.tip} onChange={(e) => setFilter("tip", e.target.value)}>
+                        <option value="">Hepsi</option><option value="mimari">Mimari</option><option value="uygulama">Uygulama</option>
+                      </select>
+                    </th>
+                    <th className={fTh}>
+                      <select className={fInp} value={f.firma} onChange={(e) => setFilter("firma", e.target.value)}>
+                        <option value="">Hepsi</option>
+                        {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
+                      </select>
+                    </th>
+                    <th className={fTh}><input className={fInp} value={f.isAdi} onChange={(e) => setFilter("isAdi", e.target.value)} placeholder="İşin adı" /></th>
+                    <th className={fTh}></th>
+                    <th className={fTh}>
+                      <select className={fInp} value={f.sorumlu} onChange={(e) => setFilter("sorumlu", e.target.value)}>
+                        <option value="">Hepsi</option>
+                        {sorumlular.map((s) => <option key={s.id} value={s.id}>{s.full_name ?? "—"}</option>)}
+                      </select>
+                    </th>
+                    <th className={fTh}></th>
+                    <th className={fTh}>
+                      <select className={fInp} value={f.durum} onChange={(e) => setFilter("durum", e.target.value)}>
+                        <option value="">Hepsi</option><option value="HAZIRLANIYOR">HAZIRLANIYOR</option><option value="BEKLIYOR">BEKLIYOR</option><option value="TAMAMLANDI">TAMAMLANDI</option>
+                      </select>
+                    </th>
+                  </tr>
+                )}
               </thead>
               <tbody>
                 {filtered.map((r) => (
                   <tr key={r.id} className={`border-b border-slate-100 last:border-0 ${rowClass(r)}`}>
                     <td className={td + " font-bold text-navy"}>{r.proje_no}</td>
-                    <td className={td}>{TIP_TR[r.proje_tipi] ?? r.proje_tipi}</td>
-                    <td className={td + " text-slate-500"}>{dt(r.siparis_tarihi)}</td>
-                    <td className={td + " font-semibold"}>{firmaAd(r.company_id)}</td>
                     <td className={td + " text-slate-500"}>{r.ada_parsel ?? "—"}</td>
+                    <td className={td}>{TIP_TR[r.proje_tipi] ?? r.proje_tipi}</td>
+                    <td className={td + " font-semibold"}>{firmaAd(r.company_id)}</td>
                     <td className={td}>{r.is_adi ?? "—"}</td>
-                    <td className={td + " text-center"}>{r.asansor_sayisi ?? "—"}</td>
-                    <td className={td}>{r.asansor_tipi ? AST_TR[r.asansor_tipi] ?? r.asansor_tipi : "—"}</td>
-                    <td className={td + " text-slate-500"}>{[r.il_adi, r.ilce_adi].filter(Boolean).join(" / ") || "—"}</td>
-                    <td className={td}>{money(r.fiyat)}<span className="block text-[10px] text-slate-400">{r.fatura_tipi === "faturali" ? "Faturalı" : r.fatura_tipi === "faturasiz" ? "Faturasız" : ""}</span></td>
-                    <td className={td + " font-semibold"}>{money(r.toplam_tutar)}</td>
+                    <td className={td + " text-slate-500"}>{dt(r.siparis_tarihi)}</td>
                     <td className={td + " text-slate-600"}>{sorumluAd(r.proje_sorumlusu_id)}</td>
-                    <td className={td + " text-slate-500"}>{dt(r.tahmini_tamamlanma)}</td>
+                    <td className={td + " text-slate-500"}>{r.durum === "TAMAMLANDI" ? dt(r.tamamlanma_tarihi) : ""}</td>
                     <td className={td}>
-                      <button onClick={() => setDurumRow(r)} title="Tamamlanma durumunu aç"
+                      <button onClick={() => setDurumRow(r)} title="Durumu aç"
                         className={r.durum === "HAZIRLANIYOR"
                           ? "text-xs font-semibold text-slate-600 hover:underline"
                           : `text-[11px] font-bold px-2 py-1 rounded-full hover:opacity-80 ${DURUM_BADGE[r.durum] ?? "bg-slate-100 text-slate-600"}`}>
@@ -142,7 +183,7 @@ export default function ProjeTakipClient({
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={14} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok. Sağ üstten “Yeni Proje” ile başlayın.</td></tr>
+                  <tr><td colSpan={9} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok. Sağ üstten “Yeni Proje” ile başlayın.</td></tr>
                 )}
               </tbody>
             </table>
@@ -244,6 +285,22 @@ function DurumModal({
             ? <span className="ml-auto text-xs font-semibold text-slate-600">{row.durum}</span>
             : <span className={`ml-auto text-[11px] font-bold px-2 py-1 rounded-full ${DURUM_BADGE[row.durum]}`}>{row.durum}</span>}
         </div>
+
+        {/* Standart bilgilerin altında proje detayları (tüm durumlarda) */}
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 grid grid-cols-2 gap-y-1.5 gap-x-4 text-sm">
+          <Info l="Tahmini Tamamlanma" v={dt(row.tahmini_tamamlanma)} />
+          <Info l="Asansör Sayısı" v={row.asansor_sayisi != null ? String(row.asansor_sayisi) : "—"} />
+          <Info l="Asansör Tipi" v={row.asansor_tipi ? AST_TR[row.asansor_tipi] ?? row.asansor_tipi : "—"} />
+          <Info l="İl / İlçe" v={[row.il_adi, row.ilce_adi].filter(Boolean).join(" / ") || "—"} />
+        </div>
+
+        {/* BEKLIYOR: bekleme açıklaması bilgisi (varsa) */}
+        {row.durum === "BEKLIYOR" && row.bekliyor_aciklama && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
+            <span className="text-red-700 font-bold text-xs block mb-0.5">Bekleme Açıklaması</span>
+            <span className="text-slate-700">{row.bekliyor_aciklama}</span>
+          </div>
+        )}
 
         {completed ? (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 space-y-1">
@@ -348,6 +405,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </div>
   );
+}
+
+function Info({ l, v }: { l: string; v: string }) {
+  return <div><span className="text-slate-400 text-xs">{l}: </span><span className="font-semibold">{v}</span></div>;
 }
 
 function Overlay({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {

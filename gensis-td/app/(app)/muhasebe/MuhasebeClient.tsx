@@ -30,17 +30,34 @@ export default function MuhasebeClient({
 }: { rows: Row[]; companies: Company[]; sorumlular: Sorumlu[] }) {
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [f, setF] = useState({ durum: "", projeNo: "", tip: "", firma: "", adaParsel: "", isAdi: "", fatura: "", teslim: "" });
   const [modalRow, setModalRow] = useState<Row | null>(null);
+  const setFilter = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
   const firmaAd = (id: string | null) => companies.find((c) => c.id === id)?.short_name ?? "—";
+  const tc = (v: unknown) => String(v ?? "").toLocaleLowerCase("tr");
+
+  // muhasebe durum kategorisi
+  const muhCat = (r: Row) => r.muhasebe?.cariye_islendi ? "tamamlandi" : (r.muhasebeye_gonderildi ? "bekliyor" : "diger");
 
   const filtered = useMemo(() => {
     const s = q.trim().toLocaleLowerCase("tr");
-    if (!s) return rows;
-    return rows.filter((r) =>
-      String(r.proje_no).includes(s) ||
-      firmaAd(r.company_id).toLocaleLowerCase("tr").includes(s) ||
-      (r.ada_parsel ?? "").toLocaleLowerCase("tr").includes(s));
-  }, [q, rows]);
+    return rows.filter((r) => {
+      if (s) {
+        const hay = [String(r.proje_no), firmaAd(r.company_id), r.ada_parsel, r.is_adi].map(tc).join(" ");
+        if (!hay.includes(s)) return false;
+      }
+      if (f.durum && muhCat(r) !== f.durum) return false;
+      if (f.projeNo && !String(r.proje_no).includes(f.projeNo.trim())) return false;
+      if (f.tip && r.proje_tipi !== f.tip) return false;
+      if (f.firma && r.company_id !== f.firma) return false;
+      if (f.adaParsel && !tc(r.ada_parsel).includes(tc(f.adaParsel))) return false;
+      if (f.isAdi && !tc(r.is_adi).includes(tc(f.isAdi))) return false;
+      if (f.fatura && r.fatura_tipi !== f.fatura) return false;
+      if (f.teslim && r.teslim_tipi !== f.teslim) return false;
+      return true;
+    });
+  }, [q, f, rows]);
 
   const bekleyen = rows.filter((r) => r.muhasebeye_gonderildi && r.muhasebe_durumu !== "tamamlandi").length;
 
@@ -50,8 +67,20 @@ export default function MuhasebeClient({
     return "";
   }
 
+  function teslimText(r: Row) {
+    if (r.teslim_tipi === "dijital") return "Dijital";
+    if (r.teslim_tipi === "hard_copy") {
+      const y = r.muhasebe?.teslim_yontemi === "elden" ? " · Elden" : r.muhasebe?.teslim_yontemi === "kargo" ? " · Kargo" : "";
+      return `Hard Copy (${r.hard_copy_adedi ?? "?"})${y}`;
+    }
+    return "—";
+  }
+
   const th = "px-3 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap";
   const td = "px-3 py-2 text-sm whitespace-nowrap";
+  const fInp = "w-full text-xs px-2 py-1 border border-slate-200 rounded focus:outline-none focus:border-brand";
+  const fTh = "px-3 py-1.5 align-top";
+  const TIP_KISA: Record<string, string> = { mimari: "M", uygulama: "U" };
 
   return (
     <div>
@@ -63,9 +92,15 @@ export default function MuhasebeClient({
       </div>
 
       <div className="p-8 gs-fade">
-        <div className="mb-4 relative max-w-md">
-          <span className="material-symbols-rounded text-[20px] absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Proje no, firma, ada/parsel…" className={inp + " pl-10"} />
+        <div className="mb-4 flex items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <span className="material-symbols-rounded text-[20px] absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ara: proje no, firma, ada/parsel, işin adı…" className={inp + " pl-10"} />
+          </div>
+          <button onClick={() => setShowFilters((v) => !v)}
+            className={`inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg border ${showFilters ? "bg-brand-light text-brand border-brand/30" : "text-slate-600 border-slate-200 hover:bg-slate-50"}`}>
+            <span className="material-symbols-rounded text-[18px]">filter_list</span> Filtrele
+          </button>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
@@ -73,17 +108,52 @@ export default function MuhasebeClient({
             <table className="w-full border-collapse">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
+                  <th className={th}>Durum</th>
                   <th className={th}>Proje No</th>
+                  <th className={th}>Tip</th>
                   <th className={th}>Firma</th>
                   <th className={th}>Ada/Parsel</th>
                   <th className={th}>İşin Adı</th>
-                  <th className={th}>Fiyat</th>
+                  <th className={th}>Toplam Tutar</th>
                   <th className={th}>Fatura</th>
-                  <th className={th}>Toplam</th>
-                  <th className={th}>Teslim</th>
-                  <th className={th}>Durum</th>
-                  <th className={th}></th>
+                  <th className={th}>Teslim Tipi</th>
+                  <th className={th}>Teslim Tarihi</th>
                 </tr>
+                {showFilters && (
+                  <tr className="bg-white border-b border-slate-200">
+                    <th className={fTh}>
+                      <select className={fInp} value={f.durum} onChange={(e) => setFilter("durum", e.target.value)}>
+                        <option value="">Hepsi</option><option value="bekliyor">İşlem bekliyor</option><option value="tamamlandi">Teslim edildi</option><option value="diger">Gönderilmedi</option>
+                      </select>
+                    </th>
+                    <th className={fTh}><input className={fInp} value={f.projeNo} onChange={(e) => setFilter("projeNo", e.target.value)} placeholder="No" /></th>
+                    <th className={fTh}>
+                      <select className={fInp} value={f.tip} onChange={(e) => setFilter("tip", e.target.value)}>
+                        <option value="">Hepsi</option><option value="mimari">M</option><option value="uygulama">U</option>
+                      </select>
+                    </th>
+                    <th className={fTh}>
+                      <select className={fInp} value={f.firma} onChange={(e) => setFilter("firma", e.target.value)}>
+                        <option value="">Hepsi</option>
+                        {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
+                      </select>
+                    </th>
+                    <th className={fTh}><input className={fInp} value={f.adaParsel} onChange={(e) => setFilter("adaParsel", e.target.value)} placeholder="Ada/Parsel" /></th>
+                    <th className={fTh}><input className={fInp} value={f.isAdi} onChange={(e) => setFilter("isAdi", e.target.value)} placeholder="İşin adı" /></th>
+                    <th className={fTh}></th>
+                    <th className={fTh}>
+                      <select className={fInp} value={f.fatura} onChange={(e) => setFilter("fatura", e.target.value)}>
+                        <option value="">Hepsi</option><option value="faturali">Faturalı</option><option value="faturasiz">Faturasız</option>
+                      </select>
+                    </th>
+                    <th className={fTh}>
+                      <select className={fInp} value={f.teslim} onChange={(e) => setFilter("teslim", e.target.value)}>
+                        <option value="">Hepsi</option><option value="hard_copy">Hard Copy</option><option value="dijital">Dijital</option>
+                      </select>
+                    </th>
+                    <th className={fTh}></th>
+                  </tr>
+                )}
               </thead>
               <tbody>
                 {filtered.map((r) => {
@@ -91,17 +161,6 @@ export default function MuhasebeClient({
                   const done = r.muhasebe?.cariye_islendi;
                   return (
                     <tr key={r.id} className={`border-b border-slate-100 last:border-0 ${rowClass(r)}`}>
-                      <td className={td + " font-bold text-navy"}>
-                        {sent && !done && <span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5 align-middle" title="Yeni" />}
-                        {r.proje_no}
-                      </td>
-                      <td className={td + " font-semibold"}>{firmaAd(r.company_id)}</td>
-                      <td className={td + " text-slate-500"}>{r.ada_parsel ?? "—"}</td>
-                      <td className={td}>{r.is_adi ?? "—"}</td>
-                      <td className={td}>{money(r.fiyat)}</td>
-                      <td className={td}>{r.fatura_tipi === "faturali" ? "Faturalı" : r.fatura_tipi === "faturasiz" ? "Faturasız" : "—"}</td>
-                      <td className={td + " font-semibold"}>{money(r.toplam_tutar)}</td>
-                      <td className={td}>{r.teslim_tipi === "hard_copy" ? `Hard Copy (${r.hard_copy_adedi ?? "?"})` : r.teslim_tipi === "dijital" ? "Dijital" : "—"}</td>
                       <td className={td}>
                         {done
                           ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700">Teslim edildi</span>
@@ -109,11 +168,20 @@ export default function MuhasebeClient({
                             ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700">İşlem bekliyor</span>
                             : <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500">{r.durum}</span>}
                       </td>
-                      <td className={td + " text-right"}>
+                      <td className={td + " font-bold text-navy"}>
+                        {sent && !done && <span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5 align-middle" title="Yeni" />}
                         {sent
-                          ? <button onClick={() => setModalRow(r)} className="text-xs font-bold text-brand hover:underline">Muh. İşlemleri</button>
-                          : <span className="text-xs text-slate-300">—</span>}
+                          ? <button onClick={() => setModalRow(r)} title="Muhasebe işlemleri" className="text-navy hover:underline">{r.proje_no}</button>
+                          : <span>{r.proje_no}</span>}
                       </td>
+                      <td className={td + " font-semibold text-center"}>{TIP_KISA[r.proje_tipi] ?? "—"}</td>
+                      <td className={td + " font-semibold"}>{firmaAd(r.company_id)}</td>
+                      <td className={td + " text-slate-500"}>{r.ada_parsel ?? "—"}</td>
+                      <td className={td}>{r.is_adi ?? "—"}</td>
+                      <td className={td + " font-semibold"}>{money(r.toplam_tutar)}</td>
+                      <td className={td}>{r.fatura_tipi === "faturali" ? "Faturalı" : r.fatura_tipi === "faturasiz" ? "Faturasız" : "—"}</td>
+                      <td className={td}>{teslimText(r)}</td>
+                      <td className={td + " text-slate-500"}>{dt(r.muhasebe?.teslim_tarihi)}</td>
                     </tr>
                   );
                 })}
