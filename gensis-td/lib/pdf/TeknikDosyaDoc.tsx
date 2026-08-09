@@ -18,7 +18,7 @@ const st = StyleSheet.create({
   rule: { borderBottomWidth: 2, borderBottomColor: TEAL, width: 110, alignSelf: "center", marginTop: 4, marginBottom: 16 },
   sec: { fontSize: 10.5, fontWeight: "bold", color: TEAL, marginTop: 12, marginBottom: 6, borderBottomWidth: 0.5, borderBottomColor: "#e2e8f0", paddingBottom: 3 },
   row: { flexDirection: "row", paddingVertical: 2.2 },
-  lbl: { width: "42%", color: "#6b7280" },
+  lbl: { width: "42%", paddingLeft: 2, paddingRight: 4, color: "#6b7280" },
   val: { width: "58%", fontWeight: "bold", color: "#111827" },
   p: { textAlign: "justify", marginBottom: 8 },
   eqRow: { flexDirection: "row", paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: "#f1f5f9" },
@@ -80,7 +80,7 @@ const st = StyleSheet.create({
   kH: { fontSize: 6, fontWeight: "bold", backgroundColor: "#e5e9f0", color: "#0f172a", paddingVertical: 3, paddingHorizontal: 2, borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#334155", textAlign: "center" },
   kC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#334155" },
   kCol: { borderRightWidth: 0.6, borderColor: "#334155" },
-  kSubC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, borderBottomWidth: 0.6, borderColor: "#334155" },
+  kSubC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, minHeight: 12, borderBottomWidth: 0.6, borderColor: "#334155" },
 });
 
 // Teknik & Komponent tablosu kolon genişlikleri (Excel ile aynı sıra)
@@ -88,8 +88,9 @@ const KW = { ad: "26%", kat: "8%", marka: "14%", tip: "14%", seri: "14%", sert: 
 
 // Resmi form yardımcıları
 function FRow({ l, val, tall }: { l: string; val?: any; tall?: number }) {
+  // tall verildiğinde alignItems'e dokunma (stretch kalsın) → ortadaki dikey çizgi tüm satır boyu tamamlanır
   return (
-    <View style={[st.fRow, tall ? { minHeight: tall, alignItems: "flex-start" as const } : null]}>
+    <View style={[st.fRow, tall ? { minHeight: tall } : null]}>
       <Text style={st.fLabel}>{l}</Text>
       <Text style={st.fVal}>{val !== undefined && val !== null && String(val).trim() !== "" ? String(val) : ""}</Text>
     </View>
@@ -124,22 +125,13 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
         <FRow l="Projenin Türü" val={c.projeTuru} />
       </View>
       <Text style={{ fontSize: 8.6, marginTop: 10, textAlign: "justify", lineHeight: 1.5 }}>
-        Yukarıdaki bilgilere sahip projenin müellifliğini üstlenmemde 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında süreli veya süresiz olarak mesleki faaliyet haklarımda herhangi bir kısıtlılık bulunmadığını, Yukarıdaki bilgilere sahp yapıya ilişkin hazırlanacak tüm projelerde, 3194 sayılı Kanun ve deprem, yangın,enerji verimliliği,asansör gibi ilgili tüm mevzuat hükümlerini eksiksiz uygulayacağımı taahhüt ederim.
+        Yukarıdaki bilgilere sahip projenin müellifliğini üstlenmemde 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında süreli veya süresiz olarak mesleki faaliyet haklarımda herhangi bir kısıtlılık bulunmadığını, Yukarıdaki bilgilere sahip yapıya ilişkin hazırlanacak tüm projelerde, 3194 sayılı Kanun ve deprem, yangın,enerji verimliliği,asansör gibi ilgili tüm mevzuat hükümlerini eksiksiz uygulayacağımı taahhüt ederim.
       </Text>
-      <View style={{ marginTop: 30, alignSelf: "flex-end", width: "60%" }}>
-        <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-          <View style={{ marginRight: 16, alignItems: "center" }}>
-            <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 6 }}>Proje Müellifi</Text>
-            <Text style={{ fontSize: 9, fontWeight: "bold", marginBottom: 5 }}>{unvanKisa}</Text>
-            <Text style={{ fontSize: 9, marginBottom: 5 }}>{v(m?.ad)}</Text>
-            <Text style={{ fontSize: 9 }}>Oda Sicil No: {v(m?.oda_sicil)}</Text>
-          </View>
-          <View style={{ minWidth: 68, paddingTop: 21 }}>
-            <Text style={{ fontSize: 9, marginBottom: 5 }}>Adı-Soyadı</Text>
-            <Text style={{ fontSize: 9, marginBottom: 5 }}>Ünvanı</Text>
-            <Text style={{ fontSize: 9 }}>İmza</Text>
-          </View>
-        </View>
+      <View style={{ marginTop: 34, alignItems: "flex-end" }}>
+        <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 8 }}>Proje Müellifi</Text>
+        <Text style={{ fontSize: 9, marginBottom: 7 }}>Ad Soyad</Text>
+        <Text style={{ fontSize: 9, marginBottom: 7 }}>İsim Ünvan</Text>
+        <Text style={{ fontSize: 9 }}>İmza</Text>
       </View>
       <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
         Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
@@ -265,7 +257,6 @@ function teknikKomponentPage(c: any) {
       <KInfo sub l="Ebatlar" val={ebat(c.inp.kapi_genislik, c.inp.kapi_yukseklik)} unit="mm." />
 
       <KSection>KABİN</KSection>
-      <KInfo sub l="Tipi" val={c.inp.kabin_tipi} />
       <KInfo sub l="Ebatları" val={ebat(c.inp.kabin_genislik, c.inp.kabin_derinlik)} unit="mm." />
       <KInfo sub l="Ağırlığı" val={c.inp.kabin_agirligi || c.kap?.kabin_agirlik} unit="Kg." />
 
@@ -348,10 +339,12 @@ const bsP = { textAlign: "justify" as const, fontSize: 8.6, lineHeight: 1.35, ma
 const v = (x: any) => (x !== undefined && x !== null && String(x).trim() !== "" ? String(x) : "—");
 
 function R({ l, val }: { l: string; val?: any }) {
+  // Başta görünmez ince boşluk: react-pdf bazı metinlerde ilk glyph'i kırpıyor;
+  // düşse bile boşluk düşer, gerçek metin korunur.
   return (
     <View style={st.row}>
-      <Text style={st.lbl}>{l}</Text>
-      <Text style={st.val}>{v(val)}</Text>
+      <View style={st.lbl}><Text>{l}</Text></View>
+      <View style={st.val}><Text style={{ fontWeight: "bold" }}>{v(val)}</Text></View>
     </View>
   );
 }
@@ -522,7 +515,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <R l="Telefon" val={c.firma.telefon} />
       <R l="Faks" val={c.firma.faks} />
       <R l="Sanayi Sicil No" val={c.firma.sanayi_sicil_no} />
-      <R l="CE İşaretlemesi Sorumlusu" val={c.muh.makine?.ad || c.firma.yetkili} />
+      <R l="CE İşaretlemesi Sorumlusu" val={c.firma.yetkili} />
       <Footer firma={c.fname} />
     </Page>
   ),
@@ -636,7 +629,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FSection>ONAY</FSection>
         <FRow l="FİRMA YETKİLİSİNİN ADI VE SOYADI" val={c.firma.yetkili} />
         <FRow l="FİRMA YETKİLİSİNİN İMZASI" val="" tall={52} />
-        <FRow l="FİRMA KAŞESİ" val="" tall={52} />
+        <FRow l="FİRMA KAŞESİ" val="" tall={78} />
       </View>
       <Footer firma={c.fname} />
     </Page>
@@ -788,19 +781,21 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   uygunluk_beyani: (c) => {
     const tip = c.isHid ? "Hidrolik Yük Asansörü" : "Elektrikli Yolcu Asansörü";
     const yer = v(c.firma.sehir) || "BURSA";
+    const isG = c.inp.modul_secim === "G";
     return (
       <Page key="uygunluk_beyani" size="A4" style={st.page}>
         <Text style={st.formTitle}>AB UYGUNLUK BEYANI</Text>
-        <View style={{ height: 10 }} />
+        <View style={{ height: 6 }} />
         <R l="Montaj Firması" val={`${v(c.firma.unvan)}${c.firma.adres ? "\n" + v(c.firma.adres) : ""}`} />
-        <Text style={[st.p, { marginTop: 8 }]}>
+        <Text style={[st.p, { marginTop: 5, marginBottom: 0 }]}>
           Aşağıda tanımı, modeli ve seri numarası verilen asansörün belirtilen standartlara ve direktiflere
           uygun olduğunu beyan ederiz.
         </Text>
-        <View style={{ height: 4 }} />
+        <View style={{ height: 3 }} />
         <R l="Asansörün Tipi" val={tip} />
         <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg. - ${v(c.kisi)} Kişilik` : ""} />
         <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} />
+        <R l="Askı Tipi" val={c.inp.aski_tipi} />
         <R l="Kat Adedi / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
         <R l="İmal Yılı" val={c.d.imal_yili} />
         <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
@@ -808,32 +803,44 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <R l="Montaj Adresi" val={c.d.montaj_adresi} />
         <R l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
         <R l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
-        <View style={{ height: 6 }} />
+        <View style={{ height: 4 }} />
         <R l="Uygulanan Standart" val="TS EN 81–20:2020, TS EN 81-50:2020, TS EN 81-70:2021, TS EN 81-28+AC:2019" />
-        <Text style={{ fontSize: 9, marginTop: 3, color: "#6b7280" }}>ve Direktifler:</Text>
+        <Text style={{ fontSize: 8.6, marginTop: 2, color: "#6b7280" }}>ve Direktifler:</Text>
         {[
-          "2014/33 AB EK IV-B / EK X ( Modül B+E )",
+          isG ? "2014/33 AB EK VIII ( Modül G )" : "2014/33 AB EK IV-B / EK X ( Modül B+E )",
           "2006 / 42 / AT Makine Emniyeti Yönetmeliği",
           "2014/35 AB Alçak Gerilim Yönetmeliği",
           "2014/30 AB Elektromanyetik Uyumluluk Yönetmeliği",
         ].map((t, i) => (
-          <Text key={i} style={{ fontSize: 9, marginLeft: 14, marginTop: 1 }}>• {t}</Text>
+          <Text key={i} style={{ fontSize: 8.6, marginLeft: 14 }}>• {t}</Text>
         ))}
-        <Text style={st.sec}>MODÜL B</Text>
-        <R l="Onaylanmış Kuruluş" val={c.inp.ub_b_nb} />
-        <R l="Ünvanı ve Adresi" val={c.inp.ub_b_nb_adres} />
-        <R l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_b_nb_no} />
-        <R l="MODÜL B Belge No" val={c.inp.ub_b_belge_no} />
-        <Text style={st.sec}>MODÜL E</Text>
-        <R l="Onaylanmış Kuruluş" val={c.inp.ub_e_nb} />
-        <R l="Ünvanı ve Adresi" val={c.inp.ub_e_nb_adres} />
-        <R l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_e_nb_no} />
-        <R l="MODÜL E Belge No" val={c.inp.ub_e_belge_no} />
-        <Text style={[st.p, { marginTop: 8 }]}>
+        {isG ? (
+          <>
+            <Text style={st.sec}>MODÜL G</Text>
+            <R l="Onaylanmış Kuruluş" val={c.inp.modul_onaylanmis_kurulus} />
+            <R l="Ünvanı ve Adresi" val={c.inp.modul_nb_adres} />
+            <R l="Onaylanmış Kuruluş Numarası" val={c.inp.modul_kurulus_no} />
+            <R l="MODÜL G Belge No" val={c.inp.modul_belge_no} />
+          </>
+        ) : (
+          <>
+            <Text style={st.sec}>MODÜL B</Text>
+            <R l="Onaylanmış Kuruluş" val={c.inp.ub_b_nb} />
+            <R l="Ünvanı ve Adresi" val={c.inp.ub_b_nb_adres} />
+            <R l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_b_nb_no} />
+            <R l="MODÜL B Belge No" val={c.inp.ub_b_belge_no} />
+            <Text style={st.sec}>MODÜL E</Text>
+            <R l="Onaylanmış Kuruluş" val={c.inp.ub_e_nb} />
+            <R l="Ünvanı ve Adresi" val={c.inp.ub_e_nb_adres} />
+            <R l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_e_nb_no} />
+            <R l="MODÜL E Belge No" val={c.inp.ub_e_belge_no} />
+          </>
+        )}
+        <Text style={[st.p, { marginTop: 6, marginBottom: 0 }]}>
           {v(c.firma.unvan)} olarak, yukarıda bilgileri verilmiş olan ürünün yukarıdaki Avrupa Birliği direktifine,
           standartlara ve bunların gerektiği şartlara uygun olduğunu beyan ederiz.
         </Text>
-        <View style={{ height: 10 }} />
+        <View style={{ height: 6 }} />
         <R l="Yetkili Kişi" val={c.firma.yetkili} />
         <R l="İmzanın Yeri ve Tarihi" val={`${yer} — …../…../……`} />
         <R l="Kaşe / İmza" val="" />
@@ -851,21 +858,21 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <R l="Seyir Mesafesi" val={c.inp.seyir_mesafesi ? `${c.inp.seyir_mesafesi} m` : undefined} />
       <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg` : undefined} />
       <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
+      <R l="Askı Tipi" val={c.inp.aski_tipi} />
       <R l="Kat / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
       <R l="Ada / Parsel" val={c.adaParsel} />
       <R l="Asansör Adresi" val={c.d.montaj_adresi} />
       <R l="Firma Adı / Ünvanı" val={c.firma.unvan} />
       <R l="Firma Adresi" val={c.firma.adres} />
-      <R l="Firma Yetkilisi" val={c.firma.yetkili} />
-      <Text style={{ marginTop: 12, fontSize: 9, color: "#6b7280" }}>
-        İş bu evrak; 03.04.2021 tarihli, 31443 sayılı Resmî Gazete kapsamında düzenlenmiştir.
+      <R l="Firma Yetkili Adı / Soyadı" val={c.firma.yetkili} />
+      <Text style={{ marginTop: 14, fontSize: 9, textAlign: "justify", lineHeight: 1.5 }}>
+        İş bu evrak ; 03.04.2021 tarihli, 31443 sayılı resmi gazete MADDE 2 kapsamında hazırlanmış olup , yukarıda
+        belirtilen asansör teknik özellik ve adres bilgilerine göre hazırlanmış olan AB UYGUNLUK BEYANI ve
+        GARANTİ BELGESİ evrakları şirket yetkilisi olarak tarafımca imzalanmıştır.
       </Text>
-      <View style={st.signWrap}>
-        <View />
-        <View style={st.signBox}>
-          <Text style={{ fontWeight: "bold" }}>{v(c.firma.yetkili)}</Text>
-          <Text style={st.signLine}>Kaşe / İmza</Text>
-        </View>
+      <View style={{ marginTop: 34, alignItems: "flex-end" }}>
+        <Text style={{ fontSize: 9, fontWeight: "bold", marginBottom: 6 }}>FİRMA YETKİLİ ADI / SOYADI</Text>
+        <Text style={{ fontSize: 9 }}>{v(c.firma.yetkili)}</Text>
       </View>
       <Footer firma={c.fname} />
     </Page>
@@ -1007,18 +1014,21 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   egitim_tutanagi: (c) => (
     <Page key="egitim_tutanagi" size="A4" style={st.page}>
       <DocHead firma={c.firma} title="ASANSÖRDE MAHSUR KALAN KİŞİLERİN KURTARILMASI EĞİTİMİ" />
+      <R l="Asansör Tipi" val={c.malinCinsi} />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
       <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
       <R l="Servise Veriliş Tarihi" val={c.servisTarihi} />
       <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
       <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
       <Text style={st.sec}>EĞİTİM İÇERİĞİ</Text>
-      <Text style={st.p}>
-        Aşağıda listede ismi bulunan kişilere, yetkili kişi tarafından, asansörde mahsur kalan
-        kişilerin kurtarılmasına yönelik eğitim verilmiştir.
+      <Text style={[st.p, { textAlign: "justify", lineHeight: 1.45 }]}>
+        Aşağıda listede ismi bulunan kişilere , yetkili kişi tarafından , asansörde mahsur kalan kişilerin
+        kurtarılması eğitimi 2 saatlik süreçte uygulamalı olarak verilmiştir. Kurtarma talimatları eğitim alan
+        kişilere belirtilmiş olup birer adet kapı açma üçgen anahtarı teslim edilmiştir. Kapı açma üçgen anahtarı
+        kullanım amacı dışında kullanılmayacağı eğitimi alan kişilere belirtilmiştir.
       </Text>
-      <R l="Eğitim Verilen Yer" val="" />
-      <Text style={[st.sec, { marginTop: 10 }]}>EĞİTİMİ ALANLAR</Text>
+      <Text style={{ fontSize: 9, marginTop: 6, marginBottom: 2 }}>Eğitim Verilen Yer :</Text>
+      <Text style={[st.sec, { marginTop: 8 }]}>EĞİTİMİ ALANLAR</Text>
       <View style={st.tbl}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
@@ -1035,8 +1045,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       </View>
       <View style={{ marginTop: 16, width: "55%" }}>
         <View style={st.fBox}>
-          <FRow l="Eğitimi Veren — İsim Soyisim" val="" />
-          <FRow l="İmza" val="" />
+          <FRow l="Eğitimi Veren — İsim Soyisim" val="" tall={30} />
+          <FRow l="İmza" val="" tall={30} />
         </View>
       </View>
       <Text style={{ marginTop: 14, color: "#6b7280" }}>Tarih : ...../...../.........</Text>
@@ -1047,6 +1057,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   teslim_tutanagi: (c) => (
     <Page key="teslim_tutanagi" size="A4" style={st.page}>
       <DocHead firma={c.firma} title="ASANSÖR ve DOKÜMAN TESLİM TUTANAĞI" />
+      <R l="Asansör Tipi" val={c.malinCinsi} />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
       <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
       <R l="Servise Veriliş Tarihi" val={c.servisTarihi} />

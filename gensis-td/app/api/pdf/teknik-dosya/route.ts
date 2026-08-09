@@ -213,7 +213,9 @@ export async function GET(req: NextRequest) {
     } else if (code === "firma_bilgileri") {
       for (const p of attach.coSanayi) await addFile("documents", p);
       for (const p of attach.coTse) await addFile("documents", p);
-      for (const p of attach.coCe) await addFile("documents", p);
+      // Mod G seçiliyse: müşteri CE belgeleri yerine yüklenen Modül G belgesi
+      if (attach.isG) { for (const p of (attach.pf["modul_g_belge"] ?? [])) await addFile("documents", p); }
+      else { for (const p of attach.coCe) await addFile("documents", p); }
     } else if (code === "muh_taahhut_makine") {
       for (const p of attach.engMakine) await addFile("documents", p);
     } else if (code === "muh_taahhut_elektrik") {

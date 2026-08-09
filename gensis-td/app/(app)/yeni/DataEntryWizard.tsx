@@ -474,7 +474,7 @@ export default function DataEntryWizard(props: Props) {
         sanayi_sicil_no: ssDoc?.belge_no ?? "", sanayi_sicil_tarihi: ssDoc?.issue_date ?? "",
         tse_tarihi: tseDoc?.issue_date ?? "", tse_gecerlilik: tseDoc?.valid_until ?? "",
         modul_belge_no: modulBelgeNo, modul_belge_tarihi: modulBelgeTarihi,
-        modul_onaylanmis_kurulus: modulNb?.name ?? "", modul_kurulus_no: modulNb?.identity_no ?? "",
+        modul_onaylanmis_kurulus: modulNb?.name ?? "", modul_kurulus_no: modulNb?.identity_no ?? "", modul_nb_adres: modulNb?.address ?? "",
         // Uygunluk Beyanı — Modül B / Modül E
         ub_b_belge_no: ceB?.belge_no ?? "", ub_b_nb: bNb.ad, ub_b_nb_no: bNb.no, ub_b_nb_adres: bNb.adres,
         ub_e_belge_no: ceE?.belge_no ?? "", ub_e_nb: eNb.ad, ub_e_nb_no: eNb.no, ub_e_nb_adres: eNb.adres,
