@@ -20,7 +20,7 @@ export default async function ProjeTakipPage() {
 
   const [{ data: projeler }, { data: docs }, { data: muhasebe }, { data: companies }, { data: provinces }, { data: sorumlular }] =
     await Promise.all([
-      admin.from("takip_projeler").select("*").order("proje_no", { ascending: false }).limit(5000),
+      admin.from("takip_projeler").select("*").order("proje_no", { ascending: false }).order("created_at", { ascending: true }).limit(5000),
       admin.from("takip_dokumanlar").select("id, takip_id, kind, original_name, created_at").limit(20000),
       admin.from("takip_muhasebe").select("takip_id, cariye_islendi, teslim_tarihi").limit(5000),
       supabase.from("companies").select("id, short_name, legal_name, city").order("short_name").limit(2000),

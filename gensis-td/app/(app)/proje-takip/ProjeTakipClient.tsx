@@ -13,7 +13,9 @@ type Sorumlu = { id: string; full_name: string | null; role: string };
 type District = { id: string; name: string };
 type Doc = { id: string; takip_id: string; kind: string; original_name: string | null };
 type Row = {
-  id: string; proje_no: number; proje_tipi: string; siparis_tarihi: string | null;
+  id: string; proje_no: number; parent_id: string | null; rev_no: string | null;
+  rev_tarihi: string | null; rev_aciklama: string | null;
+  proje_tipi: string; siparis_tarihi: string | null;
   company_id: string | null; ada_parsel: string | null; is_adi: string | null;
   asansor_sayisi: number | null; asansor_tipi: string | null;
   il_adi: string | null; ilce_adi: string | null; fiyat: number | null;
@@ -118,6 +120,7 @@ export default function ProjeTakipClient({
             <table className="w-full border-collapse">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
+                  <th className={th}>Durum</th>
                   <th className={th}>Proje No</th>
                   <th className={th}>Ada/Parsel</th>
                   <th className={th}>Tip</th>
@@ -126,10 +129,15 @@ export default function ProjeTakipClient({
                   <th className={th}>Sipariş Tar.</th>
                   <th className={th}>Sorumlu</th>
                   <th className={th}>Tamamlanma Tar.</th>
-                  <th className={th}>Durum</th>
+                  <th className={th}>İşlem</th>
                 </tr>
                 {showFilters && (
                   <tr className="bg-white border-b border-slate-200">
+                    <th className={fTh}>
+                      <select className={fInp} value={f.durum} onChange={(e) => setFilter("durum", e.target.value)}>
+                        <option value="">Hepsi</option><option value="HAZIRLANIYOR">HAZIRLANIYOR</option><option value="BEKLIYOR">BEKLIYOR</option><option value="TAMAMLANDI">TAMAMLANDI</option>
+                      </select>
+                    </th>
                     <th className={fTh}><input className={fInp} value={f.projeNo} onChange={(e) => setFilter("projeNo", e.target.value)} placeholder="No" /></th>
                     <th className={fTh}><input className={fInp} value={f.adaParsel} onChange={(e) => setFilter("adaParsel", e.target.value)} placeholder="Ada/Parsel" /></th>
                     <th className={fTh}>
@@ -152,25 +160,13 @@ export default function ProjeTakipClient({
                       </select>
                     </th>
                     <th className={fTh}></th>
-                    <th className={fTh}>
-                      <select className={fInp} value={f.durum} onChange={(e) => setFilter("durum", e.target.value)}>
-                        <option value="">Hepsi</option><option value="HAZIRLANIYOR">HAZIRLANIYOR</option><option value="BEKLIYOR">BEKLIYOR</option><option value="TAMAMLANDI">TAMAMLANDI</option>
-                      </select>
-                    </th>
+                    <th className={fTh}></th>
                   </tr>
                 )}
               </thead>
               <tbody>
                 {filtered.map((r) => (
                   <tr key={r.id} className={`border-b border-slate-100 last:border-0 ${rowClass(r)}`}>
-                    <td className={td + " font-bold text-navy"}>{r.proje_no}</td>
-                    <td className={td + " text-slate-500"}>{r.ada_parsel ?? "—"}</td>
-                    <td className={td}>{TIP_TR[r.proje_tipi] ?? r.proje_tipi}</td>
-                    <td className={td + " font-semibold"}>{firmaAd(r.company_id)}</td>
-                    <td className={td}>{r.is_adi ?? "—"}</td>
-                    <td className={td + " text-slate-500"}>{dt(r.siparis_tarihi)}</td>
-                    <td className={td + " text-slate-600"}>{sorumluAd(r.proje_sorumlusu_id)}</td>
-                    <td className={td + " text-slate-500"}>{r.durum === "TAMAMLANDI" ? dt(r.tamamlanma_tarihi) : ""}</td>
                     <td className={td}>
                       <button onClick={() => setDurumRow(r)} title="Durumu aç"
                         className={r.durum === "HAZIRLANIYOR"
@@ -180,10 +176,24 @@ export default function ProjeTakipClient({
                       </button>
                       {r.muhasebe?.cariye_islendi && <span className="block text-[10px] text-green-600 font-semibold mt-0.5">Teslim edildi</span>}
                     </td>
+                    <td className={td + " font-bold text-navy"}>
+                      {r.proje_no}
+                      {r.parent_id && <span className="ml-1.5 text-[10px] font-bold bg-brand-light text-brand px-1.5 py-0.5 rounded">Rev {r.rev_no ?? ""}</span>}
+                    </td>
+                    <td className={td + " text-slate-500"}>{r.ada_parsel ?? "—"}</td>
+                    <td className={td}>{TIP_TR[r.proje_tipi] ?? r.proje_tipi}</td>
+                    <td className={td + " font-semibold"}>{firmaAd(r.company_id)}</td>
+                    <td className={td}>{r.is_adi ?? "—"}</td>
+                    <td className={td + " text-slate-500"}>{dt(r.siparis_tarihi)}</td>
+                    <td className={td + " text-slate-600"}>{sorumluAd(r.proje_sorumlusu_id)}</td>
+                    <td className={td + " text-slate-500"}>{r.durum === "TAMAMLANDI" ? dt(r.tamamlanma_tarihi) : ""}</td>
+                    <td className={td + " text-right"}>
+                      <Link href={`/proje-takip/${r.id}/duzenle`} className="text-xs font-bold text-brand hover:underline">Güncelle</Link>
+                    </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={9} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok. Sağ üstten “Yeni Proje” ile başlayın.</td></tr>
+                  <tr><td colSpan={10} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok. Sağ üstten “Yeni Proje” ile başlayın.</td></tr>
                 )}
               </tbody>
             </table>

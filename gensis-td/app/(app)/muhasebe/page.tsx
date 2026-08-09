@@ -9,7 +9,7 @@ export default async function MuhasebePage() {
   const admin = createAdminClient();
 
   const [{ data: projeler }, { data: muhasebe }, { data: companies }, { data: sorumlular }] = await Promise.all([
-    admin.from("takip_projeler").select("*").order("proje_no", { ascending: false }).limit(5000),
+    admin.from("takip_projeler").select("*").order("proje_no", { ascending: false }).order("created_at", { ascending: true }).limit(5000),
     admin.from("takip_muhasebe").select("*").limit(5000),
     supabase.from("companies").select("id, short_name").order("short_name").limit(2000),
     admin.from("profiles").select("id, full_name").in("role", ["admin", "gensis"]).limit(1000),

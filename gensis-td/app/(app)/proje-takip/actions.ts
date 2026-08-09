@@ -105,8 +105,104 @@ export async function createTakipProje(p: TakipPayload): Promise<Result> {
   }
 }
 
+// ---------- Mevcut projeyi güncelle ----------
+export async function updateTakipProje(id: string, p: TakipPayload): Promise<Result> {
+  try {
+    await assertStaff();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    if (!p.company_id) return { ok: false, error: "Firma seçilmedi." };
+    const admin = createAdminClient();
+    const fiyat = p.fiyat ?? null;
+    const toplam_tutar = fiyat == null ? null : (p.fatura_tipi === "faturali" ? Math.round(fiyat * 1.2 * 100) / 100 : fiyat);
+    const { error } = await admin.from("takip_projeler").update({
+      proje_tipi: p.proje_tipi,
+      siparis_tarihi: p.siparis_tarihi,
+      company_id: p.company_id,
+      ada: p.ada,
+      parsel: p.parsel,
+      ada_parsel: [p.ada, p.parsel].filter(Boolean).join(" / ") || null,
+      is_adi: p.is_adi,
+      asansor_sayisi: p.asansor_sayisi,
+      asansor_tipi: p.asansor_tipi,
+      province_id: p.province_id,
+      district_id: p.district_id,
+      il_adi: p.il_adi,
+      ilce_adi: p.ilce_adi,
+      fiyat,
+      fatura_tipi: p.fatura_tipi,
+      toplam_tutar,
+      proje_sorumlusu_id: p.proje_sorumlusu_id,
+      tahmini_tamamlanma: p.tahmini_tamamlanma,
+      updated_at: new Date().toISOString(),
+    }).eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/proje-takip");
+    return { ok: true, id };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Revizyon ekle (orijinale bağlı alt kayıt) ----------
+export type RevizyonPayload = {
+  rev_no: string | null;
+  rev_tarihi: string | null;
+  fiyat: number | null;
+  fatura_tipi: "faturali" | "faturasiz";
+  rev_aciklama: string | null;
+};
+export async function createRevision(parentId: string, r: RevizyonPayload): Promise<Result> {
+  try {
+    const actor = await assertStaff();
+    if (!parentId) return { ok: false, error: "Ana proje bulunamadı." };
+    const admin = createAdminClient();
+    // Ana projeyi al — bilgileri devral
+    const { data: parent } = await admin.from("takip_projeler")
+      .select("proje_no, proje_tipi, siparis_tarihi, company_id, ada, parsel, ada_parsel, is_adi, asansor_sayisi, asansor_tipi, province_id, district_id, il_adi, ilce_adi, proje_sorumlusu_id, parent_id")
+      .eq("id", parentId).maybeSingle();
+    if (!parent) return { ok: false, error: "Ana proje bulunamadı." };
+    // Revizyonun revizyonu değil, her zaman kök projeye bağla
+    const rootId = parent.parent_id ?? parentId;
+
+    const fiyat = r.fiyat ?? null;
+    const toplam_tutar = fiyat == null ? null : (r.fatura_tipi === "faturali" ? Math.round(fiyat * 1.2 * 100) / 100 : fiyat);
+
+    const { data, error } = await admin.from("takip_projeler").insert({
+      proje_no: parent.proje_no,
+      parent_id: rootId,
+      rev_no: r.rev_no,
+      rev_tarihi: r.rev_tarihi,
+      rev_aciklama: r.rev_aciklama,
+      proje_tipi: parent.proje_tipi,
+      siparis_tarihi: parent.siparis_tarihi,
+      company_id: parent.company_id,
+      ada: parent.ada,
+      parsel: parent.parsel,
+      ada_parsel: parent.ada_parsel,
+      is_adi: parent.is_adi,
+      asansor_sayisi: parent.asansor_sayisi,
+      asansor_tipi: parent.asansor_tipi,
+      province_id: parent.province_id,
+      district_id: parent.district_id,
+      il_adi: parent.il_adi,
+      ilce_adi: parent.ilce_adi,
+      fiyat,
+      fatura_tipi: r.fatura_tipi,
+      toplam_tutar,
+      proje_sorumlusu_id: parent.proje_sorumlusu_id,
+      durum: "HAZIRLANIYOR",
+      created_by: actor.userId,
+    }).select("id, proje_no").single();
+    if (error || !data) return { ok: false, error: error?.message ?? "Revizyon oluşturulamadı." };
+    revalidatePath("/proje-takip");
+    return { ok: true, id: data.id, proje_no: data.proje_no };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // ---------- Doküman yükle ----------
-const TAKIP_KIND = ["mimari_proje", "elektrik_projesi", "statik_projesi", "olcu_formu", "yapi_ruhsati", "diger", "tamamlanan_proje"];
+const TAKIP_KIND = ["mimari_proje", "elektrik_projesi", "statik_projesi", "olcu_formu", "yapi_ruhsati", "diger", "tamamlanan_proje", "revize_proje"];
 export async function uploadTakipDoc(formData: FormData): Promise<Result> {
   try {
     const actor = await assertStaff();

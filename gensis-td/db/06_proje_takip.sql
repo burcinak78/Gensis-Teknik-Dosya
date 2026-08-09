@@ -47,7 +47,11 @@ end $$;
 -- ---------- 3) Proje Takip ana tablosu ----------
 create table if not exists public.takip_projeler (
   id                    uuid primary key default gen_random_uuid(),
-  proje_no              int unique not null,
+  proje_no              int not null,
+  parent_id             uuid references public.takip_projeler(id) on delete cascade,
+  rev_no                text,
+  rev_tarihi            date,
+  rev_aciklama          text,
   proje_tipi            text not null check (proje_tipi in ('mimari','uygulama')),
   siparis_tarihi        date,
   company_id            uuid references public.companies(id),
@@ -83,6 +87,13 @@ create index if not exists takip_projeler_muh_idx on public.takip_projeler(muhas
 -- Mevcut tabloya ada/parsel kolonlarını ekle (daha önce oluşturulmuşsa)
 alter table public.takip_projeler add column if not exists ada text;
 alter table public.takip_projeler add column if not exists parsel text;
+-- Revizyon kolonları (mevcut tablo için) + proje_no unique kısıtını kaldır
+alter table public.takip_projeler add column if not exists parent_id uuid references public.takip_projeler(id) on delete cascade;
+alter table public.takip_projeler add column if not exists rev_no text;
+alter table public.takip_projeler add column if not exists rev_tarihi date;
+alter table public.takip_projeler add column if not exists rev_aciklama text;
+alter table public.takip_projeler drop constraint if exists takip_projeler_proje_no_key;
+create index if not exists takip_projeler_parent_idx on public.takip_projeler(parent_id);
 
 -- ---------- 4) Proje dokümanları (çoklu yükleme) ----------
 -- kind: mimari_proje | elektrik_projesi | statik_projesi | olcu_formu | yapi_ruhsati | diger | tamamlanan_proje

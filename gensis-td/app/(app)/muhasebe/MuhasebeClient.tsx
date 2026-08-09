@@ -11,7 +11,8 @@ type Muh = {
   teslim_yontemi: string | null; kargo_sirketi: string | null; kargo_takip_no: string | null; teslim_tarihi: string | null;
 };
 type Row = {
-  id: string; proje_no: number; proje_tipi: string; company_id: string | null;
+  id: string; proje_no: number; parent_id: string | null; rev_no: string | null;
+  proje_tipi: string; company_id: string | null;
   ada_parsel: string | null; is_adi: string | null; il_adi: string | null; ilce_adi: string | null;
   fiyat: number | null; fatura_tipi: string | null; toplam_tutar: number | null;
   proje_sorumlusu_id: string | null; durum: string; tamamlanma_tarihi: string | null;
@@ -33,7 +34,9 @@ export default function MuhasebeClient({
   const [showFilters, setShowFilters] = useState(false);
   const [f, setF] = useState({ durum: "", projeNo: "", tip: "", firma: "", adaParsel: "", isAdi: "", fatura: "", teslim: "" });
   const [modalRow, setModalRow] = useState<Row | null>(null);
+  const [modalEdit, setModalEdit] = useState(false);
   const setFilter = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
+  const openModal = (r: Row, edit: boolean) => { setModalRow(r); setModalEdit(edit); };
   const firmaAd = (id: string | null) => companies.find((c) => c.id === id)?.short_name ?? "—";
   const tc = (v: unknown) => String(v ?? "").toLocaleLowerCase("tr");
 
@@ -118,6 +121,7 @@ export default function MuhasebeClient({
                   <th className={th}>Fatura</th>
                   <th className={th}>Teslim Tipi</th>
                   <th className={th}>Teslim Tarihi</th>
+                  <th className={th}>İşlem</th>
                 </tr>
                 {showFilters && (
                   <tr className="bg-white border-b border-slate-200">
@@ -152,6 +156,7 @@ export default function MuhasebeClient({
                       </select>
                     </th>
                     <th className={fTh}></th>
+                    <th className={fTh}></th>
                   </tr>
                 )}
               </thead>
@@ -162,17 +167,17 @@ export default function MuhasebeClient({
                   return (
                     <tr key={r.id} className={`border-b border-slate-100 last:border-0 ${rowClass(r)}`}>
                       <td className={td}>
-                        {done
-                          ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700">Teslim edildi</span>
-                          : sent
-                            ? <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700">İşlem bekliyor</span>
-                            : <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500">{r.durum}</span>}
+                        {sent
+                          ? <button onClick={() => openModal(r, false)} title="Muhasebe işlemleri"
+                              className={`text-[11px] font-bold px-2 py-1 rounded-full hover:opacity-80 ${done ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                              {done ? "Teslim edildi" : "İşlem bekliyor"}
+                            </button>
+                          : <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500">{r.durum}</span>}
                       </td>
                       <td className={td + " font-bold text-navy"}>
                         {sent && !done && <span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5 align-middle" title="Yeni" />}
-                        {sent
-                          ? <button onClick={() => setModalRow(r)} title="Muhasebe işlemleri" className="text-navy hover:underline">{r.proje_no}</button>
-                          : <span>{r.proje_no}</span>}
+                        {r.proje_no}
+                        {r.parent_id && <span className="ml-1.5 text-[10px] font-bold bg-brand-light text-brand px-1.5 py-0.5 rounded">Rev {r.rev_no ?? ""}</span>}
                       </td>
                       <td className={td + " font-semibold text-center"}>{TIP_KISA[r.proje_tipi] ?? "—"}</td>
                       <td className={td + " font-semibold"}>{firmaAd(r.company_id)}</td>
@@ -182,11 +187,16 @@ export default function MuhasebeClient({
                       <td className={td}>{r.fatura_tipi === "faturali" ? "Faturalı" : r.fatura_tipi === "faturasiz" ? "Faturasız" : "—"}</td>
                       <td className={td}>{teslimText(r)}</td>
                       <td className={td + " text-slate-500"}>{dt(r.muhasebe?.teslim_tarihi)}</td>
+                      <td className={td + " text-right"}>
+                        {sent
+                          ? <button onClick={() => openModal(r, true)} className="text-xs font-bold text-brand hover:underline">Güncelle</button>
+                          : <span className="text-xs text-slate-300">—</span>}
+                      </td>
                     </tr>
                   );
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={10} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok.</td></tr>
+                  <tr><td colSpan={11} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok.</td></tr>
                 )}
               </tbody>
             </table>
@@ -196,16 +206,16 @@ export default function MuhasebeClient({
 
       {modalRow && (
         <MuhModal
-          row={modalRow} firmaAd={firmaAd(modalRow.company_id)}
-          onClose={() => setModalRow(null)}
-          onSaved={() => { setModalRow(null); router.refresh(); }}
+          row={modalRow} firmaAd={firmaAd(modalRow.company_id)} forceEdit={modalEdit}
+          onClose={() => { setModalRow(null); setModalEdit(false); }}
+          onSaved={() => { setModalRow(null); setModalEdit(false); router.refresh(); }}
         />
       )}
     </div>
   );
 }
 
-function MuhModal({ row, firmaAd, onClose, onSaved }: { row: Row; firmaAd: string; onClose: () => void; onSaved: () => void }) {
+function MuhModal({ row, firmaAd, forceEdit, onClose, onSaved }: { row: Row; firmaAd: string; forceEdit?: boolean; onClose: () => void; onSaved: () => void }) {
   const m = row.muhasebe;
   const faturali = row.fatura_tipi === "faturali";
   const hardCopy = row.teslim_tipi === "hard_copy";
@@ -221,7 +231,7 @@ function MuhModal({ row, firmaAd, onClose, onSaved }: { row: Row; firmaAd: strin
   const [err, setErr] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
 
-  const readonly = !!m?.cariye_islendi;
+  const readonly = !!m?.cariye_islendi && !forceEdit;
   const teslimTarihi = m?.teslim_tarihi ?? bugun;
 
   const req = (bad: boolean) => (touched && bad ? " border-red-400 bg-red-50" : "");
