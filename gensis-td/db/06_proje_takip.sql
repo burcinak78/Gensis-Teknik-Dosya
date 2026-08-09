@@ -5,24 +5,11 @@
 -- ============================================================
 
 -- ---------- 1) muhasebeci rolü ----------
--- profiles.role bir TEXT kolon ise: check kısıtını yenile.
-do $$
-declare r record;
-begin
-  for r in
-    select conname from pg_constraint
-     where conrelid = 'public.profiles'::regclass and contype = 'c'
-       and pg_get_constraintdef(oid) ilike '%role%'
-  loop
-    execute format('alter table public.profiles drop constraint %I', r.conname);
-  end loop;
-end $$;
-
-alter table public.profiles
-  add constraint profiles_role_check
-  check (role in ('admin','gensis','customer','muhasebeci'));
--- NOT: Eğer profiles.role bir ENUM tipi ise yukarıdaki yerine şunu çalıştırın:
---   alter type <enum_tipi_adi> add value if not exists 'muhasebeci';
+-- profiles.role bir ENUM (app_role) tipidir; yeni değeri ekle.
+-- ÖNEMLİ: Bu satırı TEK BAŞINA çalıştırın (aşağıdaki 2-6. adımlardan ÖNCE).
+-- Bazı ortamlarda ALTER TYPE ADD VALUE, aynı transaction içindeki diğer
+-- komutlarla birlikte çalıştırılamaz.
+alter type app_role add value if not exists 'muhasebeci';
 
 -- ---------- 2) Proje No sayacı (değiştirilebilir) ----------
 create table if not exists public.takip_counter (

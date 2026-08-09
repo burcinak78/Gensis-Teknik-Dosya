@@ -18,6 +18,26 @@ async function assertStaff(): Promise<{ userId: string; role: string }> {
   return { userId: user.id, role: prof.role as string };
 }
 
+// ---------- Hızlı müşteri ekle (wizard içinden) ----------
+export async function createQuickCompany(form: { short_name: string; legal_name: string; city: string }):
+  Promise<{ ok: true; id: string; short_name: string; legal_name: string; city: string | null } | { ok: false; error: string }> {
+  try {
+    await assertStaff();
+    if (!form.short_name?.trim()) return { ok: false, error: "Firma kısa adı zorunlu." };
+    const admin = createAdminClient();
+    const { data, error } = await admin.from("companies").insert({
+      short_name: form.short_name.trim(),
+      legal_name: (form.legal_name?.trim() || form.short_name.trim()),
+      city: form.city?.trim() || null,
+    }).select("id, short_name, legal_name, city").single();
+    if (error || !data) return { ok: false, error: error?.message ?? "Müşteri eklenemedi." };
+    revalidatePath("/proje-takip");
+    return { ok: true, id: data.id, short_name: data.short_name, legal_name: data.legal_name, city: data.city };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
 export type TakipPayload = {
   proje_tipi: "mimari" | "uygulama";
   siparis_tarihi: string | null;
@@ -102,6 +122,43 @@ export async function uploadTakipDoc(formData: FormData): Promise<Result> {
     if (upErr) return { ok: false, error: "Dosya yüklenemedi: " + upErr.message };
     const { data, error } = await admin.from("takip_dokumanlar").insert({
       takip_id, kind, storage_path: path, original_name: file.name, uploaded_by: actor.userId,
+    }).select("id").single();
+    if (error || !data) return { ok: false, error: error?.message ?? "Doküman kaydedilemedi." };
+    revalidatePath("/proje-takip");
+    return { ok: true, id: data.id };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Doğrudan-depolama yükleme (büyük dosyalar için) ----------
+// 1) İmzalı yükleme adresi üret (tarayıcı depoya doğrudan yükler → fonksiyon gövde limiti aşılmaz)
+export async function createTakipUploadUrl(takip_id: string, kind: string, filename: string):
+  Promise<{ ok: true; path: string; token: string } | { ok: false; error: string }> {
+  try {
+    await assertStaff();
+    if (!takip_id || !kind || !filename) return { ok: false, error: "Eksik bilgi." };
+    if (!TAKIP_KIND.includes(kind)) return { ok: false, error: "Geçersiz doküman türü." };
+    const admin = createAdminClient();
+    const ext = (filename.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+    const path = `takip/${takip_id}/${kind}-${randomUUID()}.${ext}`;
+    const { data, error } = await admin.storage.from("documents").createSignedUploadUrl(path);
+    if (error || !data) return { ok: false, error: error?.message ?? "Yükleme adresi alınamadı." };
+    return { ok: true, path: data.path, token: data.token };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// 2) Depoya yüklenen dosyanın kaydını oluştur
+export async function recordTakipDoc(takip_id: string, kind: string, path: string, original_name: string): Promise<Result> {
+  try {
+    const actor = await assertStaff();
+    if (!takip_id || !kind || !path) return { ok: false, error: "Eksik bilgi." };
+    if (!TAKIP_KIND.includes(kind)) return { ok: false, error: "Geçersiz doküman türü." };
+    const admin = createAdminClient();
+    const { data, error } = await admin.from("takip_dokumanlar").insert({
+      takip_id, kind, storage_path: path, original_name, uploaded_by: actor.userId,
     }).select("id").single();
     if (error || !data) return { ok: false, error: error?.message ?? "Doküman kaydedilemedi." };
     revalidatePath("/proje-takip");
