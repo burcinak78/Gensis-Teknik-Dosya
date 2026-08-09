@@ -240,8 +240,9 @@ function DurumModal({
   const isBekliyor = row.durum === "BEKLIYOR";
 
   function addStaged(list: FileList | null) {
-    if (!list || list.length === 0) return;
-    setStaged((s) => [...s, ...Array.from(list)]);
+    const arr = list ? Array.from(list).filter((x): x is File => !!x) : [];
+    if (arr.length === 0) return;
+    setStaged((s) => [...s, ...arr]);
     setErr(null);
   }
   function removeStaged(i: number) { setStaged((s) => s.filter((_, idx) => idx !== i)); }
@@ -366,7 +367,7 @@ function DurumModal({
                   <ul className="mt-1 space-y-0.5">
                     {staged.map((file, i) => (
                       <li key={i} className="flex items-center justify-between text-[11px] text-slate-600">
-                        <span className="inline-flex items-center gap-1"><span className="material-symbols-rounded text-[14px] text-amber-600">upload_file</span>{file.name} <span className="text-slate-400">· kaydedilecek</span></span>
+                        <span className="inline-flex items-center gap-1"><span className="material-symbols-rounded text-[14px] text-amber-600">upload_file</span>{file?.name ?? "dosya"} <span className="text-slate-400">· kaydedilecek</span></span>
                         <button type="button" onClick={() => removeStaged(i)} className="text-red-500 hover:underline ml-2">Kaldır</button>
                       </li>
                     ))}

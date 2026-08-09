@@ -87,7 +87,9 @@ export default function YeniProjeForm({
   const revFiyatNum = rev.fiyat === "" ? null : Number(rev.fiyat);
   const revToplam = revFiyatNum == null ? null : (rev.fatura_tipi === "faturali" ? Math.round(revFiyatNum * 1.2 * 100) / 100 : revFiyatNum);
   const reqCls = (bad: boolean) => (touched && bad ? " border-red-400 bg-red-50" : "");
-  const cityOptions = provinces.map((p) => p.name);
+  const safeProvinces = (provinces ?? []).filter((p) => p && p.name != null);
+  const safeDistricts = (districts ?? []).filter((d) => d && d.name != null);
+  const cityOptions = safeProvinces.map((p) => p.name);
 
   async function onProvince(v: string) {
     set("province_id", v); set("district_id", ""); setDistricts([]);
@@ -99,9 +101,10 @@ export default function YeniProjeForm({
 
   // "diger" çoklu; diğerleri tek (yeni seçim öncekini değiştirir)
   function addFiles(kind: string, list: FileList | null) {
-    if (!list || list.length === 0) return;
+    const arr = list ? Array.from(list).filter((x): x is File => !!x) : [];
+    if (arr.length === 0) return;
     const multiple = kind === "diger";
-    setFiles((s) => ({ ...s, [kind]: multiple ? [...(s[kind] ?? []), ...Array.from(list)] : [Array.from(list)[0]] }));
+    setFiles((s) => ({ ...s, [kind]: multiple ? [...(s[kind] ?? []), ...arr] : [arr[0]] }));
   }
   function removeFile(kind: string, idx: number) {
     setFiles((s) => ({ ...s, [kind]: (s[kind] ?? []).filter((_, i) => i !== idx) }));
@@ -128,8 +131,8 @@ export default function YeniProjeForm({
   }
 
   function buildPayload(): TakipPayload {
-    const prov = provinces.find((p) => String(p.id) === f.province_id);
-    const dist = districts.find((d) => d.id === f.district_id);
+    const prov = safeProvinces.find((p) => String(p.id) === f.province_id);
+    const dist = safeDistricts.find((d) => d.id === f.district_id);
     return {
       proje_tipi: f.proje_tipi as any,
       siparis_tarihi: f.siparis_tarihi || null,
@@ -367,13 +370,13 @@ export default function YeniProjeForm({
                 <Field label="İl">
                   <select className={inp} value={f.province_id} onChange={(e) => onProvince(e.target.value)}>
                     <option value="">İl seçiniz…</option>
-                    {provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    {safeProvinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </Field>
                 <Field label="İlçe">
-                  <select className={inp} value={f.district_id} onChange={(e) => set("district_id", e.target.value)} disabled={districts.length === 0}>
+                  <select className={inp} value={f.district_id} onChange={(e) => set("district_id", e.target.value)} disabled={safeDistricts.length === 0}>
                     <option value="">{f.province_id ? "İlçe seçiniz…" : "Önce il seçin"}</option>
-                    {districts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    {safeDistricts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </Field>
               </div>
@@ -461,7 +464,7 @@ function DocSlot({
       ))}
       {staged.map((file, i) => (
         <div key={i} className="flex items-center justify-between text-xs text-slate-600">
-          <span className="inline-flex items-center gap-1"><span className="material-symbols-rounded text-[15px] text-amber-600">upload_file</span>{file.name} <span className="text-slate-400">· kaydedilecek{!multiple && existing.length > 0 ? " (öncekini değiştirir)" : ""}</span></span>
+          <span className="inline-flex items-center gap-1"><span className="material-symbols-rounded text-[15px] text-amber-600">upload_file</span>{file?.name ?? "dosya"} <span className="text-slate-400">· kaydedilecek{!multiple && existing.length > 0 ? " (öncekini değiştirir)" : ""}</span></span>
           <button type="button" onClick={() => onRemoveStaged(i)} className="text-red-500 hover:underline">Kaldır</button>
         </div>
       ))}
