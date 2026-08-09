@@ -78,10 +78,10 @@ const COMPANY_DOC_ETIKET: Record<string, string> = {
 };
 const RANGE_100 = Array.from({ length: 100 }, (_, i) => i + 1);
 // Her kat/giriş için ayrı seri no giren kategoriler:
-//  - kapı kilidi: durak sayısı kadar (her katta bir kilit) → "Kat 1..N"
+//  - kapı kilidi: KAT ADEDİ kadar (kat listesindeki her kat) → kat isimleri; asma katlar pasif
 //  - kabin kapı kilidi: giriş sayısı kadar → "Giriş 1..N"
-const MULTI_SERI: Record<string, { count: "durak" | "giris"; label: string }> = {
-  kapi_kilidi: { count: "durak", label: "Kat" },
+const MULTI_SERI: Record<string, { count: "durak" | "giris" | "kat"; label: string }> = {
+  kapi_kilidi: { count: "kat", label: "Kat" },
   kabin_kilidi: { count: "giris", label: "Giriş" },
 };
 const empty = (x: any) => x === "" || x === null || x === undefined;
@@ -299,7 +299,9 @@ export default function DataEntryWizard(props: Props) {
   const multiCountForCode = (code: string) => {
     const cfg = MULTI_SERI[code];
     if (!cfg) return 0;
-    return cfg.count === "durak" ? Number(durakAdedi || 0) : Number(girisSayisi || 0);
+    if (cfg.count === "kat") return katListesi.length;      // kapı kilidi = kat adedi (kat listesi)
+    if (cfg.count === "durak") return Number(durakAdedi || 0);
+    return Number(girisSayisi || 0);                         // giriş
   };
   // Asma (ara) kat satırları: kapı kilidinde ara kat karşısındaki seri no PASİF olur
   const araKatLabelSet = useMemo(() => new Set(araKatlar.map((m) => m.label)), [araKatlar]);
