@@ -209,10 +209,10 @@ function teknikKomponentPage(c: any) {
   const eq = c.ekipman || {};
   const kk = eq.kapi_kilidi || {};
   const katSeri: string[] = Array.isArray(kk.seri_list) ? kk.seri_list.map((x: any) => (x == null ? "" : String(x))) : [];
-  const durak = Number(c.d.durak_adedi || 0) || katSeri.length;
-  const n = Math.max(durak, katSeri.length, 1);
-  // Kat etiketleri: veri girişindeki kat listesi (B/Z/1..) varsa onu kullan
+  // Kat etiketleri: veri girişindeki kat listesi (B/Z/1..) — satır sayısı KAT ADEDİ kadar
   const katAdlari: string[] = Array.isArray(c.inp.kat_listesi) ? c.inp.kat_listesi.map((x: any) => String(x)) : [];
+  // Satır sayısı kat listesine göre; kat listesi yoksa seri no / durak adedine düş
+  const n = Math.max(katAdlari.length, katSeri.length, Number(c.d.durak_adedi || 0) || 0, 1);
   const katlar = Array.from({ length: n }, (_, i) => ({
     ad: katAdlari[i] ? `${katAdlari[i]}` : `${i + 1}.KAT`,
     seri: katSeri[i] || "",

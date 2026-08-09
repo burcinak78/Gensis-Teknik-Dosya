@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { saveDraftProject, updateDraftProject, uploadProjectFile, deleteProjectFile, type DraftPayload } from "./actions";
@@ -306,6 +306,34 @@ export default function DataEntryWizard(props: Props) {
   // Asma (ara) kat satırları: kapı kilidinde ara kat karşısındaki seri no PASİF olur
   const araKatLabelSet = useMemo(() => new Set(araKatlar.map((m) => m.label)), [araKatlar]);
   const isPasifSeri = (code: string, i: number) => code === "kapi_kilidi" && araKatLabelSet.has(katListesi[i]);
+
+  // Kat listesi değiştiğinde (ör. asma kat ekle/çıkar) kapı kilidi seri no'larını
+  // KONUMA göre değil KAT İSMİNE göre yeniden hizala. Böylece araya kat eklenince
+  // seri no'lar kaymaz; asma/ara katlar her zaman boş kalır. Her değişimde baştan yazılır.
+  const prevKatRef = useRef<string[]>(katListesi);
+  useEffect(() => {
+    const prev = prevKatRef.current;
+    const next = katListesi;
+    if (prev.join("") === next.join("")) return; // değişiklik yok
+    setEquip((e) => {
+      const updated: typeof e = { ...e };
+      let changed = false;
+      for (const card of equipCards) {
+        if (card.code !== "kapi_kilidi") continue;
+        const cur = updated[card.key]?.seriList;
+        if (!cur || cur.length === 0) continue;
+        // önceki kat listesinden isim → seri no eşlemesi
+        const byName: Record<string, string> = {};
+        prev.forEach((name, idx) => { if (cur[idx] && cur[idx].trim()) byName[name] = cur[idx]; });
+        const newList = next.map((name) => (araKatLabelSet.has(name) ? "" : (byName[name] ?? "")));
+        updated[card.key] = { ...updated[card.key], seriList: newList };
+        changed = true;
+      }
+      return changed ? updated : e;
+    });
+    prevKatRef.current = next;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [katListesi]);
   // ekipman: marka + model + seri no dolu değilse eksik sayılır (ara kat satırları hariç)
   const eqIncomplete = (card: { key: string; code: string }) => {
     const s = equip[card.key];
