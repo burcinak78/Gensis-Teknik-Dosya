@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
-  createTakipProje, updateTakipProje, createRevision, uploadTakipDoc,
+  createTakipProje, updateTakipProje, createRevision,
   deleteTakipDoc, createQuickCompany, type TakipPayload,
 } from "./actions";
+import { uploadTakipFile } from "@/lib/takipUpload";
 
 type Company = { id: string; short_name: string; legal_name: string | null; city: string | null };
 type Province = { id: number; name: string };
@@ -149,18 +150,18 @@ export default function YeniProjeForm({
     };
   }
 
-  // Bekleyen dosyaları hedef kayda yükle (tek-tip dosyalar sunucuda öncekini siler)
+  // Bekleyen dosyaları hedef kayda yükle — doğrudan Supabase Storage'a (Vercel 4.5MB sınırına takılmaz)
+  // Sadece geçerli slot türlerini yükle (proje tipi değişince kalan eski türler atlanır)
   async function uploadStaged(targetId: string): Promise<string[]> {
+    const validKinds = new Set(slots.map((s) => s.kind));
     const failed: string[] = [];
-    const all = Object.entries(files);
+    const all = Object.entries(files).filter(([kind]) => validKinds.has(kind));
     const total = all.reduce((n, [, arr]) => n + arr.length, 0);
     let done = 0;
     for (const [kind, arr] of all) {
       for (const file of arr) {
         setProgress(`Dosyalar yükleniyor… (${++done}/${total})`);
-        const fd = new FormData();
-        fd.set("takip_id", targetId); fd.set("kind", kind); fd.set("file", file);
-        const up = await uploadTakipDoc(fd);
+        const up = await uploadTakipFile(supabase, targetId, kind, file);
         if (!up.ok) failed.push(`${file.name}: ${up.error}`);
       }
     }

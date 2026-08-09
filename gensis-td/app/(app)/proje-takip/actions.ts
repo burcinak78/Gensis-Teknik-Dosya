@@ -265,6 +265,13 @@ export async function recordTakipDoc(takip_id: string, kind: string, path: strin
     if (!takip_id || !kind || !path) return { ok: false, error: "Eksik bilgi." };
     if (!TAKIP_KIND.includes(kind)) return { ok: false, error: "Geçersiz doküman türü." };
     const admin = createAdminClient();
+    // Tek-dosyalık türlerde yeni yükleme öncekini siler (Diğer/Tamamlanan hariç)
+    if (SINGLE_KINDS.includes(kind)) {
+      const { data: prev } = await admin.from("takip_dokumanlar").select("id, storage_path").eq("takip_id", takip_id).eq("kind", kind);
+      const paths = (prev ?? []).map((p: any) => p.storage_path).filter(Boolean);
+      if (paths.length) await admin.storage.from("documents").remove(paths);
+      if ((prev ?? []).length) await admin.from("takip_dokumanlar").delete().eq("takip_id", takip_id).eq("kind", kind);
+    }
     const { data, error } = await admin.from("takip_dokumanlar").insert({
       takip_id, kind, storage_path: path, original_name, uploaded_by: actor.userId,
     }).select("id").single();

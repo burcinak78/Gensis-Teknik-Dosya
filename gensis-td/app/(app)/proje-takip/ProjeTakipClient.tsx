@@ -3,8 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { uploadTakipFile } from "@/lib/takipUpload";
 import {
-  uploadTakipDoc, deleteTakipDoc, saveBekliyorAciklama, completeTakipProje,
+  deleteTakipDoc, saveBekliyorAciklama, completeTakipProje,
 } from "./actions";
 
 type Company = { id: string; short_name: string; legal_name: string | null; city: string | null };
@@ -232,6 +234,7 @@ function DurumModal({
   const [staged, setStaged] = useState<File[]>([]);
   const [existingDocs, setExistingDocs] = useState<Doc[]>(row.docs.filter((d) => d.kind === "tamamlanan_proje"));
   const router = useRouter();
+  const supabase = createClient();
 
   const completed = row.durum === "TAMAMLANDI";
   const isBekliyor = row.durum === "BEKLIYOR";
@@ -266,12 +269,10 @@ function DurumModal({
     if (!teslimTipi) return setErr("Teslim tipi seçiniz.");
     if (teslimTipi === "hard_copy" && (!adet || Number(adet) < 1)) return setErr("Hard Copy adedi giriniz.");
     setBusy(true);
-    // Önce bekleyen dosyaları yükle (Yeni Proje ile aynı yöntem)
+    // Önce bekleyen dosyaları doğrudan Supabase Storage'a yükle (Vercel 4.5MB sınırına takılmaz)
     for (let i = 0; i < staged.length; i++) {
       setProgress(`Dosyalar yükleniyor… (${i + 1}/${staged.length})`);
-      const fd = new FormData();
-      fd.set("takip_id", row.id); fd.set("kind", "tamamlanan_proje"); fd.set("file", staged[i]);
-      const up = await uploadTakipDoc(fd);
+      const up = await uploadTakipFile(supabase, row.id, "tamamlanan_proje", staged[i]);
       if (!up.ok) { setBusy(false); setProgress(""); return setErr(`${staged[i].name}: ${up.error}`); }
     }
     setProgress("");
