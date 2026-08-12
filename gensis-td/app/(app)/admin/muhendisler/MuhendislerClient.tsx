@@ -61,7 +61,7 @@ export default function MuhendislerClient({
   const blank = { full_name: "", discipline: "makine", chamber_reg_no: "", company_id: defaultCompanyId, address: "", phone: "" };
   const [q, setQ] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [fil, setFil] = useState({ brans: "", firma: "" });
+  const [fil, setFil] = useState({ ad: "", brans: "", belge: "", firma: "" });
   const [editId, setEditId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false); // admin: modal aç/kapa
   const [form, setForm] = useState<Record<string, string>>({ ...blank });
@@ -106,10 +106,12 @@ export default function MuhendislerClient({
     const s = q.trim().toLocaleLowerCase("tr");
     return engineers.filter((e) => {
       if (s) {
-        const hay = [e.full_name, BRANS[e.discipline], e.companies?.short_name, e.chamber_reg_no].map(tc).join(" ");
+        const hay = [e.full_name, BRANS[e.discipline], e.companies?.short_name, e.chamber_reg_no, engDurum(e).t].map(tc).join(" ");
         if (!hay.includes(s)) return false;
       }
+      if (fil.ad && !tc(e.full_name).includes(tc(fil.ad))) return false;
       if (fil.brans && e.discipline !== fil.brans) return false;
+      if (fil.belge && engDurum(e).c !== fil.belge) return false;
       if (fil.firma && e.company_id !== fil.firma) return false;
       return true;
     });
@@ -325,14 +327,19 @@ export default function MuhendislerClient({
               </tr>
               {showFilters && (
                 <tr className="bg-white border-b border-slate-200">
-                  <th className={fTh}></th>
+                  <th className={fTh}><input className={fInp} value={fil.ad} onChange={(e) => setFil((s) => ({ ...s, ad: e.target.value }))} placeholder="Ad" /></th>
                   <th className={fTh}>
                     <select className={fInp} value={fil.brans} onChange={(e) => setFil((s) => ({ ...s, brans: e.target.value }))}>
                       <option value="">Hepsi</option>
                       {BRANS_OPTS.map((b) => <option key={b.v} value={b.v}>{b.t}</option>)}
                     </select>
                   </th>
-                  <th className={fTh}></th>
+                  <th className={fTh}>
+                    <select className={fInp} value={fil.belge} onChange={(e) => setFil((s) => ({ ...s, belge: e.target.value }))}>
+                      <option value="">Hepsi</option>
+                      <option value="green">Geçerli</option><option value="amber">1 aydan az</option><option value="red">Geçersiz</option><option value="slate">Belge yok</option>
+                    </select>
+                  </th>
                   <th className={fTh}>
                     <select className={fInp} value={fil.firma} onChange={(e) => setFil((s) => ({ ...s, firma: e.target.value }))}>
                       <option value="">Hepsi</option>

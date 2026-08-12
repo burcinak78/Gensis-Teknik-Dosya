@@ -72,18 +72,21 @@ function SertifikaTab({ categories, certificates, certFileMap, notifiedBodies, c
 }) {
   const [q, setQ] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [fil, setFil] = useState({ kategori: "", belge: "" });
+  const [fil, setFil] = useState({ kategori: "", belge: "", certNo: "", gecerlilik: "" });
   const [modal, setModal] = useState<null | { cert?: Cert }>(null);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLocaleLowerCase("tr");
     return certificates.filter((c) => {
+      const gStr = dt(c.valid_until);
       if (s) {
-        const hay = [c.cert_no, catById[c.category_id ?? ""]?.name, BELGE_TIPI_TR[c.belge_tipi ?? ""]].map(tc).join(" ");
+        const hay = [c.cert_no, catById[c.category_id ?? ""]?.name, BELGE_TIPI_TR[c.belge_tipi ?? ""], gStr].map(tc).join(" ");
         if (!hay.includes(s)) return false;
       }
       if (fil.kategori && c.category_id !== fil.kategori) return false;
       if (fil.belge && c.belge_tipi !== fil.belge) return false;
+      if (fil.certNo && !tc(c.cert_no).includes(tc(fil.certNo))) return false;
+      if (fil.gecerlilik && !tc(gStr).includes(tc(fil.gecerlilik))) return false;
       return true;
     });
   }, [q, fil, certificates]);
@@ -110,7 +113,9 @@ function SertifikaTab({ categories, certificates, certFileMap, notifiedBodies, c
                       <option value="">Hepsi</option>{BELGE_TIPI.map((b) => <option key={b.v} value={b.v}>{b.t}</option>)}
                     </select>
                   </th>
-                  <th className={fTh}></th><th className={fTh}></th><th className={fTh}></th>
+                  <th className={fTh}><input className={fInp} value={fil.certNo} onChange={(e) => setFil((s) => ({ ...s, certNo: e.target.value }))} placeholder="Sertifika No" /></th>
+                  <th className={fTh}><input className={fInp} value={fil.gecerlilik} onChange={(e) => setFil((s) => ({ ...s, gecerlilik: e.target.value }))} placeholder="gg.aa.yyyy" /></th>
+                  <th className={fTh}></th>
                 </tr>
               )}
             </thead>
@@ -239,7 +244,7 @@ function EkipmanTab({ categories, brands, models, certificates, catById, brandBy
 }) {
   const [q, setQ] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [fil, setFil] = useState({ kategori: "", marka: "" });
+  const [fil, setFil] = useState({ kategori: "", marka: "", model: "", certNo: "" });
   const [modal, setModal] = useState<null | { model?: Model }>(null);
 
   const modelCatId = (m: Model) => brandById[m.brand_id]?.category_id ?? "";
@@ -254,12 +259,15 @@ function EkipmanTab({ categories, brands, models, certificates, catById, brandBy
     return models.filter((m) => {
       const b = brandById[m.brand_id];
       const catId = b?.category_id ?? "";
+      const certNo = modelCertNo(m);
       if (s) {
-        const hay = [m.name, b?.name, catById[catId]?.name, modelCertNo(m)].map(tc).join(" ");
+        const hay = [m.name, b?.name, catById[catId]?.name, certNo].map(tc).join(" ");
         if (!hay.includes(s)) return false;
       }
       if (fil.kategori && catId !== fil.kategori) return false;
       if (fil.marka && m.brand_id !== fil.marka) return false;
+      if (fil.model && !tc(m.name).includes(tc(fil.model))) return false;
+      if (fil.certNo && !tc(certNo).includes(tc(fil.certNo))) return false;
       return true;
     });
   }, [q, fil, models]);
@@ -276,7 +284,9 @@ function EkipmanTab({ categories, brands, models, certificates, catById, brandBy
                 <tr className="bg-white border-b border-slate-200">
                   <th className={fTh}><select className={fInp} value={fil.kategori} onChange={(e) => setFil((s) => ({ ...s, kategori: e.target.value, marka: "" }))}><option value="">Hepsi</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></th>
                   <th className={fTh}><select className={fInp} value={fil.marka} onChange={(e) => setFil((s) => ({ ...s, marka: e.target.value }))}><option value="">Hepsi</option>{brands.filter((b) => !fil.kategori || b.category_id === fil.kategori).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></th>
-                  <th className={fTh}></th><th className={fTh}></th><th className={fTh}></th>
+                  <th className={fTh}><input className={fInp} value={fil.model} onChange={(e) => setFil((s) => ({ ...s, model: e.target.value }))} placeholder="Model" /></th>
+                  <th className={fTh}><input className={fInp} value={fil.certNo} onChange={(e) => setFil((s) => ({ ...s, certNo: e.target.value }))} placeholder="Sertifika No" /></th>
+                  <th className={fTh}></th>
                 </tr>
               )}
             </thead>

@@ -39,7 +39,7 @@ export default function KullanicilarClient({
     const s = q.trim().toLocaleLowerCase("tr");
     return users.filter((u) => {
       if (s) {
-        const hay = [u.full_name, u.email, u.companies?.short_name, ROL[u.role]].map(tc).join(" ");
+        const hay = [u.full_name, u.email, u.companies?.short_name, ROL[u.role], u.is_active ? "aktif" : "pasif"].map(tc).join(" ");
         if (!hay.includes(s)) return false;
       }
       if (f.ad && !tc(u.full_name).includes(tc(f.ad))) return false;

@@ -77,7 +77,7 @@ export default function MusterilerClient({
   const snapshotRef = useRef<string>("");
   const [q, setQ] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [fil, setFil] = useState({ sehir: "", yetkili: "", kategori: "" });
+  const [fil, setFil] = useState({ firma: "", sehir: "", yetkili: "", telefon: "", kategori: "" });
   const [editId, setEditId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [category, setCategory] = useState("asansor");
@@ -140,11 +140,13 @@ export default function MusterilerClient({
     const s = q.trim().toLocaleLowerCase("tr");
     return companies.filter((c) => {
       if (s) {
-        const hay = [c.short_name, c.legal_name, c.city, c.authorized_person, c.mobile_phone, c.phone].map(tc).join(" ");
+        const hay = [c.short_name, c.legal_name, c.city, c.authorized_person, c.mobile_phone, c.phone, (c.category || "asansor") === "diger" ? "diğer" : "asansör"].map(tc).join(" ");
         if (!hay.includes(s)) return false;
       }
+      if (fil.firma && !tc(c.short_name).includes(tc(fil.firma))) return false;
       if (fil.sehir && tc(c.city) !== tc(fil.sehir)) return false;
       if (fil.yetkili && !tc(c.authorized_person).includes(tc(fil.yetkili))) return false;
+      if (fil.telefon && !tc(c.mobile_phone || c.phone).includes(tc(fil.telefon))) return false;
       if (fil.kategori && (c.category || "asansor") !== fil.kategori) return false;
       return true;
     });
@@ -444,7 +446,7 @@ export default function MusterilerClient({
               </tr>
               {showFilters && (
                 <tr className="bg-white border-b border-slate-200">
-                  <th className={fTh}></th>
+                  <th className={fTh}><input className={fInp} value={fil.firma} onChange={(e) => setFil((s) => ({ ...s, firma: e.target.value }))} placeholder="Firma" /></th>
                   <th className={fTh}>
                     <select className={fInp} value={fil.sehir} onChange={(e) => setFil((s) => ({ ...s, sehir: e.target.value }))}>
                       <option value="">Hepsi</option>
@@ -452,7 +454,7 @@ export default function MusterilerClient({
                     </select>
                   </th>
                   <th className={fTh}><input className={fInp} value={fil.yetkili} onChange={(e) => setFil((s) => ({ ...s, yetkili: e.target.value }))} placeholder="Yetkili" /></th>
-                  <th className={fTh}></th>
+                  <th className={fTh}><input className={fInp} value={fil.telefon} onChange={(e) => setFil((s) => ({ ...s, telefon: e.target.value }))} placeholder="Telefon" /></th>
                   <th className={fTh}>
                     <select className={fInp} value={fil.kategori} onChange={(e) => setFil((s) => ({ ...s, kategori: e.target.value }))}>
                       <option value="">Hepsi</option><option value="asansor">Asansör</option><option value="diger">Diğer</option>
