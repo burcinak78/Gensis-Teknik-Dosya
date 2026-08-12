@@ -9,7 +9,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   } = await supabase.auth.getUser();
   if (!user) redirect("/giris");
   const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (prof?.role !== "admin") redirect("/panel");
+  // Admin ve Kullanıcı (gensis) Yönetim'e erişir; Kullanıcı'da silme yoktur (aksiyon/buton bazında engellenir)
+  if (prof?.role !== "admin" && prof?.role !== "gensis") redirect("/panel");
 
   return (
     <div>

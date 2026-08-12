@@ -7,6 +7,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export type Result = { ok: true; message?: string; id?: string } | { ok: false; error: string };
 
+// Mühendislik tipleri + unvan kısaltmaları
+const ENG_DISCIPLINES = ["makine", "elektrik", "elektrik_elektronik", "mekatronik"];
+const engTitle = (d: string) =>
+  ({ makine: "Mak.Müh.", elektrik: "Elk.Müh.", elektrik_elektronik: "Elk./Elektronik Müh.", mekatronik: "Mekatronik Müh." } as Record<string, string>)[d] ?? "";
+
 async function assertAdmin() {
   const supabase = createClient();
   const {
@@ -37,7 +42,7 @@ async function assertStaff() {
 // ---------- Yeni Müşteri (firma) ----------
 export async function createCompany(form: Record<string, string>): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!form.short_name || !form.legal_name) return { ok: false, error: "Kısa ad ve ünvan zorunlu." };
     const admin = createAdminClient();
     const { data, error } = await admin.from("companies").insert({
@@ -162,7 +167,7 @@ export async function createUser(form: {
   email: string; password: string; full_name: string; role: string; company_id: string;
 }): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!form.email || !form.password) return { ok: false, error: "E-posta ve şifre zorunlu." };
     if (!["admin", "gensis", "customer", "muhasebeci"].includes(form.role)) return { ok: false, error: "Geçersiz rol." };
     const admin = createAdminClient();
@@ -200,7 +205,7 @@ export async function updateUser(form: {
   id: string; full_name: string; role: string; company_id: string; is_active: string; password?: string;
 }): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!form.id) return { ok: false, error: "Kullanıcı bulunamadı." };
     if (!["admin", "gensis", "customer", "muhasebeci"].includes(form.role)) return { ok: false, error: "Geçersiz rol." };
     const admin = createAdminClient();
@@ -235,7 +240,7 @@ export async function createEquipmentModel(form: {
   category_id: string; brand_id: string; new_brand: string; model_name: string; certificate_id: string;
 }): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!form.category_id || !form.model_name) return { ok: false, error: "Kategori ve model adı zorunlu." };
     const admin = createAdminClient();
     let brandId = form.brand_id;
@@ -270,9 +275,9 @@ export async function createEngineer(form: {
     const actor = await getActor();
     const staff = isStaffRole(actor.role);
     if (!form.full_name) return { ok: false, error: "Ad Soyad zorunlu." };
-    if (!["makine", "elektrik"].includes(form.discipline)) return { ok: false, error: "Branş seçin." };
+    if (!ENG_DISCIPLINES.includes(form.discipline)) return { ok: false, error: "Mühendislik tipi seçin." };
     const admin = createAdminClient();
-    const title = form.discipline === "makine" ? "Mak.Müh." : "Elk.Müh.";
+    const title = engTitle(form.discipline);
     if (!staff) {
       // Müşteri kendi firmasına ekleyebilir; onaya düşer
       const company_id = actor.companyId;
@@ -315,9 +320,9 @@ export async function updateEngineer(id: string, form: {
     const actor = await getActor();
     const staff = isStaffRole(actor.role);
     if (!id) return { ok: false, error: "Kayıt bulunamadı." };
-    if (!["makine", "elektrik"].includes(form.discipline)) return { ok: false, error: "Branş seçin." };
+    if (!ENG_DISCIPLINES.includes(form.discipline)) return { ok: false, error: "Mühendislik tipi seçin." };
     const admin = createAdminClient();
-    const title = form.discipline === "makine" ? "Mak.Müh." : "Elk.Müh.";
+    const title = engTitle(form.discipline);
     const cols = {
       full_name: form.full_name,
       discipline: form.discipline,
@@ -533,7 +538,7 @@ export async function updateEquipmentModel(form: {
   id: string; name: string; certificate_id: string;
 }): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!form.id) return { ok: false, error: "Model bulunamadı." };
     const admin = createAdminClient();
     const { error } = await admin.from("equipment_models").update({
@@ -552,7 +557,7 @@ export async function updateEquipmentModel(form: {
 // ---------- Yeni Onaylanmış Kuruluş ----------
 export async function createNotifiedBody(form: { name: string; identity_no: string; address: string }): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!form.name?.trim()) return { ok: false, error: "Kuruluş adı zorunlu." };
     const admin = createAdminClient();
     const { data, error } = await admin.from("notified_bodies").insert({
@@ -572,7 +577,7 @@ export async function createNotifiedBody(form: { name: string; identity_no: stri
 // ---------- Yeni Sertifika (PDF yükleme + modele bağla) ----------
 export async function createCertificate(formData: FormData): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     const cert_no = String(formData.get("cert_no") || "");
     const notified_body_id = String(formData.get("notified_body_id") || "");
     const model_id = String(formData.get("model_id") || "");

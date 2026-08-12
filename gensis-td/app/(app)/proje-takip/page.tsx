@@ -8,6 +8,8 @@ export default async function ProjeTakipPage() {
   const supabase = createClient();
   const admin = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const { data: prof } = user ? await supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null } as any;
+  const readOnly = prof?.role === "muhasebeci";
 
   const today = new Date().toISOString().slice(0, 10);
   // Tahmini tamamlanma tarihi geçmiş ve hâlâ HAZIRLANIYOR olanları otomatik BEKLIYOR yap
@@ -47,6 +49,7 @@ export default async function ProjeTakipPage() {
       sorumlular={(sorumlular ?? []) as any}
       currentUserId={user?.id ?? ""}
       today={today}
+      readOnly={readOnly}
     />
   );
 }

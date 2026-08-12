@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   } catch {
     /* sayaç alınamazsa menü yine çalışır */
   }
-  const rolTr = rol === "admin" ? "Admin" : rol === "gensis" ? "Gensis Kullanıcı" : rol === "muhasebeci" ? "Muhasebeci" : "Müşteri";
+  const rolTr = rol === "admin" ? "Admin" : rol === "gensis" ? "Kullanıcı" : rol === "muhasebeci" ? "Muhasebe/Finans" : "Müşteri";
   const adSoyad = profile?.full_name ?? user.email ?? "";
   const bas = adSoyad.trim().slice(0, 2).toUpperCase() || "GT";
 

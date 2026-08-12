@@ -23,6 +23,10 @@ export default function SideNav({
     { href: "/panel", label: "Asansör Teknik Dosyası", icon: "note_add", match: (p) => p === "/panel" || p.startsWith("/panel/") || p === "/yeni" },
     { href: "/proje-takip", label: "Proje Takip", icon: "table_view", match: (p) => p.startsWith("/proje-takip"), badge: takipCount },
   );
+  // Muhasebe/Finans: sadece Proje Takip (salt-okunur) + Muhasebe
+  if (isMuhasebeci) items.push(
+    { href: "/proje-takip", label: "Proje Takip", icon: "table_view", match: (p) => p.startsWith("/proje-takip") },
+  );
   if (isCustomer) items.push(
     { href: "/proje-onay", label: "Proje Onay Dosyası", icon: "fact_check", match: (p) => p.startsWith("/proje-onay") },
     { href: "/panel", label: "Asansör Teknik Dosyası", icon: "note_add", match: (p) => p === "/panel" || p.startsWith("/panel/") || p === "/yeni" },
@@ -30,7 +34,8 @@ export default function SideNav({
     { href: "/muhendislerim", label: "Mühendislerim", icon: "engineering", match: (p) => p.startsWith("/muhendislerim") },
   );
   if (isAdmin || isMuhasebeci) items.push({ href: "/muhasebe", label: "Muhasebe", icon: "account_balance", match: (p) => p.startsWith("/muhasebe"), badge: muhasebeCount });
-  if (isAdmin) items.push({ href: "/admin", label: "Yönetim", icon: "admin_panel_settings", match: (p) => p.startsWith("/admin") });
+  // Yönetim: Admin ve Kullanıcı (gensis)
+  if (isStaff) items.push({ href: "/admin", label: "Yönetim", icon: "admin_panel_settings", match: (p) => p.startsWith("/admin") });
 
   return (
     <nav className="p-3 flex-1 space-y-1">

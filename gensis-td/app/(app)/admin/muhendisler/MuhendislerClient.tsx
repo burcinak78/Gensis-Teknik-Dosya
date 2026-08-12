@@ -13,23 +13,35 @@ type Company = { id: string; short_name: string };
 type Doc = { id: string; engineer_id: string; doc_type: string; original_name: string | null; valid_until: string | null };
 type DocForm = { valid_until: string; file: File | null };
 
-const BRANS: Record<string, string> = { makine: "Makine Mühendisi", elektrik: "Elektrik Mühendisi" };
+const BRANS: Record<string, string> = {
+  makine: "Makine Mühendisi",
+  elektrik: "Elektrik Mühendisi",
+  elektrik_elektronik: "Elektrik/Elektronik Mühendisi",
+  mekatronik: "Mekatronik Mühendisi",
+};
+const BRANS_OPTS = Object.entries(BRANS).map(([v, t]) => ({ v, t }));
+const ELEKTRIK_BELGE = [
+  { key: "asansor_tescil", ad: "Asansör Tescil Belgesi" },
+  { key: "buro_tescil", ad: "Büro Tescil Belgesi" },
+];
 const BELGE_TIPLERI: Record<string, { key: string; ad: string }[]> = {
   makine: [
     { key: "asansor_avan_yetki", ad: "Asansör Avan Yetki" },
     { key: "asansor_muh_yetki", ad: "Asansör Mühendis Yetki" },
     { key: "buro_tescil", ad: "Büro Tescil" },
   ],
-  elektrik: [
-    { key: "asansor_tescil", ad: "Asansör Tescil Belgesi" },
-    { key: "buro_tescil", ad: "Büro Tescil Belgesi" },
-  ],
+  elektrik: ELEKTRIK_BELGE,
+  elektrik_elektronik: ELEKTRIK_BELGE,
+  mekatronik: ELEKTRIK_BELGE,
 };
 const BADGE: Record<string, string> = {
   green: "bg-green-50 text-green-700", amber: "bg-amber-50 text-amber-700",
   red: "bg-red-50 text-red-600", slate: "bg-slate-100 text-slate-500",
 };
 const RANK: Record<string, number> = { red: 3, amber: 2, green: 1, slate: 0 };
+
+const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
+const fInp = "w-full text-xs px-2 py-1 border border-slate-200 rounded focus:outline-none focus:border-brand";
 
 function belgeDurum(validUntil: string | null | undefined, hasFile: boolean): { t: string; c: string } {
   if (!validUntil) return hasFile ? { t: "Tarihsiz", c: "slate" } : { t: "Yok", c: "slate" };
@@ -48,17 +60,18 @@ export default function MuhendislerClient({
   const snapshotRef = useRef<string>("");
   const blank = { full_name: "", discipline: "makine", chamber_reg_no: "", company_id: defaultCompanyId, address: "", phone: "" };
   const [q, setQ] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [fil, setFil] = useState({ brans: "", firma: "" });
   const [editId, setEditId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false); // admin: modal aç/kapa
   const [form, setForm] = useState<Record<string, string>>({ ...blank });
   const [docForms, setDocForms] = useState<Record<string, DocForm>>({});
   const [docKey, setDocKey] = useState(0);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const setDoc = (dt: string, patch: Partial<DocForm>) => setDocForms((s) => ({ ...s, [dt]: { valid_until: "", file: null, ...s[dt], ...patch } }));
-  const formRef = useRef<HTMLFormElement>(null);
-  const scrollToForm = () => setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  const tc = (v: unknown) => String(v ?? "").toLocaleLowerCase("tr");
   const searchParams = useSearchParams();
   useEffect(() => {
     if (isCustomer) return;
@@ -91,9 +104,16 @@ export default function MuhendislerClient({
 
   const filtered = useMemo(() => {
     const s = q.trim().toLocaleLowerCase("tr");
-    if (!s) return engineers;
-    return engineers.filter((e) => e.full_name.toLocaleLowerCase("tr").includes(s));
-  }, [q, engineers]);
+    return engineers.filter((e) => {
+      if (s) {
+        const hay = [e.full_name, BRANS[e.discipline], e.companies?.short_name, e.chamber_reg_no].map(tc).join(" ");
+        if (!hay.includes(s)) return false;
+      }
+      if (fil.brans && e.discipline !== fil.brans) return false;
+      if (fil.firma && e.company_id !== fil.firma) return false;
+      return true;
+    });
+  }, [q, fil, engineers]);
 
   function initDocForms(engId: string | null, discipline: string) {
     const map = engId ? (docsByEng[engId] || {}) : {};
@@ -113,9 +133,10 @@ export default function MuhendislerClient({
     setForm(f);
     snapshotRef.current = JSON.stringify(f);
     initDocForms(e.id, e.discipline ?? "makine");
-    setMsg(null); if (!isCustomer) scrollToForm();
+    setMsg(null); setModalOpen(true);
   }
-  function yeni() { setEditId(null); setForm({ ...blank }); snapshotRef.current = ""; initDocForms(null, "makine"); setMsg(null); scrollToForm(); }
+  function yeni() { setEditId(null); setForm({ ...blank }); snapshotRef.current = ""; initDocForms(null, "makine"); setMsg(null); setModalOpen(true); }
+  function closeModal() { setModalOpen(false); setEditId(null); setForm({ ...blank }); setDocForms({}); setMsg(null); }
 
   async function submit(ev: React.FormEvent) {
     ev.preventDefault();
@@ -130,10 +151,9 @@ export default function MuhendislerClient({
     } else {
       const res = await createEngineer(form as any);
       if (!res.ok) { setBusy(false); setMsg({ ok: false, text: res.error }); return; }
-      engId = res.id ?? null; // müşteri: yeni mühendis onaya düştüğü için id yok
+      engId = res.id ?? null;
     }
 
-    // staged belgeleri yükle (yalnız mevcut mühendis + değişenler)
     let docErr: string | null = null;
     if (engId) {
       const tipler = BELGE_TIPLERI[form.discipline] || [];
@@ -152,12 +172,14 @@ export default function MuhendislerClient({
     }
 
     setBusy(false);
-    if (!editId && isCustomer) setMsg({ ok: true, text: "Yeni mühendis onaya gönderildi. Onaylandıktan sonra belgelerini yükleyebilirsiniz." });
-    else if (docErr) setMsg({ ok: false, text: (isCustomer ? "Gönderildi, belge hatası: " : "Mühendis kaydedildi, belge hatası: ") + docErr });
-    else setMsg({ ok: true, text: isCustomer ? "Değişiklikleriniz onaya gönderildi." : (editId ? "Kaydedildi." : "Mühendis ve belgeler kaydedildi.") });
+    if (docErr) { setMsg({ ok: false, text: (isCustomer ? "Gönderildi, belge hatası: " : "Kaydedildi, belge hatası: ") + docErr }); router.refresh(); return; }
     router.refresh();
-    if (!editId && !isCustomer) yeni();
-    else if (editId) { setDocForms((s) => { const o: Record<string, DocForm> = {}; for (const k in s) o[k] = { ...s[k], file: null }; return o; }); setDocKey((k) => k + 1); }
+    if (isCustomer) {
+      setMsg({ ok: true, text: !editId ? "Yeni mühendis onaya gönderildi." : "Değişiklikleriniz onaya gönderildi." });
+      if (editId) { setDocForms((s) => { const o: Record<string, DocForm> = {}; for (const k in s) o[k] = { ...s[k], file: null }; return o; }); setDocKey((k) => k + 1); }
+    } else {
+      closeModal(); // admin: modalı kapat
+    }
   }
 
   async function sil() {
@@ -166,131 +188,191 @@ export default function MuhendislerClient({
     setBusy(true); setMsg(null);
     const res = await deleteEngineer(editId);
     setBusy(false);
-    if (res.ok) { yeni(); router.refresh(); }
+    if (res.ok) { closeModal(); router.refresh(); }
     else setMsg({ ok: false, text: res.error });
   }
 
   const docTipleri = BELGE_TIPLERI[form.discipline] || [];
 
-  return (
-    <div className="space-y-6">
-      {isCustomer && (
+  // Form gövdesi (hem modal hem müşteri inline için)
+  const formBody = (
+    <form onSubmit={submit} className="space-y-4">
+      <div className="space-y-3">
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">Ad Soyad *</label>
+          <input value={form.full_name} onChange={(e) => set("full_name", e.target.value)} className={inp} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Mühendislik Tipi *</label>
+            <select value={form.discipline} onChange={(e) => { set("discipline", e.target.value); initDocForms(editId, e.target.value); }} className={inp}>
+              {BRANS_OPTS.map((b) => <option key={b.v} value={b.v}>{b.t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Oda Sicil No</label>
+            <input value={form.chamber_reg_no} onChange={(e) => set("chamber_reg_no", e.target.value)} className={inp} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">Adres</label>
+          <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inp} placeholder="Mühendisin açık adresi" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Telefon</label>
+            <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inp} placeholder="Örn. 0 224 441 96 65" />
+          </div>
+          {!isCustomer && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Bağlı Şirket</label>
+              <select value={form.company_id} onChange={(e) => set("company_id", e.target.value)} className={inp}>
+                <option value="">Seçiniz…</option>
+                {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Belgeler */}
+      <div className="border border-slate-200 rounded-xl p-3">
+        <h3 className="font-bold text-sm mb-1">Belgeler</h3>
+        <p className="text-[11px] text-slate-400 mb-2">Dosya ve geçerlilik tarihini gir; Kaydet ile birlikte yüklenir.</p>
+        <div className="space-y-2">
+          {docTipleri.map((t) => (
+            <BelgeSatiri
+              key={`${editId || "new"}-${t.key}-${docKey}`}
+              ad={t.ad}
+              existingDoc={editId ? docsByEng[editId]?.[t.key] : undefined}
+              validUntil={docForms[t.key]?.valid_until ?? ""}
+              file={docForms[t.key]?.file ?? null}
+              onDate={(v) => setDoc(t.key, { valid_until: v })}
+              onFile={(f) => setDoc(t.key, { file: f })}
+            />
+          ))}
+        </div>
+      </div>
+
+      {msg && <div className={`text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
+      <div className="flex items-center justify-end gap-2 pt-1">
+        {!isCustomer && editId && (
+          <button type="button" onClick={sil} disabled={busy} className="mr-auto text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg disabled:opacity-50">
+            Sil
+          </button>
+        )}
+        {!isCustomer && <button type="button" onClick={closeModal} className="text-sm font-semibold text-slate-500 px-4 py-2.5">İptal</button>}
+        <button disabled={busy} className="gs-btn text-sm font-bold px-5 py-2.5 rounded-xl disabled:opacity-50">
+          {busy ? "Kaydediliyor…" : isCustomer ? "Onaya Gönder" : editId ? "Değişiklikleri Kaydet" : "Kaydet"}
+        </button>
+      </div>
+    </form>
+  );
+
+  // ---------------- Müşteri (inline) ----------------
+  if (isCustomer) {
+    return (
+      <div className="space-y-6">
         <div>
           <h1 className="text-[22px] font-extrabold tracking-tight">Mühendislerim</h1>
           <p className="text-sm text-slate-500">Firmanıza bağlı mühendisleri ve belgelerini yönetin. Yeni mühendis ve belge yüklemeleri Gensis onayına gönderilir.</p>
         </div>
-      )}
-
-      {/* Liste (tam genişlik) */}
-      <div className="bg-white border border-slate-200 rounded-2xl">
-        <div className="p-3 border-b border-slate-100 sticky top-[86px] z-20 bg-white rounded-t-2xl">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Mühendis adından ara…" className={inp} />
+        <div className="bg-white border border-slate-200 rounded-2xl">
+          <div className="p-3 border-b border-slate-100"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Mühendis adından ara…" className={inp} /></div>
+          <table className="w-full text-sm"><tbody>
+            {filtered.map((m) => (
+              <tr key={m.id} className={`border-b border-slate-100 last:border-0 ${editId === m.id ? "bg-brand-light" : ""}`}>
+                <td className="px-5 py-2.5 font-semibold">{m.full_name}</td>
+                <td className="px-5 py-2.5"><span className="text-xs bg-brand-light text-brand px-2 py-1 rounded-full font-semibold">{BRANS[m.discipline] ?? m.discipline}</span></td>
+                <td className="px-5 py-2.5 text-right"><button onClick={() => { setEditId(m.id); const f = { full_name: m.full_name ?? "", discipline: m.discipline ?? "makine", chamber_reg_no: m.chamber_reg_no ?? "", company_id: m.company_id ?? "", address: m.address ?? "", phone: m.phone ?? "" }; setForm(f); snapshotRef.current = JSON.stringify(f); initDocForms(m.id, m.discipline ?? "makine"); }} className="text-xs font-semibold text-brand hover:underline">Düzenle</button></td>
+              </tr>
+            ))}
+          </tbody></table>
         </div>
-        <table className="w-full text-sm">
-          <tbody>
-            {filtered.map((m) => {
-              const du = engDurum(m);
-              return (
-                <tr key={m.id} className={`border-b border-slate-100 last:border-0 ${editId === m.id ? "bg-brand-light" : ""}`}>
-                  <td className="px-5 py-2.5 font-semibold">{m.full_name}</td>
-                  <td className="px-5 py-2.5">
-                    <span className="text-xs bg-brand-light text-brand px-2 py-1 rounded-full font-semibold">{BRANS[m.discipline] ?? m.discipline}</span>
-                  </td>
-                  <td className="px-5 py-2.5">
-                    <span className={`text-xs px-2 py-1 rounded-full font-semibold ${BADGE[du.c]}`}>{du.t}</span>
-                  </td>
-                  <td className="px-5 py-2.5 text-slate-500">{m.companies?.short_name ?? "—"}</td>
-                  <td className="px-5 py-2.5 text-right">
-                    <button onClick={() => edit(m)} className="text-xs font-semibold text-brand hover:underline">Düzenle</button>
-                  </td>
-                </tr>
-              );
-            })}
-            {filtered.length === 0 && (
-              <tr><td className="px-5 py-4 text-sm text-slate-400">Sonuç yok.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <div className="bg-white border border-slate-200 rounded-2xl p-5">{formBody}</div>
+      </div>
+    );
+  }
+
+  // ---------------- Admin (sticky + tablo + modal) ----------------
+  const th = "px-3 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap";
+  const td = "px-3 py-2 text-sm whitespace-nowrap";
+  const fTh = "px-3 py-1.5 align-top";
+  return (
+    <div>
+      <div className="sticky top-[92px] z-10 bg-white/80 backdrop-blur -mx-8 px-8 py-3 border-b border-slate-100 mb-4 flex items-center gap-3">
+        <button onClick={yeni} className="gs-btn text-sm font-bold px-5 py-2.5 rounded-xl">+ Yeni Mühendis</button>
+        <div className="relative flex-1 max-w-md">
+          <span className="material-symbols-rounded text-[20px] absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ara: ad, tip, firma, oda sicil…" className={inp + " pl-10"} />
+        </div>
+        <button onClick={() => setShowFilters((v) => !v)}
+          className={`inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg border ${showFilters ? "bg-brand-light text-brand border-brand/30" : "text-slate-600 border-slate-200 hover:bg-slate-50"}`}>
+          <span className="material-symbols-rounded text-[18px]">filter_list</span> Filtrele
+        </button>
       </div>
 
-      {/* Bilgiler (üst) + Belgeler (alt) — tam genişlik, Kaydet en altta */}
-      <form ref={formRef} onSubmit={submit} className="space-y-6 scroll-mt-6">
-        {/* Temel bilgiler */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold">{editId ? "Mühendis Düzenle" : "Yeni Mühendis (Proje Müellifi)"}</h2>
-            {editId && <button type="button" onClick={yeni} className="text-xs font-semibold text-brand hover:underline">+ Yeni</button>}
-          </div>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Ad Soyad *</label>
-              <input value={form.full_name} onChange={(e) => set("full_name", e.target.value)} className={inp} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Branş *</label>
-              <select value={form.discipline} onChange={(e) => { set("discipline", e.target.value); initDocForms(editId, e.target.value); }} className={inp}>
-                <option value="makine">Makine Mühendisi</option>
-                <option value="elektrik">Elektrik Mühendisi</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Oda Sicil No</label>
-              <input value={form.chamber_reg_no} onChange={(e) => set("chamber_reg_no", e.target.value)} className={inp} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Adres</label>
-              <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inp} placeholder="Mühendisin açık adresi" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Telefon</label>
-              <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inp} placeholder="Örn. 0 224 441 96 65" />
-            </div>
-            {!isCustomer && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Bağlı Şirket</label>
-                <select value={form.company_id} onChange={(e) => set("company_id", e.target.value)} className={inp}>
-                  <option value="">Seçiniz…</option>
-                  {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
-                </select>
-              </div>
-            )}
-          </div>
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className={th}>Ad Soyad</th>
+                <th className={th}>Mühendislik Tipi</th>
+                <th className={th}>Belge Durumu</th>
+                <th className={th}>Firma</th>
+                <th className={th}>İşlem</th>
+              </tr>
+              {showFilters && (
+                <tr className="bg-white border-b border-slate-200">
+                  <th className={fTh}></th>
+                  <th className={fTh}>
+                    <select className={fInp} value={fil.brans} onChange={(e) => setFil((s) => ({ ...s, brans: e.target.value }))}>
+                      <option value="">Hepsi</option>
+                      {BRANS_OPTS.map((b) => <option key={b.v} value={b.v}>{b.t}</option>)}
+                    </select>
+                  </th>
+                  <th className={fTh}></th>
+                  <th className={fTh}>
+                    <select className={fInp} value={fil.firma} onChange={(e) => setFil((s) => ({ ...s, firma: e.target.value }))}>
+                      <option value="">Hepsi</option>
+                      {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
+                    </select>
+                  </th>
+                  <th className={fTh}></th>
+                </tr>
+              )}
+            </thead>
+            <tbody>
+              {filtered.map((m) => {
+                const du = engDurum(m);
+                return (
+                  <tr key={m.id} className="border-b border-slate-100 last:border-0">
+                    <td className={td + " font-semibold"}>{m.full_name}</td>
+                    <td className={td}><span className="text-xs bg-brand-light text-brand px-2 py-1 rounded-full font-semibold">{BRANS[m.discipline] ?? m.discipline}</span></td>
+                    <td className={td}><span className={`text-xs px-2 py-1 rounded-full font-semibold ${BADGE[du.c]}`}>{du.t}</span></td>
+                    <td className={td + " text-slate-500"}>{m.companies?.short_name ?? "—"}</td>
+                    <td className={td + " text-right"}><button onClick={() => edit(m)} className="text-xs font-bold text-brand hover:underline">Düzenle</button></td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-400">Sonuç yok.</td></tr>}
+            </tbody>
+          </table>
         </div>
+      </div>
 
-        {/* Belgeler */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5">
-          <h2 className="font-bold mb-1">Belgeler</h2>
-          <p className="text-xs text-slate-400 mb-3">Dosya ve geçerlilik tarihini gir; alttaki <b>Kaydet</b> ile mühendisle birlikte yüklenir. 1 aydan az kalınca sarı, dolunca kırmızı.</p>
-          <div className="space-y-3">
-            {docTipleri.map((t) => (
-              <BelgeSatiri
-                key={`${editId || "new"}-${t.key}-${docKey}`}
-                ad={t.ad}
-                existingDoc={editId ? docsByEng[editId]?.[t.key] : undefined}
-                validUntil={docForms[t.key]?.valid_until ?? ""}
-                file={docForms[t.key]?.file ?? null}
-                onDate={(v) => setDoc(t.key, { valid_until: v })}
-                onFile={(f) => setDoc(t.key, { file: f })}
-              />
-            ))}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4" onClick={closeModal}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl">
+              <h2 className="font-extrabold text-lg">{editId ? "Mühendis Düzenle" : "Yeni Mühendis"}</h2>
+              <button onClick={closeModal} className="material-symbols-rounded text-slate-400 hover:text-slate-700">close</button>
+            </div>
+            <div className="px-6 py-5">{formBody}</div>
           </div>
         </div>
-
-        {/* Kaydet (en altta, tam genişlik) */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5">
-          {msg && <div className={`mb-3 text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
-          <div className="flex items-center gap-2">
-            <button disabled={busy} className="bg-brand hover:bg-brand-dark text-white font-bold text-sm px-5 py-2.5 rounded-lg disabled:opacity-50">
-              {busy ? "Kaydediliyor…" : isCustomer ? "Onaya Gönder" : editId ? "Değişiklikleri Kaydet" : "Mühendisi Kaydet"}
-            </button>
-            {!isCustomer && editId && (
-              <button type="button" onClick={sil} disabled={busy} className="text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg disabled:opacity-50">
-                Mühendisi Sil
-              </button>
-            )}
-          </div>
-        </div>
-      </form>
+      )}
     </div>
   );
 }

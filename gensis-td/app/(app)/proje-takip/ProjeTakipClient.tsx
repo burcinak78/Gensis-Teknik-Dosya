@@ -45,10 +45,10 @@ const money = (n: number | null | undefined) =>
 const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("tr-TR") : "—");
 
 export default function ProjeTakipClient({
-  rows, companies, provinces, sorumlular, currentUserId, today,
+  rows, companies, provinces, sorumlular, currentUserId, today, readOnly = false,
 }: {
   rows: Row[]; companies: Company[]; provinces: Province[]; sorumlular: Sorumlu[];
-  currentUserId: string; today: string;
+  currentUserId: string; today: string; readOnly?: boolean;
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -100,9 +100,11 @@ export default function ProjeTakipClient({
           <h1 className="text-[22px] font-extrabold tracking-tight">Proje Takip</h1>
           <p className="text-sm text-slate-500">Mimari / uygulama proje çizim talepleri ve tamamlanma takibi</p>
         </div>
-        <Link href="/proje-takip/yeni" className="gs-btn text-sm font-bold px-5 py-2.5 rounded-xl">
-          + Yeni Proje
-        </Link>
+        {!readOnly && (
+          <Link href="/proje-takip/yeni" className="gs-btn text-sm font-bold px-5 py-2.5 rounded-xl">
+            + Yeni Proje
+          </Link>
+        )}
       </div>
 
       <div className="p-8 gs-fade">
@@ -170,12 +172,20 @@ export default function ProjeTakipClient({
                 {filtered.map((r) => (
                   <tr key={r.id} className={`border-b border-slate-100 last:border-0 ${rowClass(r)}`}>
                     <td className={td}>
-                      <button onClick={() => setDurumRow(r)} title="Durumu aç"
-                        className={r.durum === "HAZIRLANIYOR"
-                          ? "text-xs font-semibold text-slate-600 hover:underline"
-                          : `text-[11px] font-bold px-2 py-1 rounded-full hover:opacity-80 ${DURUM_BADGE[r.durum] ?? "bg-slate-100 text-slate-600"}`}>
-                        {r.durum}
-                      </button>
+                      {readOnly ? (
+                        <span className={r.durum === "HAZIRLANIYOR"
+                          ? "text-xs font-semibold text-slate-600"
+                          : `text-[11px] font-bold px-2 py-1 rounded-full ${DURUM_BADGE[r.durum] ?? "bg-slate-100 text-slate-600"}`}>
+                          {r.durum}
+                        </span>
+                      ) : (
+                        <button onClick={() => setDurumRow(r)} title="Durumu aç"
+                          className={r.durum === "HAZIRLANIYOR"
+                            ? "text-xs font-semibold text-slate-600 hover:underline"
+                            : `text-[11px] font-bold px-2 py-1 rounded-full hover:opacity-80 ${DURUM_BADGE[r.durum] ?? "bg-slate-100 text-slate-600"}`}>
+                          {r.durum}
+                        </button>
+                      )}
                       {r.muhasebe?.cariye_islendi && <span className="block text-[10px] text-green-600 font-semibold mt-0.5">Teslim edildi</span>}
                     </td>
                     <td className={td + " font-bold text-navy"}>
@@ -190,7 +200,9 @@ export default function ProjeTakipClient({
                     <td className={td + " text-slate-600"}>{sorumluAd(r.proje_sorumlusu_id)}</td>
                     <td className={td + " text-slate-500"}>{r.durum === "TAMAMLANDI" ? dt(r.tamamlanma_tarihi) : ""}</td>
                     <td className={td + " text-right"}>
-                      <Link href={`/proje-takip/${r.id}/duzenle`} className="text-xs font-bold text-brand hover:underline">Güncelle</Link>
+                      {readOnly
+                        ? <span className="text-xs text-slate-300">—</span>
+                        : <Link href={`/proje-takip/${r.id}/duzenle`} className="text-xs font-bold text-brand hover:underline">Güncelle</Link>}
                     </td>
                   </tr>
                 ))}

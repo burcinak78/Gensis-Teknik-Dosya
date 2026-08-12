@@ -4,11 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/admin/musteriler", label: "Müşteriler", icon: "business" },
   { href: "/admin/kullanicilar", label: "Kullanıcılar", icon: "group" },
-  { href: "/admin/muhendisler", label: "Mühendisler", icon: "engineering" },
-  { href: "/admin/ekipmanlar", label: "Ekipman-Model", icon: "precision_manufacturing" },
-  { href: "/admin/sertifikalar", label: "Sertifikalar", icon: "verified" },
+  { href: "/admin/muhendisler", label: "Yetkili Mühendisler", icon: "engineering" },
+  { href: "/admin/musteriler", label: "Müşteriler", icon: "business" },
+  { href: "/admin/ekipmanlar", label: "Güvenlik Ekipmanları", icon: "verified_user" },
 ];
 
 export default function AdminTabs() {

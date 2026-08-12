@@ -6,6 +6,7 @@ export default async function ProjeTakipLayout({ children }: { children: React.R
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/giris");
   const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (prof?.role !== "admin" && prof?.role !== "gensis") redirect("/panel");
+  // Admin/Kullanıcı düzenleyebilir; Muhasebe/Finans salt-okunur görüntüler
+  if (!["admin", "gensis", "muhasebeci"].includes(prof?.role as string)) redirect("/panel");
   return <>{children}</>;
 }
