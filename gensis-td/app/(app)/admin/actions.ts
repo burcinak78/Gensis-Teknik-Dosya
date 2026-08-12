@@ -57,6 +57,8 @@ export async function createCompany(form: Record<string, string>): Promise<Resul
       industry_reg_no: form.industry_reg_no || null,
       email: form.email || null,
       ce_module: form.ce_module || null,
+      category: form.category || "asansor",
+      sector: form.sector || null,
     }).select("id").single();
     if (error || !data) return { ok: false, error: error?.message ?? "Müşteri eklenemedi." };
     revalidatePath("/admin/musteriler");
@@ -86,6 +88,8 @@ export async function updateCompany(id: string, form: Record<string, string>): P
       industry_reg_no: form.industry_reg_no || null,
       email: form.email || null,
       ce_module: form.ce_module || null,
+      category: form.category || "asansor",
+      sector: form.sector || null,
     };
     if (!staff) {
       const { error } = await admin.from("pending_changes").insert({
@@ -235,9 +239,9 @@ export async function updateUser(form: {
   }
 }
 
-// ---------- Yeni Ekipman-Model ----------
+// ---------- Yeni Ekipman-Model (çoklu sertifika bağla) ----------
 export async function createEquipmentModel(form: {
-  category_id: string; brand_id: string; new_brand: string; model_name: string; certificate_id: string;
+  category_id: string; brand_id: string; new_brand: string; model_name: string; certificate_id?: string; cert_ids?: string[];
 }): Promise<Result> {
   try {
     await assertStaff();
@@ -254,12 +258,17 @@ export async function createEquipmentModel(form: {
       brandId = b.id;
     }
     if (!brandId) return { ok: false, error: "Marka seçin veya yeni marka girin." };
+    const certIds = (form.cert_ids ?? []).filter(Boolean);
+    const primary = certIds[0] || form.certificate_id || null;
     const { data, error } = await admin.from("equipment_models").insert({
       brand_id: brandId,
       name: form.model_name,
-      certificate_id: form.certificate_id || null,
+      certificate_id: primary,
     }).select("id").single();
     if (error || !data) return { ok: false, error: error?.message ?? "Model eklenemedi." };
+    if (certIds.length) {
+      await admin.from("model_certificates").insert(certIds.map((cid) => ({ model_id: data.id, certificate_id: cid })));
+    }
     revalidatePath("/admin/ekipmanlar");
     return { ok: true, message: "Ekipman modeli eklendi.", id: data.id };
   } catch (e: any) {
@@ -533,22 +542,115 @@ export async function deleteEngineerDocument(id: string): Promise<Result> {
   }
 }
 
-// ---------- Ekipman-Model Güncelle (isim + sertifika bağla) ----------
+// ---------- Ekipman-Model Güncelle (isim + çoklu sertifika bağla) ----------
 export async function updateEquipmentModel(form: {
-  id: string; name: string; certificate_id: string;
+  id: string; name: string; certificate_id?: string; cert_ids?: string[];
 }): Promise<Result> {
   try {
     await assertStaff();
     if (!form.id) return { ok: false, error: "Model bulunamadı." };
     const admin = createAdminClient();
+    const certIds = (form.cert_ids ?? []).filter(Boolean);
+    const primary = certIds[0] || form.certificate_id || null;
     const { error } = await admin.from("equipment_models").update({
       name: form.name,
-      certificate_id: form.certificate_id || null,
+      certificate_id: primary,
     }).eq("id", form.id);
     if (error) return { ok: false, error: error.message };
+    // bağlı sertifikaları yeniden yaz
+    await admin.from("model_certificates").delete().eq("model_id", form.id);
+    if (certIds.length) {
+      await admin.from("model_certificates").insert(certIds.map((cid) => ({ model_id: form.id, certificate_id: cid })));
+    }
     revalidatePath("/admin/ekipmanlar");
-    revalidatePath("/admin/sertifikalar");
     return { ok: true, message: "Model güncellendi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Sertifika Güncelle ----------
+export async function updateCertificate(formData: FormData): Promise<Result> {
+  try {
+    await assertStaff();
+    const id = String(formData.get("id") || "");
+    if (!id) return { ok: false, error: "Sertifika bulunamadı." };
+    const cert_no = String(formData.get("cert_no") || "");
+    if (!cert_no) return { ok: false, error: "Sertifika no zorunlu." };
+    const admin = createAdminClient();
+    const { error } = await admin.from("certificates").update({
+      cert_no,
+      notified_body_id: String(formData.get("notified_body_id") || "") || null,
+      issue_date: String(formData.get("issue_date") || "") || null,
+      valid_until: String(formData.get("valid_until") || "") || null,
+      belge_tipi: String(formData.get("belge_tipi") || "") || null,
+      category_id: String(formData.get("category_id") || "") || null,
+    }).eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    const file = formData.get("file") as File | null;
+    if (file && file.size > 0) {
+      const path = `${id}/${randomUUID()}.pdf`;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { error: upErr } = await admin.storage.from("certificates").upload(path, bytes, { contentType: "application/pdf", upsert: false });
+      if (upErr) return { ok: false, error: "Dosya yüklenemedi: " + upErr.message };
+      await admin.from("certificate_files").update({ is_current: false }).eq("certificate_id", id).eq("is_current", true);
+      const { count } = await admin.from("certificate_files").select("*", { count: "exact", head: true }).eq("certificate_id", id);
+      await admin.from("certificate_files").insert({ certificate_id: id, version: (count ?? 0) + 1, storage_path: path, original_name: file.name, is_current: true });
+    }
+    revalidatePath("/admin/ekipmanlar");
+    return { ok: true, message: "Sertifika güncellendi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Sertifika Sil (admin) ----------
+export async function deleteCertificate(id: string): Promise<Result> {
+  try {
+    await assertAdmin();
+    if (!id) return { ok: false, error: "Kayıt yok." };
+    const admin = createAdminClient();
+    await admin.from("equipment_models").update({ certificate_id: null }).eq("certificate_id", id);
+    await admin.from("model_certificates").delete().eq("certificate_id", id);
+    const { data: files } = await admin.from("certificate_files").select("storage_path").eq("certificate_id", id);
+    const paths = (files ?? []).map((f: any) => f.storage_path).filter(Boolean);
+    if (paths.length) await admin.storage.from("certificates").remove(paths);
+    await admin.from("certificate_files").delete().eq("certificate_id", id);
+    const { error } = await admin.from("certificates").delete().eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/ekipmanlar");
+    return { ok: true, message: "Sertifika silindi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Yeni Marka (staff) ----------
+export async function createEquipmentBrand(form: { category_id: string; name: string }): Promise<Result> {
+  try {
+    await assertStaff();
+    if (!form.category_id || !form.name?.trim()) return { ok: false, error: "Kategori ve marka adı zorunlu." };
+    const admin = createAdminClient();
+    const { data, error } = await admin.from("equipment_brands").insert({ category_id: form.category_id, name: form.name.trim() }).select("id").single();
+    if (error || !data) return { ok: false, error: error?.message ?? "Marka eklenemedi." };
+    revalidatePath("/admin/ekipmanlar");
+    return { ok: true, message: "Marka eklendi.", id: data.id };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Ekipman-Model Sil (admin) ----------
+export async function deleteEquipmentModel(id: string): Promise<Result> {
+  try {
+    await assertAdmin();
+    if (!id) return { ok: false, error: "Kayıt yok." };
+    const admin = createAdminClient();
+    await admin.from("model_certificates").delete().eq("model_id", id);
+    const { error } = await admin.from("equipment_models").delete().eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/ekipmanlar");
+    return { ok: true, message: "Model silindi." };
   } catch (e: any) {
     return { ok: false, error: e.message };
   }
@@ -583,6 +685,8 @@ export async function createCertificate(formData: FormData): Promise<Result> {
     const model_id = String(formData.get("model_id") || "");
     const issue_date = String(formData.get("issue_date") || "") || null;
     const valid_until = String(formData.get("valid_until") || "") || null;
+    const belge_tipi = String(formData.get("belge_tipi") || "") || null;
+    const category_id = String(formData.get("category_id") || "") || null;
     const file = formData.get("file") as File | null;
     if (!cert_no) return { ok: false, error: "Sertifika no zorunlu." };
 
@@ -594,12 +698,12 @@ export async function createCertificate(formData: FormData): Promise<Result> {
     if (existing) {
       certId = existing.id;
       await admin.from("certificates")
-        .update({ notified_body_id: notified_body_id || null, issue_date, valid_until })
+        .update({ notified_body_id: notified_body_id || null, issue_date, valid_until, belge_tipi, category_id })
         .eq("id", certId);
     } else {
       const { data: c, error: cErr } = await admin
         .from("certificates")
-        .insert({ cert_no, notified_body_id: notified_body_id || null, issue_date, valid_until })
+        .insert({ cert_no, notified_body_id: notified_body_id || null, issue_date, valid_until, belge_tipi, category_id })
         .select("id")
         .single();
       if (cErr || !c) return { ok: false, error: "Sertifika kaydı oluşturulamadı: " + (cErr?.message ?? "") };
