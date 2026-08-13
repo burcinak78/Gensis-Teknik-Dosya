@@ -58,8 +58,8 @@ export default function GuvenlikEkipmanlariClient({
 
   return (
     <div>
-      {/* Alt sekmeler */}
-      <div className="flex gap-1 mb-4 border-b border-slate-200">
+      {/* Alt sekmeler — sabit (listeyle kaymaz) */}
+      <div className="flex gap-1 border-b border-slate-200 sticky top-[92px] z-30 bg-white -mx-8 px-8">
         {[{ v: "sertifika", t: "Sertifika" }, { v: "ekipman", t: "Güvenlik Ekipmanı" }].map((s) => (
           <button key={s.v} onClick={() => setTab(s.v as any)}
             className={`px-4 py-2.5 text-sm font-semibold border-b-[2.5px] -mb-px transition ${tab === s.v ? "text-navy border-navy" : "text-slate-400 border-transparent hover:text-slate-600"}`}>
@@ -105,10 +105,10 @@ function SertifikaTab({ categories, certificates, certFileMap, notifiedBodies, c
   return (
     <div>
       <Toolbar onNew={() => setModal({})} newLabel="+ Yeni Sertifika" q={q} setQ={setQ} showFilters={showFilters} setShowFilters={setShowFilters} placeholder="Ara: sertifika no, kategori, belge tipi…" />
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white border border-slate-200 rounded-2xl mt-4">
+        <div>
           <table className="w-full border-collapse">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-slate-50 border-b border-slate-200 sticky top-[188px] z-20">
               <tr>
                 <th className={th}>Kategori</th><th className={th}>Belge Tipi</th><th className={th}>Sertifika No</th><th className={th}>Firma</th><th className={th}>Geçerlilik Tarihi</th><th className={th}>İşlem</th>
               </tr>
@@ -164,6 +164,7 @@ function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, firmaOp
     category_id: cert?.category_id ?? "", belge_tipi: cert?.belge_tipi ?? "", cert_no: cert?.cert_no ?? "",
     valid_until: cert?.valid_until ?? "", notified_body_id: cert?.notified_body_id ?? "", firma_adi: cert?.firma_adi ?? "",
   });
+  const [suresiz, setSuresiz] = useState(cert ? !cert.valid_until : true); // varsayılan: süresiz
   const [file, setFile] = useState<File | null>(null);
   const [nbs, setNbs] = useState<NB[]>(notifiedBodies);
   const [showNb, setShowNb] = useState(false);
@@ -186,13 +187,15 @@ function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, firmaOp
 
   async function submit() {
     setTouched(true); setErr(null);
-    if (!f.category_id || !f.belge_tipi || !f.cert_no.trim() || !f.valid_until || !f.notified_body_id || !f.firma_adi.trim()) return setErr("Tüm alanları doldurun.");
+    if (!f.category_id || !f.belge_tipi || !f.cert_no.trim() || !f.notified_body_id || !f.firma_adi.trim()) return setErr("Tüm alanları doldurun.");
+    if (!suresiz && !f.valid_until) return setErr("Geçerlilik tarihini girin veya 'Süresiz' seçin.");
     if (!isEdit && !file) return setErr("Sertifika dosyasını yükleyin.");
+    if (file && !(file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"))) return setErr("Sertifika dosyası yalnızca PDF olabilir.");
     setBusy(true);
     const fd = new FormData();
     if (isEdit) fd.set("id", cert!.id);
     fd.set("category_id", f.category_id); fd.set("belge_tipi", f.belge_tipi); fd.set("cert_no", f.cert_no.trim());
-    fd.set("valid_until", f.valid_until); fd.set("notified_body_id", f.notified_body_id); fd.set("firma_adi", f.firma_adi.trim());
+    fd.set("valid_until", suresiz ? "" : f.valid_until); fd.set("notified_body_id", f.notified_body_id); fd.set("firma_adi", f.firma_adi.trim());
     if (file) fd.set("file", file);
     const res = isEdit ? await updateCertificate(fd) : await createCertificate(fd);
     setBusy(false);
@@ -215,7 +218,12 @@ function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, firmaOp
         <Field label="Kategori *"><select className={inp + req(f.category_id)} value={f.category_id} onChange={(e) => set("category_id", e.target.value)}><option value="">Seçiniz…</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
         <Field label="Belge Tipi *"><select className={inp + req(f.belge_tipi)} value={f.belge_tipi} onChange={(e) => set("belge_tipi", e.target.value)}><option value="">Seçiniz…</option>{BELGE_TIPI.map((b) => <option key={b.v} value={b.v}>{b.t}</option>)}</select></Field>
         <Field label="Sertifika No *"><input className={inp + req(f.cert_no)} value={f.cert_no} onChange={(e) => set("cert_no", e.target.value)} /></Field>
-        <Field label="Geçerlilik Tarihi *"><input type="date" className={inp + req(f.valid_until)} value={f.valid_until} onChange={(e) => set("valid_until", e.target.value)} /></Field>
+        <Field label="Geçerlilik Tarihi">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-600 mb-1.5 cursor-pointer">
+            <input type="checkbox" checked={suresiz} onChange={(e) => setSuresiz(e.target.checked)} className="w-4 h-4 accent-brand" /> Süresiz
+          </label>
+          <input type="date" disabled={suresiz} className={inp + (suresiz ? " bg-slate-50 text-slate-400" : "")} value={suresiz ? "" : f.valid_until} onChange={(e) => set("valid_until", e.target.value)} />
+        </Field>
         <Field label="Onaylanmış Kuruluş *">
           <div className="flex gap-2">
             <select className={inp + req(f.notified_body_id)} value={f.notified_body_id} onChange={(e) => set("notified_body_id", e.target.value)}>
@@ -295,10 +303,10 @@ function EkipmanTab({ categories, brands, models, certificates, catById, brandBy
   return (
     <div>
       <Toolbar onNew={() => setModal({})} newLabel="+ Yeni Ekipman Ekle" q={q} setQ={setQ} showFilters={showFilters} setShowFilters={setShowFilters} placeholder="Ara: kategori, marka, model, sertifika no…" />
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white border border-slate-200 rounded-2xl mt-4">
+        <div>
           <table className="w-full border-collapse">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-slate-50 border-b border-slate-200 sticky top-[188px] z-20">
               <tr><th className={th}>Kategori</th><th className={th}>Marka</th><th className={th}>Model</th><th className={th}>Sertifika No</th><th className={th}>İşlem</th></tr>
               {showFilters && (
                 <tr className="bg-white border-b border-slate-200">
@@ -449,7 +457,7 @@ function Toolbar({ onNew, newLabel, q, setQ, showFilters, setShowFilters, placeh
   onNew: () => void; newLabel: string; q: string; setQ: (v: string) => void; showFilters: boolean; setShowFilters: (f: (v: boolean) => boolean) => void; placeholder: string;
 }) {
   return (
-    <div className="sticky top-[92px] z-10 bg-white/80 backdrop-blur -mx-8 px-8 py-3 border-b border-slate-100 mb-4 flex items-center gap-3">
+    <div className="sticky top-[136px] z-20 bg-white -mx-8 px-8 py-3 border-b border-slate-100 flex items-center gap-3">
       <button onClick={onNew} className="gs-btn text-sm font-bold px-5 py-2.5 rounded-xl">{newLabel}</button>
       <div className="relative flex-1 max-w-md">
         <span className="material-symbols-rounded text-[20px] absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>

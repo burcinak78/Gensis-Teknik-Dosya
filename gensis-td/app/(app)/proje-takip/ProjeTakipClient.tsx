@@ -252,10 +252,13 @@ function DurumModal({
   const isBekliyor = row.durum === "BEKLIYOR";
 
   function addStaged(list: FileList | null) {
-    const arr = list ? Array.from(list).filter((x): x is File => !!x) : [];
+    let arr = list ? Array.from(list).filter((x): x is File => !!x) : [];
     if (arr.length === 0) return;
+    const bad = arr.filter((fl) => !fl.name.toLowerCase().endsWith(".dwg"));
+    arr = arr.filter((fl) => fl.name.toLowerCase().endsWith(".dwg"));
+    if (bad.length) { setErr("Tamamlanan proje yalnızca DWG dosyası olabilir."); if (arr.length === 0) return; }
+    else setErr(null);
     setStaged((s) => [...s, ...arr]);
-    setErr(null);
   }
   function removeStaged(i: number) { setStaged((s) => s.filter((_, idx) => idx !== i)); }
   async function deleteExisting(id: string) {
@@ -359,7 +362,7 @@ function DurumModal({
                 <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-brand bg-brand-light px-3 py-2 rounded-lg hover:bg-brand/10 w-fit">
                   <span className="material-symbols-rounded text-[16px]">attach_file</span>
                   Dosya Seç (çoklu)
-                  <input type="file" multiple className="hidden" onChange={(e) => { addStaged(e.target.files); e.currentTarget.value = ""; }} />
+                  <input type="file" multiple accept=".dwg" className="hidden" onChange={(e) => { addStaged(e.target.files); e.currentTarget.value = ""; }} />
                 </label>
                 {/* Yüklenmiş dosyalar */}
                 {existingDocs.length > 0 && (

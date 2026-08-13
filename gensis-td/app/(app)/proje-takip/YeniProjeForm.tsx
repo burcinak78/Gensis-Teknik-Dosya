@@ -44,6 +44,8 @@ const SLOTS_UYGULAMA: UploadSlot[] = [
   { kind: "yapi_ruhsati", label: "Yapı Ruhsatı", required: true },
   { kind: "diger", label: "Diğer", required: false },
 ];
+// Proje çizimleri yalnızca DWG kabul eder (Ölçü Formu / Yapı Ruhsatı / Diğer serbest)
+const DWG_KINDS = ["mimari_proje", "elektrik_projesi", "statik_projesi", "tamamlanan_proje"];
 
 export default function YeniProjeForm({
   companies: companiesInit, provinces, sorumlular, nextNo = null, edit,
@@ -101,8 +103,15 @@ export default function YeniProjeForm({
 
   // "diger" çoklu; diğerleri tek (yeni seçim öncekini değiştirir)
   function addFiles(kind: string, list: FileList | null) {
-    const arr = list ? Array.from(list).filter((x): x is File => !!x) : [];
+    let arr = list ? Array.from(list).filter((x): x is File => !!x) : [];
     if (arr.length === 0) return;
+    // Proje çizimleri yalnızca DWG
+    if (DWG_KINDS.includes(kind)) {
+      const bad = arr.filter((fl) => !fl.name.toLowerCase().endsWith(".dwg"));
+      arr = arr.filter((fl) => fl.name.toLowerCase().endsWith(".dwg"));
+      if (bad.length) setErr("Proje çizimleri yalnızca DWG dosyası olabilir.");
+      if (arr.length === 0) return;
+    }
     const multiple = kind === "diger";
     setFiles((s) => ({ ...s, [kind]: multiple ? [...(s[kind] ?? []), ...arr] : [arr[0]] }));
   }
@@ -230,6 +239,7 @@ export default function YeniProjeForm({
           <DocSlot key={s.kind} label={s.label}
             required={!revMode && s.required}
             multiple={s.kind === "diger"}
+            accept={DWG_KINDS.includes(s.kind) ? ".dwg" : undefined}
             invalid={!revMode && touched && s.required && (files[s.kind] ?? []).length + existingDocs.filter((d) => d.kind === s.kind).length === 0}
             existing={existingDocs.filter((d) => d.kind === s.kind)}
             staged={files[s.kind] ?? []}
@@ -443,16 +453,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 // Mevcut yüklenen + yeni seçilen dosyaları gösteren yükleme kutusu (Teknik Dosya FileZone ile aynı davranış)
 function DocSlot({
-  label, required, multiple, invalid, existing, staged, onAdd, onRemoveStaged, onDeleteExisting,
+  label, required, multiple, invalid, existing, staged, onAdd, onRemoveStaged, onDeleteExisting, accept,
 }: {
   label: string; required: boolean; multiple: boolean; invalid: boolean;
   existing: Doc[]; staged: File[];
-  onAdd: (l: FileList | null) => void; onRemoveStaged: (i: number) => void; onDeleteExisting: (id: string) => void;
+  onAdd: (l: FileList | null) => void; onRemoveStaged: (i: number) => void; onDeleteExisting: (id: string) => void; accept?: string;
 }) {
   return (
     <div className={`rounded-xl border bg-white p-3 space-y-2 ${invalid ? "border-red-400 bg-red-50" : "border-slate-200"}`}>
       <div className="text-sm font-semibold text-slate-800">
         {label} {required ? <span className="text-red-500">*</span> : <span className="text-slate-400 text-xs font-normal">({multiple ? "çoklu, opsiyonel" : "tek dosya, opsiyonel"})</span>}
+        {accept === ".dwg" && <span className="text-slate-400 text-xs font-normal"> · yalnızca DWG</span>}
       </div>
       {existing.map((d) => (
         <div key={d.id} className="flex items-center justify-between text-xs">
@@ -471,7 +482,7 @@ function DocSlot({
       <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-brand bg-brand-light px-3 py-2 rounded-lg hover:bg-brand/10 w-fit">
         <span className="material-symbols-rounded text-[16px]">attach_file</span>
         {multiple ? "Dosya Seç (çoklu)" : "Dosya Seç"}
-        <input type="file" multiple={multiple} className="hidden" onChange={(e) => { onAdd(e.target.files); e.currentTarget.value = ""; }} />
+        <input type="file" multiple={multiple} accept={accept} className="hidden" onChange={(e) => { onAdd(e.target.files); e.currentTarget.value = ""; }} />
       </label>
     </div>
   );
