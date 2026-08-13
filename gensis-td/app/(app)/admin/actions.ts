@@ -585,6 +585,7 @@ export async function updateCertificate(formData: FormData): Promise<Result> {
       valid_until: String(formData.get("valid_until") || "") || null,
       belge_tipi: String(formData.get("belge_tipi") || "") || null,
       category_id: String(formData.get("category_id") || "") || null,
+      firma_adi: String(formData.get("firma_adi") || "").trim() || null,
     }).eq("id", id);
     if (error) return { ok: false, error: error.message };
     const file = formData.get("file") as File | null;
@@ -687,6 +688,7 @@ export async function createCertificate(formData: FormData): Promise<Result> {
     const valid_until = String(formData.get("valid_until") || "") || null;
     const belge_tipi = String(formData.get("belge_tipi") || "") || null;
     const category_id = String(formData.get("category_id") || "") || null;
+    const firma_adi = String(formData.get("firma_adi") || "").trim() || null;
     const file = formData.get("file") as File | null;
     if (!cert_no) return { ok: false, error: "Sertifika no zorunlu." };
 
@@ -698,12 +700,12 @@ export async function createCertificate(formData: FormData): Promise<Result> {
     if (existing) {
       certId = existing.id;
       await admin.from("certificates")
-        .update({ notified_body_id: notified_body_id || null, issue_date, valid_until, belge_tipi, category_id })
+        .update({ notified_body_id: notified_body_id || null, issue_date, valid_until, belge_tipi, category_id, firma_adi })
         .eq("id", certId);
     } else {
       const { data: c, error: cErr } = await admin
         .from("certificates")
-        .insert({ cert_no, notified_body_id: notified_body_id || null, issue_date, valid_until, belge_tipi, category_id })
+        .insert({ cert_no, notified_body_id: notified_body_id || null, issue_date, valid_until, belge_tipi, category_id, firma_adi })
         .select("id")
         .single();
       if (cErr || !c) return { ok: false, error: "Sertifika kaydı oluşturulamadı: " + (cErr?.message ?? "") };

@@ -26,15 +26,11 @@ export async function bildirimSayisi(admin: any, role: string, companyId: string
     total += (data ?? []).filter((d: any) => d.engineers?.company_id === companyId).length;
   }
 
-  // Ekipman sertifikaları — yalnız personel
+  // Ekipman sertifikaları — yalnız personel (modele bağlı olmasa da sayılır)
   if (isStaff) {
-    const { data: certs } = await admin.from("certificates").select("id")
+    const { count } = await admin.from("certificates").select("id", { count: "exact", head: true })
       .not("valid_until", "is", null).lte("valid_until", cutoffStr);
-    const ids = (certs ?? []).map((c: any) => c.id);
-    if (ids.length) {
-      const { count } = await admin.from("equipment_models").select("id", { count: "exact", head: true }).in("certificate_id", ids);
-      total += count ?? 0;
-    }
+    total += count ?? 0;
   }
 
   return total;

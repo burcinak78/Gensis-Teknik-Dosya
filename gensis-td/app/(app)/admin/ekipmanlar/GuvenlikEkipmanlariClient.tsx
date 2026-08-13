@@ -10,7 +10,7 @@ import {
 type Cat = { id: string; name: string };
 type Brand = { id: string; category_id: string; name: string };
 type Model = { id: string; brand_id: string; name: string; certificate_id: string | null };
-type Cert = { id: string; cert_no: string; notified_body_id: string | null; issue_date: string | null; valid_until: string | null; belge_tipi: string | null; category_id: string | null };
+type Cert = { id: string; cert_no: string; notified_body_id: string | null; issue_date: string | null; valid_until: string | null; belge_tipi: string | null; category_id: string | null; firma_adi: string | null };
 type NB = { id: string; identity_no: string | null; name: string; address: string | null };
 type ModelCert = { model_id: string; certificate_id: string };
 
@@ -30,6 +30,15 @@ const td = "px-3 py-2 text-sm whitespace-nowrap";
 const fTh = "px-3 py-1.5 align-top";
 const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("tr-TR") : "—");
 const tc = (v: unknown) => String(v ?? "").toLocaleLowerCase("tr");
+// Geçerlilik durumu: süresi geçen kırmızı, 1 aydan az sarı
+function certDurum(valid: string | null | undefined): { t: string; c: string } | null {
+  if (!valid) return null;
+  const d = new Date(valid); const now = new Date(); now.setHours(0, 0, 0, 0);
+  const in30 = new Date(now); in30.setDate(in30.getDate() + 30);
+  if (d < now) return { t: "Geçersiz", c: "text-red-600 font-bold" };
+  if (d < in30) return { t: "1 aydan az", c: "text-amber-600 font-semibold" };
+  return null;
+}
 
 export default function GuvenlikEkipmanlariClient({
   categories, brands, models, certificates, certFileMap, notifiedBodies, modelCerts, isAdmin = false,
@@ -72,20 +81,22 @@ function SertifikaTab({ categories, certificates, certFileMap, notifiedBodies, c
 }) {
   const [q, setQ] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [fil, setFil] = useState({ kategori: "", belge: "", certNo: "", gecerlilik: "" });
+  const [fil, setFil] = useState({ kategori: "", belge: "", certNo: "", firma: "", gecerlilik: "" });
   const [modal, setModal] = useState<null | { cert?: Cert }>(null);
+  const firmaOptions = useMemo(() => Array.from(new Set(certificates.map((c) => c.firma_adi).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, "tr")), [certificates]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLocaleLowerCase("tr");
     return certificates.filter((c) => {
       const gStr = dt(c.valid_until);
       if (s) {
-        const hay = [c.cert_no, catById[c.category_id ?? ""]?.name, BELGE_TIPI_TR[c.belge_tipi ?? ""], gStr].map(tc).join(" ");
+        const hay = [c.cert_no, catById[c.category_id ?? ""]?.name, BELGE_TIPI_TR[c.belge_tipi ?? ""], c.firma_adi, gStr].map(tc).join(" ");
         if (!hay.includes(s)) return false;
       }
       if (fil.kategori && c.category_id !== fil.kategori) return false;
       if (fil.belge && c.belge_tipi !== fil.belge) return false;
       if (fil.certNo && !tc(c.cert_no).includes(tc(fil.certNo))) return false;
+      if (fil.firma && !tc(c.firma_adi).includes(tc(fil.firma))) return false;
       if (fil.gecerlilik && !tc(gStr).includes(tc(fil.gecerlilik))) return false;
       return true;
     });
@@ -99,7 +110,7 @@ function SertifikaTab({ categories, certificates, certFileMap, notifiedBodies, c
           <table className="w-full border-collapse">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className={th}>Kategori</th><th className={th}>Belge Tipi</th><th className={th}>Sertifika No</th><th className={th}>Geçerlilik Tarihi</th><th className={th}>İşlem</th>
+                <th className={th}>Kategori</th><th className={th}>Belge Tipi</th><th className={th}>Sertifika No</th><th className={th}>Firma</th><th className={th}>Geçerlilik Tarihi</th><th className={th}>İşlem</th>
               </tr>
               {showFilters && (
                 <tr className="bg-white border-b border-slate-200">
@@ -114,39 +125,44 @@ function SertifikaTab({ categories, certificates, certFileMap, notifiedBodies, c
                     </select>
                   </th>
                   <th className={fTh}><input className={fInp} value={fil.certNo} onChange={(e) => setFil((s) => ({ ...s, certNo: e.target.value }))} placeholder="Sertifika No" /></th>
+                  <th className={fTh}><input className={fInp} value={fil.firma} onChange={(e) => setFil((s) => ({ ...s, firma: e.target.value }))} placeholder="Firma" /></th>
                   <th className={fTh}><input className={fInp} value={fil.gecerlilik} onChange={(e) => setFil((s) => ({ ...s, gecerlilik: e.target.value }))} placeholder="gg.aa.yyyy" /></th>
                   <th className={fTh}></th>
                 </tr>
               )}
             </thead>
             <tbody>
-              {filtered.map((c) => (
-                <tr key={c.id} className="border-b border-slate-100 last:border-0">
-                  <td className={td}>{catById[c.category_id ?? ""]?.name ?? "—"}</td>
-                  <td className={td}>{BELGE_TIPI_TR[c.belge_tipi ?? ""] ?? "—"}</td>
-                  <td className={td + " font-semibold"}>{c.cert_no}</td>
-                  <td className={td + " text-slate-500"}>{dt(c.valid_until)}</td>
-                  <td className={td + " text-right"}><button onClick={() => setModal({ cert: c })} className="text-xs font-bold text-brand hover:underline">Düzenle</button></td>
-                </tr>
-              ))}
-              {filtered.length === 0 && <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok.</td></tr>}
+              {filtered.map((c) => {
+                const du = certDurum(c.valid_until);
+                return (
+                  <tr key={c.id} className={"border-b border-slate-100 last:border-0" + (du?.c.includes("red") ? " bg-red-50/40" : "")}>
+                    <td className={td}>{catById[c.category_id ?? ""]?.name ?? "—"}</td>
+                    <td className={td}>{BELGE_TIPI_TR[c.belge_tipi ?? ""] ?? "—"}</td>
+                    <td className={td + " font-semibold"}>{c.cert_no}</td>
+                    <td className={td + " text-slate-500"}>{c.firma_adi || "—"}</td>
+                    <td className={td + (du ? " " + du.c : " text-slate-500")}>{dt(c.valid_until)}{du && <span className="ml-1 text-[10px]">({du.t})</span>}</td>
+                    <td className={td + " text-right"}><button onClick={() => setModal({ cert: c })} className="text-xs font-bold text-brand hover:underline">Düzenle</button></td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok.</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
-      {modal && <SertifikaModal cert={modal.cert} categories={categories} notifiedBodies={notifiedBodies} certFileMap={certFileMap} isAdmin={isAdmin} onClose={() => setModal(null)} />}
+      {modal && <SertifikaModal cert={modal.cert} categories={categories} notifiedBodies={notifiedBodies} certFileMap={certFileMap} firmaOptions={firmaOptions} isAdmin={isAdmin} onClose={() => setModal(null)} />}
     </div>
   );
 }
 
-function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, isAdmin, onClose }: {
-  cert?: Cert; categories: Cat[]; notifiedBodies: NB[]; certFileMap: Record<string, string>; isAdmin: boolean; onClose: () => void;
+function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, firmaOptions, isAdmin, onClose }: {
+  cert?: Cert; categories: Cat[]; notifiedBodies: NB[]; certFileMap: Record<string, string>; firmaOptions: string[]; isAdmin: boolean; onClose: () => void;
 }) {
   const router = useRouter();
   const isEdit = !!cert;
   const [f, setF] = useState({
     category_id: cert?.category_id ?? "", belge_tipi: cert?.belge_tipi ?? "", cert_no: cert?.cert_no ?? "",
-    valid_until: cert?.valid_until ?? "", notified_body_id: cert?.notified_body_id ?? "",
+    valid_until: cert?.valid_until ?? "", notified_body_id: cert?.notified_body_id ?? "", firma_adi: cert?.firma_adi ?? "",
   });
   const [file, setFile] = useState<File | null>(null);
   const [nbs, setNbs] = useState<NB[]>(notifiedBodies);
@@ -170,13 +186,13 @@ function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, isAdmin
 
   async function submit() {
     setTouched(true); setErr(null);
-    if (!f.category_id || !f.belge_tipi || !f.cert_no.trim() || !f.valid_until || !f.notified_body_id) return setErr("Tüm alanları doldurun.");
+    if (!f.category_id || !f.belge_tipi || !f.cert_no.trim() || !f.valid_until || !f.notified_body_id || !f.firma_adi.trim()) return setErr("Tüm alanları doldurun.");
     if (!isEdit && !file) return setErr("Sertifika dosyasını yükleyin.");
     setBusy(true);
     const fd = new FormData();
     if (isEdit) fd.set("id", cert!.id);
     fd.set("category_id", f.category_id); fd.set("belge_tipi", f.belge_tipi); fd.set("cert_no", f.cert_no.trim());
-    fd.set("valid_until", f.valid_until); fd.set("notified_body_id", f.notified_body_id);
+    fd.set("valid_until", f.valid_until); fd.set("notified_body_id", f.notified_body_id); fd.set("firma_adi", f.firma_adi.trim());
     if (file) fd.set("file", file);
     const res = isEdit ? await updateCertificate(fd) : await createCertificate(fd);
     setBusy(false);
@@ -207,6 +223,10 @@ function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, isAdmin
             </select>
             <button type="button" onClick={() => setShowNb((v) => !v)} className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-2 hover:bg-brand-light whitespace-nowrap">{showNb ? "Kapat" : "+ Yeni"}</button>
           </div>
+        </Field>
+        <Field label="Verildiği Firma *">
+          <input list="cert-firma-list" className={inp + req(f.firma_adi)} value={f.firma_adi} onChange={(e) => set("firma_adi", e.target.value)} placeholder="Listeden seç ya da yeni firma yaz" />
+          <datalist id="cert-firma-list">{firmaOptions.map((o) => <option key={o} value={o} />)}</datalist>
         </Field>
         <Field label="Sertifika Dosyası (PDF) *">
           {existingFile && <a href={`/api/belge/sertifika?id=${cert!.id}`} target="_blank" rel="noreferrer" className="block text-xs text-navy font-semibold hover:underline mb-1">📎 {existingFile}</a>}

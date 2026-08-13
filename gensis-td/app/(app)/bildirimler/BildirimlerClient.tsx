@@ -5,7 +5,7 @@ import Link from "next/link";
 
 type Musteri = { id: string; companyId: string; firma: string; docType: string; belgeNo: string | null; valid_until: string };
 type Muhendis = { id: string; engineerId: string; ad: string; brans: string; docType: string; valid_until: string };
-type Ekipman = { modelId: string; model: string; marka: string; kategori: string; certNo: string; valid_until: string };
+type Ekipman = { id: string; kategori: string; belgeTipi: string; certNo: string; firma: string; valid_until: string };
 
 const COMPANY_DOC: Record<string, string> = {
   sanayi_sicil: "Sanayi Sicil Belgesi", tse_hyb: "TSE HYB Belgesi",
@@ -65,16 +65,14 @@ export default function BildirimlerClient({
     { key: "actions", label: "", align: "right", render: guncelleMuhendis },
   ];
   const ekipmanCols: Col<Ekipman>[] = [
-    { key: "kategori", label: "Ekipman Tipi", filter: true, value: (m) => m.kategori, cell: "bold" },
-    { key: "marka", label: "Marka", filter: true, value: (m) => m.marka, cell: "muted" },
-    { key: "model", label: "Model", filter: true, value: (m) => m.model },
+    { key: "kategori", label: "Kategori", filter: true, value: (m) => m.kategori, cell: "bold" },
+    { key: "belgeTipi", label: "Belge Tipi", filter: true, value: (m) => m.belgeTipi, cell: "muted" },
     { key: "certNo", label: "Sertifika No", value: (m) => m.certNo || "—", cell: "muted" },
+    { key: "firma", label: "Firma", filter: true, value: (m) => m.firma || "—", cell: "muted" },
     { key: "gecerlilik", label: "Geçerlilik", value: (m) => tr(m.valid_until), cell: "muted" },
     { key: "durum", label: "Durum", filter: true, value: (m) => durum(m.valid_until).t, render: (m) => <Badge du={durum(m.valid_until)} /> },
-    { key: "actions", label: "", align: "right", render: () => null },
+    { key: "actions", label: "", align: "right", render: () => <Guncelle href="/admin/ekipmanlar" /> },
   ];
-  // Ekipmanda güncelle linki
-  ekipmanCols[ekipmanCols.length - 1].render = (m: Ekipman) => <Guncelle href={`/admin/ekipmanlar?edit=${m.modelId}`} />;
 
   return (
     <div>
@@ -89,7 +87,7 @@ export default function BildirimlerClient({
       <div className="px-8 py-6 space-y-6 gs-fade max-w-5xl">
         <Grup baslik="Müşteri Dokümanları" rows={musteri} cols={musteriCols} keyOf={(m) => m.id} />
         <Grup baslik="Mühendis Dokümanları" rows={muhendis} cols={muhendisCols} keyOf={(m) => m.id} />
-        {isStaff && <Grup baslik="Ekipman Sertifikaları" rows={ekipman} cols={ekipmanCols} keyOf={(m) => m.modelId} />}
+        {isStaff && <Grup baslik="Ekipman Sertifikaları" rows={ekipman} cols={ekipmanCols} keyOf={(m) => m.id} />}
       </div>
     </div>
   );

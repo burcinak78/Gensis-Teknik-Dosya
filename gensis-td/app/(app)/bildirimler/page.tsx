@@ -39,32 +39,26 @@ export default async function BildirimlerPage() {
     .order("valid_until", { ascending: true });
   const engFiltered = (engDocs ?? []).filter((d: any) => isStaff || d.engineers?.company_id === companyId);
 
-  // Ekipman sertifikaları — yalnız personel
+  // Ekipman sertifikaları — yalnız personel (modele bağlı olmasa da doğrudan sertifika bazlı)
+  const BELGE_TIPI_TR: Record<string, string> = {
+    mod_b: "Mod B", mod_c2: "Mod C2", uygunluk_beyani: "Uygunluk Beyanı", yangin: "Yangın Sertifikası", deney_raporu: "Deney Raporu",
+  };
   let ekipman: any[] = [];
   if (isStaff) {
     const { data: certs } = await admin
       .from("certificates")
-      .select("id, cert_no, valid_until")
+      .select("id, cert_no, valid_until, belge_tipi, firma_adi, equipment_categories(name)")
       .not("valid_until", "is", null)
       .lte("valid_until", cutoffStr)
       .order("valid_until", { ascending: true });
-    const certMap = new Map((certs ?? []).map((c: any) => [c.id, c]));
-    const ids = (certs ?? []).map((c: any) => c.id);
-    if (ids.length) {
-      const { data: models } = await admin
-        .from("equipment_models")
-        .select("id, name, certificate_id, equipment_brands(name, equipment_categories(name))")
-        .in("certificate_id", ids);
-      ekipman = (models ?? []).map((m: any) => {
-        const c = certMap.get(m.certificate_id);
-        return {
-          modelId: m.id, model: m.name,
-          marka: m.equipment_brands?.name ?? "",
-          kategori: m.equipment_brands?.equipment_categories?.name ?? "",
-          certNo: c?.cert_no ?? "", valid_until: c?.valid_until ?? null,
-        };
-      }).sort((a, b) => String(a.valid_until).localeCompare(String(b.valid_until)));
-    }
+    ekipman = (certs ?? []).map((c: any) => ({
+      id: c.id,
+      kategori: c.equipment_categories?.name ?? "—",
+      belgeTipi: BELGE_TIPI_TR[c.belge_tipi ?? ""] ?? "—",
+      certNo: c.cert_no ?? "",
+      firma: c.firma_adi ?? "—",
+      valid_until: c.valid_until ?? null,
+    }));
   }
 
   const musteri = (compDocs ?? []).map((d: any) => ({

@@ -18,7 +18,7 @@ export default async function GuvenlikEkipmanlariPage() {
     supabase.from("equipment_categories").select("id, name, sort_order").order("sort_order"),
     supabase.from("equipment_brands").select("id, category_id, name").order("name"),
     supabase.from("equipment_models").select("id, brand_id, name, certificate_id").limit(5000),
-    supabase.from("certificates").select("id, cert_no, notified_body_id, issue_date, valid_until, belge_tipi, category_id").limit(5000),
+    supabase.from("certificates").select("id, cert_no, notified_body_id, issue_date, valid_until, belge_tipi, category_id, firma_adi").limit(5000),
     supabase.from("certificate_files").select("certificate_id, original_name").eq("is_current", true).limit(5000),
     supabase.from("notified_bodies").select("id, identity_no, name, address").order("name"),
     admin.from("model_certificates").select("model_id, certificate_id").limit(20000),
