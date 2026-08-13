@@ -272,14 +272,20 @@ function EkipmanTab({ categories, brands, models, certificates, catById, brandBy
 }) {
   const [q, setQ] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [fil, setFil] = useState({ kategori: "", marka: "", model: "", certNo: "" });
+  const [fil, setFil] = useState({ kategori: "", marka: "", model: "", belge: "" });
   const [modal, setModal] = useState<null | { model?: Model }>(null);
 
   const modelCatId = (m: Model) => brandById[m.brand_id]?.category_id ?? "";
-  const modelCertNo = (m: Model) => {
-    const ids = certsByModel[m.id] ?? (m.certificate_id ? [m.certificate_id] : []);
-    const nos = ids.map((id) => certById[id]?.cert_no).filter(Boolean);
-    return nos.length ? nos.join(", ") : "—";
+  const modelCertIds = (m: Model) => certsByModel[m.id] ?? (m.certificate_id ? [m.certificate_id] : []);
+  // Ekipmana bağlı sertifikaların belge tipleri (benzersiz)
+  const modelBelgeSet = (m: Model) => {
+    const set = new Set<string>();
+    for (const id of modelCertIds(m)) { const bt = certById[id]?.belge_tipi; if (bt) set.add(bt); }
+    return set;
+  };
+  const modelBelgeTipleri = (m: Model) => {
+    const labels = Array.from(modelBelgeSet(m)).map((v) => BELGE_TIPI_TR[v] ?? v);
+    return labels.length ? labels.join(", ") : "—";
   };
 
   const filtered = useMemo(() => {
@@ -287,33 +293,33 @@ function EkipmanTab({ categories, brands, models, certificates, catById, brandBy
     return models.filter((m) => {
       const b = brandById[m.brand_id];
       const catId = b?.category_id ?? "";
-      const certNo = modelCertNo(m);
+      const belgeTxt = modelBelgeTipleri(m);
       if (s) {
-        const hay = [m.name, b?.name, catById[catId]?.name, certNo].map(tc).join(" ");
+        const hay = [m.name, b?.name, catById[catId]?.name, belgeTxt].map(tc).join(" ");
         if (!hay.includes(s)) return false;
       }
       if (fil.kategori && catId !== fil.kategori) return false;
       if (fil.marka && m.brand_id !== fil.marka) return false;
       if (fil.model && !tc(m.name).includes(tc(fil.model))) return false;
-      if (fil.certNo && !tc(certNo).includes(tc(fil.certNo))) return false;
+      if (fil.belge && !modelBelgeSet(m).has(fil.belge)) return false;
       return true;
     });
   }, [q, fil, models]);
 
   return (
     <div>
-      <Toolbar onNew={() => setModal({})} newLabel="+ Yeni Ekipman Ekle" q={q} setQ={setQ} showFilters={showFilters} setShowFilters={setShowFilters} placeholder="Ara: kategori, marka, model, sertifika no…" />
+      <Toolbar onNew={() => setModal({})} newLabel="+ Yeni Ekipman Ekle" q={q} setQ={setQ} showFilters={showFilters} setShowFilters={setShowFilters} placeholder="Ara: kategori, marka, model, belge tipi…" />
       <div className="bg-white border border-slate-200 rounded-2xl mt-4">
         <div>
           <table className="w-full border-collapse">
             <thead className="bg-slate-50 border-b border-slate-200 sticky top-[188px] z-20">
-              <tr><th className={th}>Kategori</th><th className={th}>Marka</th><th className={th}>Model</th><th className={th}>Sertifika No</th><th className={th}>İşlem</th></tr>
+              <tr><th className={th}>Kategori</th><th className={th}>Marka</th><th className={th}>Model</th><th className={th}>Belge Tipleri</th><th className={th}>İşlem</th></tr>
               {showFilters && (
                 <tr className="bg-white border-b border-slate-200">
                   <th className={fTh}><select className={fInp} value={fil.kategori} onChange={(e) => setFil((s) => ({ ...s, kategori: e.target.value, marka: "" }))}><option value="">Hepsi</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></th>
                   <th className={fTh}><select className={fInp} value={fil.marka} onChange={(e) => setFil((s) => ({ ...s, marka: e.target.value }))}><option value="">Hepsi</option>{brands.filter((b) => !fil.kategori || b.category_id === fil.kategori).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></th>
                   <th className={fTh}><input className={fInp} value={fil.model} onChange={(e) => setFil((s) => ({ ...s, model: e.target.value }))} placeholder="Model" /></th>
-                  <th className={fTh}><input className={fInp} value={fil.certNo} onChange={(e) => setFil((s) => ({ ...s, certNo: e.target.value }))} placeholder="Sertifika No" /></th>
+                  <th className={fTh}><select className={fInp} value={fil.belge} onChange={(e) => setFil((s) => ({ ...s, belge: e.target.value }))}><option value="">Hepsi</option>{BELGE_TIPI.map((b) => <option key={b.v} value={b.v}>{b.t}</option>)}</select></th>
                   <th className={fTh}></th>
                 </tr>
               )}
@@ -324,7 +330,7 @@ function EkipmanTab({ categories, brands, models, certificates, catById, brandBy
                   <td className={td}>{catById[modelCatId(m)]?.name ?? "—"}</td>
                   <td className={td}>{brandById[m.brand_id]?.name ?? "—"}</td>
                   <td className={td + " font-semibold"}>{m.name}</td>
-                  <td className={td + " text-slate-500"}>{modelCertNo(m)}</td>
+                  <td className={td + " text-slate-500"}>{modelBelgeTipleri(m)}</td>
                   <td className={td + " text-right"}><button onClick={() => setModal({ model: m })} className="text-xs font-bold text-brand hover:underline">Düzenle</button></td>
                 </tr>
               ))}
