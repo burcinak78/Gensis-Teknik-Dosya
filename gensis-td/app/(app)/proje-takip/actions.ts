@@ -55,6 +55,7 @@ export type TakipPayload = {
   fatura_tipi: "faturali" | "faturasiz";
   proje_sorumlusu_id: string | null;
   tahmini_tamamlanma: string | null;
+  montaj_firma_id: string | null;
 };
 
 // ---------- Yeni proje takip kaydı ----------
@@ -93,6 +94,7 @@ export async function createTakipProje(p: TakipPayload): Promise<Result> {
       toplam_tutar,
       proje_sorumlusu_id: p.proje_sorumlusu_id,
       tahmini_tamamlanma: p.tahmini_tamamlanma,
+      montaj_firma_id: p.montaj_firma_id,
       durum: "HAZIRLANIYOR",
       created_by: actor.userId,
     }).select("id, proje_no").single();
@@ -133,6 +135,7 @@ export async function updateTakipProje(id: string, p: TakipPayload): Promise<Res
       toplam_tutar,
       proje_sorumlusu_id: p.proje_sorumlusu_id,
       tahmini_tamamlanma: p.tahmini_tamamlanma,
+      montaj_firma_id: p.montaj_firma_id,
       updated_at: new Date().toISOString(),
     }).eq("id", id);
     if (error) return { ok: false, error: error.message };

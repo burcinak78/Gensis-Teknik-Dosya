@@ -9,7 +9,7 @@ import {
   deleteTakipDoc, saveBekliyorAciklama, completeTakipProje,
 } from "./actions";
 
-type Company = { id: string; short_name: string; legal_name: string | null; city: string | null; montaj_firma_id?: string | null };
+type Company = { id: string; short_name: string; legal_name: string | null; city: string | null; category?: string | null };
 type Province = { id: number; name: string };
 type Sorumlu = { id: string; full_name: string | null; role: string };
 type District = { id: string; name: string };
@@ -18,7 +18,7 @@ type Row = {
   id: string; proje_no: number; parent_id: string | null; rev_no: string | null;
   rev_tarihi: string | null; rev_aciklama: string | null;
   proje_tipi: string; siparis_tarihi: string | null;
-  company_id: string | null; ada_parsel: string | null; is_adi: string | null;
+  company_id: string | null; montaj_firma_id: string | null; ada_parsel: string | null; is_adi: string | null;
   asansor_sayisi: number | null; asansor_tipi: string | null;
   il_adi: string | null; ilce_adi: string | null; fiyat: number | null;
   fatura_tipi: string | null; toplam_tutar: number | null; proje_sorumlusu_id: string | null;
@@ -59,11 +59,8 @@ export default function ProjeTakipClient({
 
   const sorumluAd = (id: string | null) => sorumlular.find((s) => s.id === id)?.full_name ?? "—";
   const firmaAd = (id: string | null) => companies.find((c) => c.id === id)?.short_name ?? "—";
-  // Bağlı montaj firmasının adı (Diğer müşterilerde)
-  const montajAd = (id: string | null) => {
-    const mid = companies.find((c) => c.id === id)?.montaj_firma_id;
-    return mid ? (companies.find((c) => c.id === mid)?.short_name ?? null) : null;
-  };
+  // Projeye bağlı montaj firmasının adı (proje bazlı)
+  const montajAd = (mid: string | null) => (mid ? (companies.find((c) => c.id === mid)?.short_name ?? null) : null);
 
   const tc = (v: unknown) => String(v ?? "").toLocaleLowerCase("tr");
   const filtered = useMemo(() => {
@@ -201,8 +198,8 @@ export default function ProjeTakipClient({
                     <td className={td}>{TIP_TR[r.proje_tipi] ?? r.proje_tipi}</td>
                     <td className={td + " font-semibold"}>
                       {firmaAd(r.company_id)}
-                      {montajAd(r.company_id) && (
-                        <div className="text-[11px] font-normal text-slate-400">Montaj: {montajAd(r.company_id)}</div>
+                      {montajAd(r.montaj_firma_id) && (
+                        <div className="text-[11px] font-normal text-slate-400">Montaj: {montajAd(r.montaj_firma_id)}</div>
                       )}
                     </td>
                     <td className={td}>{r.is_adi ?? "—"}</td>

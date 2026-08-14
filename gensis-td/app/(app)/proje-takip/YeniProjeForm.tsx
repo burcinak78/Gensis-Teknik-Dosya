@@ -11,7 +11,7 @@ import {
 import { createCompany } from "@/app/(app)/admin/actions";
 import { uploadTakipFile } from "@/lib/takipUpload";
 
-type Company = { id: string; short_name: string; legal_name: string | null; city: string | null };
+type Company = { id: string; short_name: string; legal_name: string | null; city: string | null; category?: string | null };
 type Province = { id: number; name: string };
 type Sorumlu = { id: string; full_name: string | null; role: string };
 type District = { id: string; name: string };
@@ -67,7 +67,7 @@ export default function YeniProjeForm({
   const [f, setF] = useState<Record<string, string>>(edit?.values ?? {
     proje_tipi: "mimari", siparis_tarihi: "", company_id: "", ada: "", parsel: "", is_adi: "",
     asansor_sayisi: "", asansor_tipi: "", province_id: "", district_id: "",
-    fiyat: "", fatura_tipi: "faturasiz", proje_sorumlusu_id: "", tahmini_tamamlanma: "",
+    fiyat: "", fatura_tipi: "faturasiz", proje_sorumlusu_id: "", tahmini_tamamlanma: "", montaj_firma_id: "",
   });
   const [districts, setDistricts] = useState<District[]>(edit?.initialDistricts ?? []);
   const [files, setFiles] = useState<Record<string, File[]>>({});
@@ -96,7 +96,7 @@ export default function YeniProjeForm({
   // Yeni müşteri Yönetim'de açıldıktan sonra bu sekmeye dönünce firma listesini tazele
   useEffect(() => {
     async function refresh() {
-      const { data } = await supabase.from("companies").select("id, short_name, legal_name, city").order("short_name").limit(2000);
+      const { data } = await supabase.from("companies").select("id, short_name, legal_name, city, category").order("short_name").limit(2000);
       if (data) setCompanies(data as any);
     }
     const onFocus = () => refresh();
@@ -107,6 +107,9 @@ export default function YeniProjeForm({
 
   const set = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
   const setRevF = (k: string, v: string) => setRev((s) => ({ ...s, [k]: v }));
+  // Seçili firma "Diğer" kategorisinde mi? (montaj firması bağlama bu durumda gösterilir)
+  const selectedCompany = companies.find((c) => c.id === f.company_id);
+  const selectedIsDiger = (selectedCompany?.category ?? "asansor") === "diger";
   const slots = f.proje_tipi === "uygulama" ? SLOTS_UYGULAMA : SLOTS_MIMARI;
   const fiyatNum = f.fiyat === "" ? null : Number(f.fiyat);
   const toplam = fiyatNum == null ? null : (f.fatura_tipi === "faturali" ? Math.round(fiyatNum * 1.2 * 100) / 100 : fiyatNum);
@@ -207,6 +210,7 @@ export default function YeniProjeForm({
       fatura_tipi: f.fatura_tipi as any,
       proje_sorumlusu_id: f.proje_sorumlusu_id || null,
       tahmini_tamamlanma: f.tahmini_tamamlanma || null,
+      montaj_firma_id: selectedIsDiger ? (f.montaj_firma_id || null) : null,
     };
   }
 
@@ -388,6 +392,16 @@ export default function YeniProjeForm({
                 </div>
               </Field>
 
+              {selectedIsDiger && (
+                <Field label="Montaj Firması Bağla">
+                  <select className={inp} value={f.montaj_firma_id} onChange={(e) => set("montaj_firma_id", e.target.value)}>
+                    <option value="">Seçiniz…</option>
+                    {companies.filter((c) => c.id !== f.company_id).map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
+                  </select>
+                  <p className="text-[11px] text-slate-400 mt-1">Listede yoksa, Yönetim Panelinden &apos;Yeni Müşteri Oluştur&apos;a gidin.</p>
+                </Field>
+              )}
+
               <div className="grid grid-cols-3 gap-4">
                 <Field label="Ada"><input className={inp} value={f.ada} onChange={(e) => set("ada", e.target.value)} /></Field>
                 <Field label="Parsel"><input className={inp} value={f.parsel} onChange={(e) => set("parsel", e.target.value)} /></Field>
@@ -524,7 +538,6 @@ export default function YeniProjeForm({
       {showMusteri && (
         <YeniMusteriModal
           provinces={safeProvinces.map((p) => p.name)}
-          companies={companies}
           onClose={() => setShowMusteri(false)}
           onCreated={(c) => {
             setCompanies((cs) => [...cs, c].sort((a, b) => a.short_name.localeCompare(b.short_name, "tr")));
@@ -537,13 +550,13 @@ export default function YeniProjeForm({
   );
 }
 
-function YeniMusteriModal({ provinces, companies, onClose, onCreated }: {
-  provinces: string[]; companies: Company[]; onClose: () => void; onCreated: (c: Company) => void;
+function YeniMusteriModal({ provinces, onClose, onCreated }: {
+  provinces: string[]; onClose: () => void; onCreated: (c: Company) => void;
 }) {
   const [category, setCategory] = useState("asansor");
   const [f, setF] = useState<Record<string, string>>({
     short_name: "", legal_name: "", authorized_person: "", registered_brand: "", city: "",
-    industry_reg_no: "", sector: "", mobile_phone: "", email: "", address: "", montaj_firma_id: "",
+    industry_reg_no: "", sector: "", mobile_phone: "", email: "", address: "",
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -561,7 +574,7 @@ function YeniMusteriModal({ provinces, companies, onClose, onCreated }: {
     const res = await createCompany({ ...f, category, ce_module: category === "asansor" ? "H1" : "" });
     setBusy(false);
     if (!res.ok) return setErr(res.error);
-    onCreated({ id: (res as any).id, short_name: f.short_name, legal_name: f.legal_name || null, city: f.city || null });
+    onCreated({ id: (res as any).id, short_name: f.short_name, legal_name: f.legal_name || null, city: f.city || null, category });
   }
 
   return (
@@ -601,17 +614,6 @@ function YeniMusteriModal({ provinces, companies, onClose, onCreated }: {
             {category !== "diger" && <Field label="Cep Telefonu"><input className={inp} value={f.mobile_phone} onChange={(e) => set("mobile_phone", e.target.value)} placeholder="0 5xx xxx xx xx" /></Field>}
             <Field label="E-Posta (opsiyonel)"><input type="email" className={inp} value={f.email} onChange={(e) => set("email", e.target.value)} /></Field>
             <div className="md:col-span-2"><Field label="Adres *"><input className={inp + rc("address")} value={f.address} onChange={(e) => set("address", e.target.value)} /></Field></div>
-            {category === "diger" && (
-              <div className="md:col-span-2">
-                <Field label="Montaj Firması Bağla">
-                  <select className={inp} value={f.montaj_firma_id} onChange={(e) => set("montaj_firma_id", e.target.value)}>
-                    <option value="">Seçiniz…</option>
-                    {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
-                  </select>
-                </Field>
-                <p className="text-[11px] text-slate-400 mt-1">Listede yoksa, Yönetim Panelinden &apos;Yeni Müşteri Oluştur&apos;a gidin.</p>
-              </div>
-            )}
           </div>
 
           {err && <div className="text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600">{err}</div>}

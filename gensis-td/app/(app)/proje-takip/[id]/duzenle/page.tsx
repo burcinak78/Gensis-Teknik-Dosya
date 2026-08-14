@@ -15,7 +15,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
   if (!p) notFound();
 
   const [{ data: companies }, { data: provinces }, { data: sorumlular }, { data: docs }] = await Promise.all([
-    supabase.from("companies").select("id, short_name, legal_name, city").order("short_name").limit(2000),
+    supabase.from("companies").select("id, short_name, legal_name, city, category").order("short_name").limit(2000),
     supabase.from("provinces").select("id, name").order("name"),
     admin.from("profiles").select("id, full_name, role").in("role", ["admin", "gensis"]).order("full_name").limit(1000),
     admin.from("takip_dokumanlar").select("id, kind, original_name").eq("takip_id", params.id),
@@ -43,6 +43,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     fatura_tipi: st(p.fatura_tipi) || "faturasiz",
     proje_sorumlusu_id: st(p.proje_sorumlusu_id),
     tahmini_tamamlanma: st(p.tahmini_tamamlanma),
+    montaj_firma_id: st(p.montaj_firma_id),
   };
 
   const slotDocs = (docs ?? []).filter((d: any) => SLOT_KINDS.includes(d.kind));

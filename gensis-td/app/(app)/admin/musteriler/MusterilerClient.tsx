@@ -8,7 +8,7 @@ type Company = {
   id: string; short_name: string; legal_name: string | null; address: string | null;
   phone: string | null; mobile_phone: string | null; email: string | null; city: string | null;
   authorized_person: string | null; registered_brand: string | null; industry_reg_no: string | null; ce_module: string | null;
-  category?: string | null; sector?: string | null; montaj_firma_id?: string | null;
+  category?: string | null; sector?: string | null;
 };
 type Doc = { id: string; company_id: string; doc_type: string; original_name: string | null; issue_date: string | null; valid_until: string | null; belge_no: string | null; notified_body_id: string | null; sub_type: string | null; parent_id: string | null };
 type NB = { id: string; identity_no: string | null; name: string };
@@ -18,7 +18,7 @@ type DocsState = { sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_ta
 
 const BLANK: Record<string, string> = {
   short_name: "", legal_name: "", authorized_person: "", registered_brand: "",
-  city: "", phone: "", mobile_phone: "", email: "", industry_reg_no: "", address: "", sector: "", montaj_firma_id: "",
+  city: "", phone: "", mobile_phone: "", email: "", industry_reg_no: "", address: "", sector: "",
 };
 const B_TIPLERI = [
   { v: "mr", ad: "Mod B MR — Elektrikli Makine Daireli" },
@@ -160,7 +160,7 @@ export default function MusterilerClient({
       short_name: c.short_name ?? "", legal_name: c.legal_name ?? "", authorized_person: c.authorized_person ?? "",
       registered_brand: c.registered_brand ?? "", city: c.city ?? "", phone: c.phone ?? "",
       mobile_phone: c.mobile_phone ?? "", email: c.email ?? "", industry_reg_no: c.industry_reg_no ?? "", address: c.address ?? "",
-      sector: c.sector ?? "", montaj_firma_id: c.montaj_firma_id ?? "",
+      sector: c.sector ?? "",
     };
     setForm(f);
     setCeModule(c.ce_module || "H1");
@@ -275,16 +275,6 @@ export default function MusterilerClient({
       <div><L>Cep Telefonu *</L><input type="tel" className={inp + reqCls("mobile_phone")} value={form.mobile_phone} onChange={(e) => set("mobile_phone", fmtPhone(e.target.value))} placeholder="0 5xx xxx xx xx" /></div>
       <div><L>E-Posta (opsiyonel)</L><input type="email" className={inp} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="ornek@firma.com" /></div>
       <div className="md:col-span-2"><L>Adres *</L><input className={inp + reqCls("address")} value={form.address} onChange={(e) => set("address", e.target.value)} /></div>
-      {!isCustomer && (
-        <div className="md:col-span-2">
-          <L>Montaj Firması Bağla</L>
-          <select className={inp} value={form.montaj_firma_id} onChange={(e) => set("montaj_firma_id", e.target.value)}>
-            <option value="">Seçiniz…</option>
-            {companies.filter((c) => c.id !== editId).map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
-          </select>
-          <p className="text-[11px] text-slate-400 mt-1">Listede yoksa, Yönetim Panelinden &apos;Yeni Müşteri Oluştur&apos;a gidin.</p>
-        </div>
-      )}
     </div>
   ) : (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

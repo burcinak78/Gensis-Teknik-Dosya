@@ -8,7 +8,7 @@ export default async function YeniTakipPage() {
   const supabase = createClient();
   const admin = createAdminClient();
   const [{ data: companies }, { data: provinces }, { data: sorumlular }, { data: counter }] = await Promise.all([
-    supabase.from("companies").select("id, short_name, legal_name, city").order("short_name").limit(2000),
+    supabase.from("companies").select("id, short_name, legal_name, city, category").order("short_name").limit(2000),
     supabase.from("provinces").select("id, name").order("name"),
     admin.from("profiles").select("id, full_name, role").in("role", ["admin", "gensis"]).order("full_name").limit(1000),
     admin.from("takip_counter").select("next_no").eq("id", 1).maybeSingle(),

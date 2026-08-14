@@ -59,7 +59,6 @@ export async function createCompany(form: Record<string, string>): Promise<Resul
       ce_module: form.ce_module || null,
       category: form.category || "asansor",
       sector: form.sector || null,
-      montaj_firma_id: form.category === "diger" ? (form.montaj_firma_id || null) : null,
     }).select("id").single();
     if (error || !data) return { ok: false, error: error?.message ?? "Müşteri eklenemedi." };
     revalidatePath("/admin/musteriler");
@@ -91,7 +90,6 @@ export async function updateCompany(id: string, form: Record<string, string>): P
       ce_module: form.ce_module || null,
       category: form.category || "asansor",
       sector: form.sector || null,
-      montaj_firma_id: form.category === "diger" ? (form.montaj_firma_id || null) : null,
     };
     if (!staff) {
       const { error } = await admin.from("pending_changes").insert({
