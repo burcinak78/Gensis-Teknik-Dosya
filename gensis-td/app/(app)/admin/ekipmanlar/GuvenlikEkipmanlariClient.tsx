@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   createCertificate, updateCertificate, deleteCertificate, createNotifiedBody,
   createEquipmentModel, updateEquipmentModel, deleteEquipmentModel, createEquipmentBrand,
@@ -46,7 +46,10 @@ export default function GuvenlikEkipmanlariClient({
   categories: Cat[]; brands: Brand[]; models: Model[]; certificates: Cert[];
   certFileMap: Record<string, string>; notifiedBodies: NB[]; modelCerts: ModelCert[]; isAdmin?: boolean;
 }) {
+  const params = useSearchParams();
+  const editCertId = params.get("editCert");
   const [tab, setTab] = useState<"sertifika" | "ekipman">("sertifika");
+  useEffect(() => { if (editCertId) setTab("sertifika"); }, [editCertId]);
   const catById = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories]);
   const brandById = useMemo(() => Object.fromEntries(brands.map((b) => [b.id, b])), [brands]);
   const certById = useMemo(() => Object.fromEntries(certificates.map((c) => [c.id, c])), [certificates]);
@@ -69,21 +72,31 @@ export default function GuvenlikEkipmanlariClient({
       </div>
 
       {tab === "sertifika"
-        ? <SertifikaTab categories={categories} certificates={certificates} certFileMap={certFileMap} notifiedBodies={notifiedBodies} catById={catById} isAdmin={isAdmin} />
+        ? <SertifikaTab categories={categories} certificates={certificates} certFileMap={certFileMap} notifiedBodies={notifiedBodies} catById={catById} isAdmin={isAdmin} initEditCertId={editCertId} />
         : <EkipmanTab categories={categories} brands={brands} models={models} certificates={certificates} catById={catById} brandById={brandById} certById={certById} certsByModel={certsByModel} isAdmin={isAdmin} />}
     </div>
   );
 }
 
 /* ============================ SERTİFİKA ============================ */
-function SertifikaTab({ categories, certificates, certFileMap, notifiedBodies, catById, isAdmin }: {
-  categories: Cat[]; certificates: Cert[]; certFileMap: Record<string, string>; notifiedBodies: NB[]; catById: Record<string, Cat>; isAdmin: boolean;
+function SertifikaTab({ categories, certificates, certFileMap, notifiedBodies, catById, isAdmin, initEditCertId }: {
+  categories: Cat[]; certificates: Cert[]; certFileMap: Record<string, string>; notifiedBodies: NB[]; catById: Record<string, Cat>; isAdmin: boolean; initEditCertId?: string | null;
 }) {
+  const router = useRouter();
   const [q, setQ] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [fil, setFil] = useState({ kategori: "", belge: "", certNo: "", firma: "", gecerlilik: "" });
   const [modal, setModal] = useState<null | { cert?: Cert }>(null);
   const firmaOptions = useMemo(() => Array.from(new Set(certificates.map((c) => c.firma_adi).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, "tr")), [certificates]);
+
+  // Bildirimler'den "Güncelle" ile gelindiğinde ilgili sertifikanın Düzenle penceresini aç
+  useEffect(() => {
+    if (!initEditCertId) return;
+    const c = certificates.find((x) => x.id === initEditCertId);
+    if (c) setModal({ cert: c });
+    router.replace("/admin/ekipmanlar", { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLocaleLowerCase("tr");
@@ -356,6 +369,7 @@ function EkipmanModal({ model, categories, brands, certificates, certsByModel, b
   const [model_name, setModelName] = useState(model?.name ?? "");
   const [certIds, setCertIds] = useState<string[]>(initCerts);
   const [belgeFilter, setBelgeFilter] = useState("");
+  const [certSearch, setCertSearch] = useState("");
   const [brandList, setBrandList] = useState<Brand[]>(brands);
   const [showBrand, setShowBrand] = useState(false);
   const [newBrand, setNewBrand] = useState("");
@@ -365,8 +379,23 @@ function EkipmanModal({ model, categories, brands, certificates, certsByModel, b
   const req = (v: string) => (touched && !v ? " !border-red-300 !bg-red-50" : "");
 
   const catBrands = brandList.filter((b) => b.category_id === category_id);
-  const catCerts = certificates.filter((c) => c.category_id === category_id && (!belgeFilter || c.belge_tipi === belgeFilter));
+  const certById = useMemo(() => Object.fromEntries(certificates.map((c) => [c.id, c])), [certificates]);
   const toggleCert = (id: string) => setCertIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  // Üstte gösterilecek bağlı sertifikalar
+  const boundCerts = certIds.map((id) => certById[id]).filter(Boolean) as Cert[];
+  // Konteynerde: kategori + belge tipi + metin aramasına göre, henüz bağlı olmayanlar
+  const availableCerts = certificates.filter((c) => {
+    if (c.category_id !== category_id) return false;
+    if (certIds.includes(c.id)) return false;
+    if (belgeFilter && c.belge_tipi !== belgeFilter) return false;
+    const s = certSearch.trim().toLocaleLowerCase("tr");
+    if (s) {
+      const hay = [c.cert_no, BELGE_TIPI_TR[c.belge_tipi ?? ""], c.firma_adi].map(tc).join(" ");
+      if (!hay.includes(s)) return false;
+    }
+    return true;
+  });
 
   async function addBrand() {
     if (!category_id) return setErr("Önce kategori seçin.");
@@ -431,21 +460,49 @@ function EkipmanModal({ model, categories, brands, certificates, certsByModel, b
         </div>
       )}
 
-      {/* Sertifika Bağla / Belge Bağla */}
+      {/* Bağlı sertifikalar — üstte; tıklayınca bağ kopar */}
       <div className="mt-3">
-        <label className="block text-xs font-semibold text-slate-600 mb-1">Sertifika Bağla (birden fazla seçilebilir)</label>
-        <div className="border border-slate-200 rounded-lg p-2 max-h-52 overflow-y-auto space-y-1">
-          {!category_id && <p className="text-xs text-slate-400 px-1 py-2">Önce kategori seçin.</p>}
-          {category_id && catCerts.length === 0 && <p className="text-xs text-slate-400 px-1 py-2">Bu kategoride {belgeFilter ? "seçili belge tipinde " : ""}sertifika yok.</p>}
-          {catCerts.map((c) => (
-            <label key={c.id} className="flex items-center gap-2 text-sm px-1 py-1 rounded hover:bg-slate-50 cursor-pointer">
-              <input type="checkbox" checked={certIds.includes(c.id)} onChange={() => toggleCert(c.id)} className="w-4 h-4 accent-brand" />
-              <span className="font-semibold">{c.cert_no}</span>
+        <label className="block text-xs font-semibold text-slate-600 mb-1">Bağlı Sertifikalar ({boundCerts.length})</label>
+        {boundCerts.length === 0 ? (
+          <p className="text-xs text-slate-400">Henüz sertifika bağlı değil. Aşağıdan arayıp seçerek bağlayın.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {boundCerts.map((c) => (
+              <button key={c.id} type="button" onClick={() => toggleCert(c.id)} title="Bağı kaldır"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold bg-brand-light text-brand border border-brand/30 rounded-full pl-3 pr-2 py-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition">
+                <span>{c.cert_no}</span>
+                {c.belge_tipi && <span className="opacity-60">· {BELGE_TIPI_TR[c.belge_tipi]}</span>}
+                <span className="material-symbols-rounded text-[15px]">close</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sertifika Bağla — kategori + belge tipi + metin aramasına göre; soldan tıkla ile bağla */}
+      <div className="mt-3">
+        <label className="block text-xs font-semibold text-slate-600 mb-1">Sertifika Bağla</label>
+        <div className="relative mb-2">
+          <span className="material-symbols-rounded text-[18px] absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+          <input value={certSearch} onChange={(e) => setCertSearch(e.target.value)} disabled={!category_id}
+            placeholder="Ara: sertifika no, belge tipi, firma…"
+            className={inp + " pl-9 disabled:bg-slate-50 disabled:text-slate-400"} />
+        </div>
+        <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-52 overflow-y-auto">
+          {!category_id && <p className="text-xs text-slate-400 px-3 py-3">Önce kategori seçin.</p>}
+          {category_id && availableCerts.length === 0 && (
+            <p className="text-xs text-slate-400 px-3 py-3">Eşleşen sertifika yok{belgeFilter || certSearch ? " (filtre/arama etkin)" : ""}.</p>
+          )}
+          {availableCerts.map((c) => (
+            <button key={c.id} type="button" onClick={() => toggleCert(c.id)}
+              className="w-full flex items-center gap-2 text-left px-3 py-2 hover:bg-brand-light/50 transition">
+              <span className="material-symbols-rounded text-[18px] text-brand">add_circle</span>
+              <span className="text-sm font-semibold">{c.cert_no}</span>
               {c.belge_tipi && <span className="text-[11px] text-slate-400">· {BELGE_TIPI_TR[c.belge_tipi]}</span>}
-            </label>
+              {c.firma_adi && <span className="text-[11px] text-slate-400 ml-auto truncate max-w-[40%]">{c.firma_adi}</span>}
+            </button>
           ))}
         </div>
-        {certIds.length > 0 && <p className="text-[11px] text-slate-500 mt-1">{certIds.length} sertifika bağlı.</p>}
       </div>
 
       {err && <div className="mt-3 text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600">{err}</div>}

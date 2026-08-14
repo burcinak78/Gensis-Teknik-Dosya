@@ -71,7 +71,7 @@ export default function BildirimlerClient({
     { key: "firma", label: "Firma", filter: true, value: (m) => m.firma || "—", cell: "muted" },
     { key: "gecerlilik", label: "Geçerlilik", value: (m) => tr(m.valid_until), cell: "muted" },
     { key: "durum", label: "Durum", filter: true, value: (m) => durum(m.valid_until).t, render: (m) => <Badge du={durum(m.valid_until)} /> },
-    { key: "actions", label: "", align: "right", render: () => <Guncelle href="/admin/ekipmanlar" /> },
+    { key: "actions", label: "", align: "right", render: (m) => <Guncelle href={`/admin/ekipmanlar?editCert=${m.id}`} /> },
   ];
 
   return (
