@@ -353,66 +353,8 @@ function DurumModal({
               </div>
             )}
 
-            {/* Tamamlama akışı */}
-            <div className="border border-slate-200 rounded-lg p-3 space-y-3">
-              <h3 className="font-bold text-sm">Projeyi Tamamla</h3>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">1. Tamamlanan Projeyi Ekle *</label>
-                <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-brand bg-brand-light px-3 py-2 rounded-lg hover:bg-brand/10 w-fit">
-                  <span className="material-symbols-rounded text-[16px]">attach_file</span>
-                  Dosya Seç (çoklu)
-                  <input type="file" multiple accept=".dwg" className="hidden" onChange={(e) => { addStaged(e.target.files); e.currentTarget.value = ""; }} />
-                </label>
-                {/* Yüklenmiş dosyalar */}
-                {existingDocs.length > 0 && (
-                  <ul className="mt-2 space-y-0.5">
-                    {existingDocs.map((d) => (
-                      <li key={d.id} className="flex items-center justify-between text-[11px]">
-                        <a href={`/api/belge/takip?id=${d.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-navy font-semibold hover:underline truncate">
-                          <span className="material-symbols-rounded text-[14px]">description</span>{d.original_name ?? "belge"}
-                        </a>
-                        <button type="button" onClick={() => deleteExisting(d.id)} className="text-red-500 hover:underline ml-2">Sil</button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {/* Seçilen (henüz kaydedilmemiş) dosyalar */}
-                {staged.length > 0 && (
-                  <ul className="mt-1 space-y-0.5">
-                    {staged.map((file, i) => (
-                      <li key={i} className="flex items-center justify-between text-[11px] text-slate-600">
-                        <span className="inline-flex items-center gap-1"><span className="material-symbols-rounded text-[14px] text-amber-600">upload_file</span>{file?.name ?? "dosya"} <span className="text-slate-400">· kaydedilecek</span></span>
-                        <button type="button" onClick={() => removeStaged(i)} className="text-red-500 hover:underline ml-2">Kaldır</button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="2. Tamamlanma Tarihi *">
-                  <input type="date" className={inp} value={tarih} onChange={(e) => setTarih(e.target.value)} />
-                </Field>
-                <Field label="3. Teslim Tipi *">
-                  <select className={inp + (touched && !teslimTipi ? " border-red-400 bg-red-50" : "")} value={teslimTipi} onChange={(e) => setTeslimTipi(e.target.value)}>
-                    <option value="">Seçiniz…</option>
-                    <option value="hard_copy">Hard Copy</option>
-                    <option value="dijital">Dijital</option>
-                  </select>
-                </Field>
-              </div>
-
-              {teslimTipi === "hard_copy" && (
-                <Field label="Hard Copy Adedi *">
-                  <input type="number" min={1} className={inp + (touched && (!adet || Number(adet) < 1) ? " border-red-400 bg-red-50" : "")} value={adet} onChange={(e) => setAdet(e.target.value)} />
-                </Field>
-              )}
-
-              {progress && <p className="text-xs text-slate-500 text-center">{progress}</p>}
-              <button disabled={busy} onClick={tamamla} className="w-full gs-btn text-sm font-bold px-5 py-2.5 rounded-xl disabled:opacity-50">
-                {busy ? "İşleniyor…" : "Tamamlandı ve Muhasebeye Gönder"}
-              </button>
+            <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+              Projeyi tamamlamak ve muhasebeye göndermek için <b>Güncelle</b> ekranını kullanın (en altta “Tamamla ve Muhasebeye Gönder”).
             </div>
           </>
         )}

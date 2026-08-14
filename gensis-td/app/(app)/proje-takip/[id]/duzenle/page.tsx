@@ -46,13 +46,18 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
   };
 
   const slotDocs = (docs ?? []).filter((d: any) => SLOT_KINDS.includes(d.kind));
+  const tamamlananDocs = (docs ?? []).filter((d: any) => d.kind === "tamamlanan_proje");
 
   return (
     <YeniProjeForm
       companies={(companies ?? []) as any}
       provinces={(provinces ?? []) as any}
       sorumlular={(sorumlular ?? []) as any}
-      edit={{ id: p.id, proje_no: p.proje_no, values, initialDistricts, docs: slotDocs as any }}
+      edit={{
+        id: p.id, proje_no: p.proje_no, values, initialDistricts, docs: slotDocs as any,
+        durum: p.durum, tamamlanma_tarihi: p.tamamlanma_tarihi, teslim_tipi: p.teslim_tipi, hard_copy_adedi: p.hard_copy_adedi,
+        tamamlananDocs: tamamlananDocs as any,
+      }}
     />
   );
 }

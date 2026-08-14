@@ -106,9 +106,9 @@ function SertifikaTab({ categories, certificates, certFileMap, notifiedBodies, c
     <div>
       <Toolbar onNew={() => setModal({})} newLabel="+ Yeni Sertifika" q={q} setQ={setQ} showFilters={showFilters} setShowFilters={setShowFilters} placeholder="Ara: sertifika no, kategori, belge tipi…" />
       <div className="bg-white border border-slate-200 rounded-2xl mt-4">
-        <div>
+        <div className="overflow-auto max-h-[calc(100vh-300px)] rounded-2xl">
           <table className="w-full border-collapse">
-            <thead className="bg-slate-50 border-b border-slate-200 sticky top-[188px] z-20">
+            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
               <tr>
                 <th className={th}>Kategori</th><th className={th}>Belge Tipi</th><th className={th}>Sertifika No</th><th className={th}>Firma</th><th className={th}>Geçerlilik Tarihi</th><th className={th}>İşlem</th>
               </tr>
@@ -140,7 +140,7 @@ function SertifikaTab({ categories, certificates, certFileMap, notifiedBodies, c
                     <td className={td}>{BELGE_TIPI_TR[c.belge_tipi ?? ""] ?? "—"}</td>
                     <td className={td + " font-semibold"}>{c.cert_no}</td>
                     <td className={td + " text-slate-500"}>{c.firma_adi || "—"}</td>
-                    <td className={td + (du ? " " + du.c : " text-slate-500")}>{dt(c.valid_until)}{du && <span className="ml-1 text-[10px]">({du.t})</span>}</td>
+                    <td className={td + (du ? " " + du.c : " text-slate-500")}>{c.valid_until ? dt(c.valid_until) : "Süresiz"}{du && <span className="ml-1 text-[10px]">({du.t})</span>}</td>
                     <td className={td + " text-right"}><button onClick={() => setModal({ cert: c })} className="text-xs font-bold text-brand hover:underline">Düzenle</button></td>
                   </tr>
                 );
@@ -310,9 +310,9 @@ function EkipmanTab({ categories, brands, models, certificates, catById, brandBy
     <div>
       <Toolbar onNew={() => setModal({})} newLabel="+ Yeni Ekipman Ekle" q={q} setQ={setQ} showFilters={showFilters} setShowFilters={setShowFilters} placeholder="Ara: kategori, marka, model, belge tipi…" />
       <div className="bg-white border border-slate-200 rounded-2xl mt-4">
-        <div>
+        <div className="overflow-auto max-h-[calc(100vh-300px)] rounded-2xl">
           <table className="w-full border-collapse">
-            <thead className="bg-slate-50 border-b border-slate-200 sticky top-[188px] z-20">
+            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
               <tr><th className={th}>Kategori</th><th className={th}>Marka</th><th className={th}>Model</th><th className={th}>Belge Tipleri</th><th className={th}>İşlem</th></tr>
               {showFilters && (
                 <tr className="bg-white border-b border-slate-200">

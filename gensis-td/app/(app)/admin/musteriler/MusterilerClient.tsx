@@ -97,7 +97,8 @@ export default function MusterilerClient({
   useEffect(() => {
     if (isCustomer) { if (companies[0]) selectCompany(companies[0]); return; }
     const id = searchParams.get("edit");
-    if (id) { const c = companies.find((x) => x.id === id); if (c) selectCompany(c); }
+    if (id) { const c = companies.find((x) => x.id === id); if (c) selectCompany(c); return; }
+    if (searchParams.get("new") === "1") newCompany("asansor");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

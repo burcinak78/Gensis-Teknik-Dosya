@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
-  createTakipProje, updateTakipProje, createRevision,
-  deleteTakipDoc, createQuickCompany, type TakipPayload,
+  createTakipProje, updateTakipProje, createRevision, completeTakipProje,
+  deleteTakipDoc, type TakipPayload,
 } from "./actions";
 import { uploadTakipFile } from "@/lib/takipUpload";
 
@@ -21,6 +21,11 @@ type EditData = {
   values: Record<string, string>;
   initialDistricts: District[];
   docs: Doc[];
+  durum?: string;
+  tamamlanma_tarihi?: string | null;
+  teslim_tipi?: string | null;
+  hard_copy_adedi?: number | null;
+  tamamlananDocs?: Doc[];
 };
 
 const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
@@ -75,11 +80,26 @@ export default function YeniProjeForm({
   const [revMode, setRevMode] = useState(false);
   const [rev, setRev] = useState({ rev_no: "", rev_tarihi: "", fiyat: "", fatura_tipi: "faturasiz", rev_aciklama: "" });
 
-  // Hızlı müşteri ekleme
-  const [showAdd, setShowAdd] = useState(false);
-  const [nc, setNc] = useState({ short_name: "", legal_name: "", city: "" });
-  const [addBusy, setAddBusy] = useState(false);
-  const [addErr, setAddErr] = useState<string | null>(null);
+  // Proje tamamlama (güncelle ekranında)
+  const today = new Date().toISOString().slice(0, 10);
+  const isTamamlandi = edit?.durum === "TAMAMLANDI";
+  const [compTarih, setCompTarih] = useState(edit?.tamamlanma_tarihi || today);
+  const [compTeslim, setCompTeslim] = useState(edit?.teslim_tipi || "");
+  const [compAdet, setCompAdet] = useState(edit?.hard_copy_adedi ? String(edit.hard_copy_adedi) : "");
+  const [compStaged, setCompStaged] = useState<File[]>([]);
+  const [compExisting, setCompExisting] = useState<Doc[]>(edit?.tamamlananDocs ?? []);
+
+  // Yeni müşteri Yönetim'de açıldıktan sonra bu sekmeye dönünce firma listesini tazele
+  useEffect(() => {
+    async function refresh() {
+      const { data } = await supabase.from("companies").select("id, short_name, legal_name, city").order("short_name").limit(2000);
+      if (data) setCompanies(data as any);
+    }
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
   const setRevF = (k: string, v: string) => setRev((s) => ({ ...s, [k]: v }));
@@ -125,18 +145,42 @@ export default function YeniProjeForm({
     router.refresh();
   }
 
-  async function quickAdd() {
-    setAddErr(null);
-    if (!nc.short_name.trim()) return setAddErr("Firma kısa adı zorunlu.");
-    setAddBusy(true);
-    const res = await createQuickCompany(nc);
-    setAddBusy(false);
-    if (!res.ok) return setAddErr(res.error);
-    const newC: Company = { id: res.id, short_name: res.short_name, legal_name: res.legal_name, city: res.city };
-    setCompanies((cs) => [...cs, newC].sort((a, b) => a.short_name.localeCompare(b.short_name, "tr")));
-    set("company_id", res.id);
-    setNc({ short_name: "", legal_name: "", city: "" });
-    setShowAdd(false);
+  // --- Proje tamamlama (yalnız güncelle ekranında) ---
+  function addCompFiles(list: FileList | null) {
+    let arr = list ? Array.from(list).filter((x): x is File => !!x) : [];
+    if (arr.length === 0) return;
+    const bad = arr.filter((fl) => !fl.name.toLowerCase().endsWith(".dwg"));
+    arr = arr.filter((fl) => fl.name.toLowerCase().endsWith(".dwg"));
+    if (bad.length) setErr("Tamamlanan proje yalnızca DWG dosyası olabilir.");
+    if (arr.length === 0) return;
+    setCompStaged((s) => [...s, ...arr]);
+  }
+  async function compDeleteExisting(id: string) {
+    const res = await deleteTakipDoc(id);
+    if (!res.ok) return setErr(res.error);
+    setCompExisting((d) => d.filter((x) => x.id !== id));
+  }
+  async function tamamla() {
+    if (!edit) return;
+    setTouched(true); setErr(null);
+    if (compExisting.length + compStaged.length === 0) return setErr("Tamamlanan projeyi yükleyin (DWG).");
+    if (!compTarih) return setErr("Tamamlanma tarihi zorunludur.");
+    if (!compTeslim) return setErr("Teslim tipi seçiniz.");
+    if (compTeslim === "hard_copy" && (!compAdet || Number(compAdet) < 1)) return setErr("Hard Copy adedi giriniz.");
+    setBusy(true);
+    for (let i = 0; i < compStaged.length; i++) {
+      setProgress(`Tamamlanan proje yükleniyor… (${i + 1}/${compStaged.length})`);
+      const up = await uploadTakipFile(supabase, edit.id, "tamamlanan_proje", compStaged[i]);
+      if (!up.ok) { setBusy(false); setProgress(""); return setErr(up.error); }
+    }
+    setProgress("");
+    const res = await completeTakipProje(edit.id, {
+      tamamlanma_tarihi: compTarih, teslim_tipi: compTeslim as any,
+      hard_copy_adedi: compTeslim === "hard_copy" ? Number(compAdet) : null,
+    });
+    setBusy(false);
+    if (!res.ok) return setErr(res.error);
+    router.push("/proje-takip"); router.refresh();
   }
 
   function buildPayload(): TakipPayload {
@@ -261,7 +305,7 @@ export default function YeniProjeForm({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {isEdit && (
+          {isEdit && isTamamlandi && (
             <button onClick={() => { setRevMode((v) => !v); setErr(null); setTouched(false); }}
               className={`text-sm font-bold px-4 py-2 rounded-xl border ${revMode ? "bg-brand-light text-brand border-brand/30" : "bg-white text-brand border-brand/40 hover:bg-brand-light"}`}>
               {revMode ? "Revizyondan Çık" : "+ Revizyon Ekle"}
@@ -332,32 +376,13 @@ export default function YeniProjeForm({
                     {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
                   </select>
                   {!revMode && (
-                    <button type="button" onClick={() => { setShowAdd((v) => !v); setAddErr(null); }}
-                      className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-3 hover:bg-brand-light whitespace-nowrap">
-                      {showAdd ? "Kapat" : "+ Yeni Oluştur"}
-                    </button>
+                    <a href="/admin/musteriler?new=1" target="_blank" rel="noreferrer"
+                      className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-3 grid place-items-center hover:bg-brand-light whitespace-nowrap">
+                      + Yeni Oluştur
+                    </a>
                   )}
                 </div>
-                {showAdd && !revMode && (
-                  <div className="mt-2 bg-brand-light/40 border border-brand/15 rounded-lg p-3 space-y-2">
-                    <p className="text-xs font-bold text-slate-600">Yeni Müşteri (hızlı ekle)</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <input className={inp} placeholder="Kısa Ad *" value={nc.short_name} onChange={(e) => setNc((s) => ({ ...s, short_name: e.target.value }))} />
-                      <input className={inp} placeholder="Ünvan (ops.)" value={nc.legal_name} onChange={(e) => setNc((s) => ({ ...s, legal_name: e.target.value }))} />
-                      <select className={inp} value={nc.city} onChange={(e) => setNc((s) => ({ ...s, city: e.target.value }))}>
-                        <option value="">Şehir seçiniz…</option>
-                        {cityOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    {addErr && <div className="text-xs text-red-600">{addErr}</div>}
-                    <div className="flex justify-end">
-                      <button type="button" disabled={addBusy} onClick={quickAdd}
-                        className="text-xs font-bold text-white bg-brand hover:bg-brand-dark px-4 py-2 rounded-lg disabled:opacity-50">
-                        {addBusy ? "Ekleniyor…" : "Ekle ve Seç"}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {!revMode && <p className="text-[11px] text-slate-400 mt-1">Yeni müşteri Yönetim panelinde açılır. Ekledikten sonra bu sekmeye dönün; liste otomatik güncellenir.</p>}
               </Field>
 
               <div className="grid grid-cols-3 gap-4">
@@ -432,10 +457,59 @@ export default function YeniProjeForm({
             </div>
           </div>
 
+          {/* Proje Tamamlama — yalnız güncelle ekranında (revizyon modunda değil) */}
+          {isEdit && !revMode && (
+            <div className="border border-slate-200 rounded-xl p-4 space-y-3">
+              <h3 className="font-bold text-sm">Proje Tamamlama</h3>
+              {isTamamlandi ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 space-y-1">
+                  <div>✓ Proje tamamlandı{edit?.tamamlanma_tarihi ? ` (${new Date(edit.tamamlanma_tarihi).toLocaleDateString("tr-TR")})` : ""}.</div>
+                  <div>Teslim: {edit?.teslim_tipi === "hard_copy" ? `Hard Copy (${edit?.hard_copy_adedi ?? "?"} adet)` : "Dijital"} · Muhasebeye gönderildi.</div>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Tamamlanma Tarihi *"><input type="date" className={inp} value={compTarih} onChange={(e) => setCompTarih(e.target.value)} /></Field>
+                    <Field label="Teslim Tipi *">
+                      <select className={inp} value={compTeslim} onChange={(e) => setCompTeslim(e.target.value)}>
+                        <option value="">Seçiniz…</option><option value="hard_copy">Hard Copy</option><option value="dijital">Dijital</option>
+                      </select>
+                    </Field>
+                  </div>
+                  {compTeslim === "hard_copy" && <Field label="Hard Copy Adedi *"><input type="number" min={1} className={inp} value={compAdet} onChange={(e) => setCompAdet(e.target.value)} /></Field>}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Projeyi Yükle (tamamlanan proje) · yalnızca DWG *</label>
+                    {compExisting.map((d) => (
+                      <div key={d.id} className="flex items-center justify-between text-xs mb-1">
+                        <a href={`/api/belge/takip?id=${d.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-navy font-semibold hover:underline truncate"><span className="material-symbols-rounded text-[15px]">description</span>{d.original_name ?? "dosya"}</a>
+                        <button type="button" onClick={() => compDeleteExisting(d.id)} className="text-red-500 hover:underline">Sil</button>
+                      </div>
+                    ))}
+                    {compStaged.map((file, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs text-slate-600 mb-1">
+                        <span className="inline-flex items-center gap-1"><span className="material-symbols-rounded text-[15px] text-amber-600">upload_file</span>{file?.name ?? "dosya"} <span className="text-slate-400">· kaydedilecek</span></span>
+                        <button type="button" onClick={() => setCompStaged((s) => s.filter((_, j) => j !== i))} className="text-red-500 hover:underline">Kaldır</button>
+                      </div>
+                    ))}
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-brand bg-brand-light px-3 py-2 rounded-lg hover:bg-brand/10 w-fit">
+                      <span className="material-symbols-rounded text-[16px]">attach_file</span> Dosya Seç
+                      <input type="file" multiple accept=".dwg" className="hidden" onChange={(e) => { addCompFiles(e.target.files); e.currentTarget.value = ""; }} />
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {err && <div className="text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600 whitespace-pre-line">{err}</div>}
 
           <div className="flex items-center justify-end gap-3 pt-1">
             {progress && <span className="text-xs text-slate-500">{progress}</span>}
+            {isEdit && !revMode && !isTamamlandi && (
+              <button type="button" disabled={busy} onClick={tamamla} className="mr-auto text-sm font-bold text-white bg-green-600 hover:bg-green-700 px-5 py-2.5 rounded-xl disabled:opacity-50">
+                Tamamla ve Muhasebeye Gönder
+              </button>
+            )}
             <Link href="/proje-takip" className="text-sm font-semibold text-slate-500 px-4 py-2.5">İptal</Link>
             <button disabled={busy} onClick={submit} className="gs-btn text-sm font-bold px-6 py-2.5 rounded-xl disabled:opacity-50">
               {busy ? "Kaydediliyor…" : revMode ? "Revizyonu Kaydet" : isEdit ? "Güncelle" : "Kaydet"}
