@@ -16,10 +16,15 @@ type DocForm = { valid_until: string; file: File | null };
 const BRANS: Record<string, string> = {
   makine: "Makine Mühendisi",
   elektrik: "Elektrik Mühendisi",
+  // Eski kayıtlar için etiket eşlemesi (yeni kayıtta seçilemez):
   elektrik_elektronik: "Elektrik/Elektronik Mühendisi",
   mekatronik: "Mekatronik Mühendisi",
 };
-const BRANS_OPTS = Object.entries(BRANS).map(([v, t]) => ({ v, t }));
+// Sadece Makine ve Elektrik seçilebilir
+const BRANS_OPTS = [
+  { v: "makine", t: "Makine Mühendisi" },
+  { v: "elektrik", t: "Elektrik Mühendisi" },
+];
 const ELEKTRIK_BELGE = [
   { key: "asansor_tescil", ad: "Asansör Tescil Belgesi" },
   { key: "buro_tescil", ad: "Büro Tescil Belgesi" },

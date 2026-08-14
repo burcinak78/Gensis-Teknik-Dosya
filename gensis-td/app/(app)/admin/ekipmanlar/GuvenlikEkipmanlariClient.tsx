@@ -439,13 +439,13 @@ function EkipmanModal({ model, categories, brands, certificates, certsByModel, b
         </Field>
         <Field label="Marka *">
           <div className="flex gap-2">
-            <select className={inp + req(brand_id)} value={brand_id} disabled={!category_id} onChange={(e) => setBrand(e.target.value)}>
+            <select className={inp + req(brand_id)} value={brand_id} disabled={isEdit || !category_id} onChange={(e) => setBrand(e.target.value)}>
               <option value="">{category_id ? "Seçiniz…" : "Önce kategori"}</option>{catBrands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
-            <button type="button" onClick={() => setShowBrand((v) => !v)} disabled={!category_id} className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-2 hover:bg-brand-light whitespace-nowrap disabled:opacity-40">{showBrand ? "Kapat" : "+ Marka"}</button>
+            {!isEdit && <button type="button" onClick={() => setShowBrand((v) => !v)} disabled={!category_id} className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-2 hover:bg-brand-light whitespace-nowrap disabled:opacity-40">{showBrand ? "Kapat" : "+ Marka"}</button>}
           </div>
         </Field>
-        <Field label="Model Adı *"><input className={inp + req(model_name)} value={model_name} onChange={(e) => setModelName(e.target.value)} /></Field>
+        <Field label="Model Adı *"><input className={inp + req(model_name)} value={model_name} disabled={isEdit} onChange={(e) => setModelName(e.target.value)} /></Field>
         <Field label="Belge Tipi (filtre)">
           <select className={inp} value={belgeFilter} onChange={(e) => setBelgeFilter(e.target.value)}>
             <option value="">Tüm belge tipleri</option>{BELGE_TIPI.map((b) => <option key={b.v} value={b.v}>{b.t}</option>)}

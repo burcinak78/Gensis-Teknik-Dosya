@@ -25,7 +25,7 @@ export default async function ProjeTakipPage() {
       admin.from("takip_projeler").select("*").order("proje_no", { ascending: false }).order("created_at", { ascending: true }).limit(5000),
       admin.from("takip_dokumanlar").select("id, takip_id, kind, original_name, created_at").limit(20000),
       admin.from("takip_muhasebe").select("takip_id, cariye_islendi, teslim_tarihi").limit(5000),
-      supabase.from("companies").select("id, short_name, legal_name, city").order("short_name").limit(2000),
+      supabase.from("companies").select("id, short_name, legal_name, city, montaj_firma_id").order("short_name").limit(2000),
       supabase.from("provinces").select("id, name").order("name"),
       admin.from("profiles").select("id, full_name, role").in("role", ["admin", "gensis"]).order("full_name").limit(1000),
     ]);

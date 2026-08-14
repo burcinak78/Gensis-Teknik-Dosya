@@ -9,7 +9,7 @@ import {
   deleteTakipDoc, saveBekliyorAciklama, completeTakipProje,
 } from "./actions";
 
-type Company = { id: string; short_name: string; legal_name: string | null; city: string | null };
+type Company = { id: string; short_name: string; legal_name: string | null; city: string | null; montaj_firma_id?: string | null };
 type Province = { id: number; name: string };
 type Sorumlu = { id: string; full_name: string | null; role: string };
 type District = { id: string; name: string };
@@ -59,6 +59,11 @@ export default function ProjeTakipClient({
 
   const sorumluAd = (id: string | null) => sorumlular.find((s) => s.id === id)?.full_name ?? "—";
   const firmaAd = (id: string | null) => companies.find((c) => c.id === id)?.short_name ?? "—";
+  // Bağlı montaj firmasının adı (Diğer müşterilerde)
+  const montajAd = (id: string | null) => {
+    const mid = companies.find((c) => c.id === id)?.montaj_firma_id;
+    return mid ? (companies.find((c) => c.id === mid)?.short_name ?? null) : null;
+  };
 
   const tc = (v: unknown) => String(v ?? "").toLocaleLowerCase("tr");
   const filtered = useMemo(() => {
@@ -194,7 +199,12 @@ export default function ProjeTakipClient({
                     </td>
                     <td className={td + " text-slate-500"}>{r.ada_parsel ?? "—"}</td>
                     <td className={td}>{TIP_TR[r.proje_tipi] ?? r.proje_tipi}</td>
-                    <td className={td + " font-semibold"}>{firmaAd(r.company_id)}</td>
+                    <td className={td + " font-semibold"}>
+                      {firmaAd(r.company_id)}
+                      {montajAd(r.company_id) && (
+                        <div className="text-[11px] font-normal text-slate-400">Montaj: {montajAd(r.company_id)}</div>
+                      )}
+                    </td>
                     <td className={td}>{r.is_adi ?? "—"}</td>
                     <td className={td + " text-slate-500"}>{dt(r.siparis_tarihi)}</td>
                     <td className={td + " text-slate-600"}>{sorumluAd(r.proje_sorumlusu_id)}</td>

@@ -524,6 +524,7 @@ export default function YeniProjeForm({
       {showMusteri && (
         <YeniMusteriModal
           provinces={safeProvinces.map((p) => p.name)}
+          companies={companies}
           onClose={() => setShowMusteri(false)}
           onCreated={(c) => {
             setCompanies((cs) => [...cs, c].sort((a, b) => a.short_name.localeCompare(b.short_name, "tr")));
@@ -536,13 +537,13 @@ export default function YeniProjeForm({
   );
 }
 
-function YeniMusteriModal({ provinces, onClose, onCreated }: {
-  provinces: string[]; onClose: () => void; onCreated: (c: Company) => void;
+function YeniMusteriModal({ provinces, companies, onClose, onCreated }: {
+  provinces: string[]; companies: Company[]; onClose: () => void; onCreated: (c: Company) => void;
 }) {
   const [category, setCategory] = useState("asansor");
   const [f, setF] = useState<Record<string, string>>({
     short_name: "", legal_name: "", authorized_person: "", registered_brand: "", city: "",
-    industry_reg_no: "", sector: "", mobile_phone: "", email: "", address: "",
+    industry_reg_no: "", sector: "", mobile_phone: "", email: "", address: "", montaj_firma_id: "",
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -600,6 +601,17 @@ function YeniMusteriModal({ provinces, onClose, onCreated }: {
             {category !== "diger" && <Field label="Cep Telefonu"><input className={inp} value={f.mobile_phone} onChange={(e) => set("mobile_phone", e.target.value)} placeholder="0 5xx xxx xx xx" /></Field>}
             <Field label="E-Posta (opsiyonel)"><input type="email" className={inp} value={f.email} onChange={(e) => set("email", e.target.value)} /></Field>
             <div className="md:col-span-2"><Field label="Adres *"><input className={inp + rc("address")} value={f.address} onChange={(e) => set("address", e.target.value)} /></Field></div>
+            {category === "diger" && (
+              <div className="md:col-span-2">
+                <Field label="Montaj Firması Bağla">
+                  <select className={inp} value={f.montaj_firma_id} onChange={(e) => set("montaj_firma_id", e.target.value)}>
+                    <option value="">Seçiniz…</option>
+                    {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
+                  </select>
+                </Field>
+                <p className="text-[11px] text-slate-400 mt-1">Listede yoksa, Yönetim Panelinden &apos;Yeni Müşteri Oluştur&apos;a gidin.</p>
+              </div>
+            )}
           </div>
 
           {err && <div className="text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600">{err}</div>}
