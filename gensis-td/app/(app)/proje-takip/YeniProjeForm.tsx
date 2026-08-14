@@ -8,6 +8,7 @@ import {
   createTakipProje, updateTakipProje, createRevision, completeTakipProje,
   deleteTakipDoc, type TakipPayload,
 } from "./actions";
+import { createCompany } from "@/app/(app)/admin/actions";
 import { uploadTakipFile } from "@/lib/takipUpload";
 
 type Company = { id: string; short_name: string; legal_name: string | null; city: string | null };
@@ -79,6 +80,9 @@ export default function YeniProjeForm({
   // Revizyon modu
   const [revMode, setRevMode] = useState(false);
   const [rev, setRev] = useState({ rev_no: "", rev_tarihi: "", fiyat: "", fatura_tipi: "faturasiz", rev_aciklama: "" });
+
+  // Yeni müşteri modalı (aktif sekmede)
+  const [showMusteri, setShowMusteri] = useState(false);
 
   // Proje tamamlama (güncelle ekranında)
   const today = new Date().toISOString().slice(0, 10);
@@ -376,13 +380,12 @@ export default function YeniProjeForm({
                     {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
                   </select>
                   {!revMode && (
-                    <a href="/admin/musteriler?new=1" target="_blank" rel="noreferrer"
-                      className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-3 grid place-items-center hover:bg-brand-light whitespace-nowrap">
+                    <button type="button" onClick={() => setShowMusteri(true)}
+                      className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-3 hover:bg-brand-light whitespace-nowrap">
                       + Yeni Oluştur
-                    </a>
+                    </button>
                   )}
                 </div>
-                {!revMode && <p className="text-[11px] text-slate-400 mt-1">Yeni müşteri Yönetim panelinde açılır. Ekledikten sonra bu sekmeye dönün; liste otomatik güncellenir.</p>}
               </Field>
 
               <div className="grid grid-cols-3 gap-4">
@@ -514,6 +517,95 @@ export default function YeniProjeForm({
             <button disabled={busy} onClick={submit} className="gs-btn text-sm font-bold px-6 py-2.5 rounded-xl disabled:opacity-50">
               {busy ? "Kaydediliyor…" : revMode ? "Revizyonu Kaydet" : isEdit ? "Güncelle" : "Kaydet"}
             </button>
+          </div>
+        </div>
+      </div>
+
+      {showMusteri && (
+        <YeniMusteriModal
+          provinces={safeProvinces.map((p) => p.name)}
+          onClose={() => setShowMusteri(false)}
+          onCreated={(c) => {
+            setCompanies((cs) => [...cs, c].sort((a, b) => a.short_name.localeCompare(b.short_name, "tr")));
+            set("company_id", c.id);
+            setShowMusteri(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function YeniMusteriModal({ provinces, onClose, onCreated }: {
+  provinces: string[]; onClose: () => void; onCreated: (c: Company) => void;
+}) {
+  const [category, setCategory] = useState("asansor");
+  const [f, setF] = useState<Record<string, string>>({
+    short_name: "", legal_name: "", authorized_person: "", registered_brand: "", city: "",
+    industry_reg_no: "", sector: "", mobile_phone: "", email: "", address: "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
+  const set = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
+  const req = category === "diger"
+    ? ["short_name", "legal_name", "authorized_person", "sector", "city", "mobile_phone", "address"]
+    : ["short_name", "legal_name", "authorized_person", "registered_brand", "city", "industry_reg_no", "address"];
+  const rc = (k: string) => (touched && req.includes(k) && !(f[k] ?? "").trim() ? " !border-red-300 !bg-red-50" : "");
+
+  async function submit() {
+    setTouched(true); setErr(null);
+    if (req.some((k) => !(f[k] ?? "").trim())) return setErr("Lütfen kırmızı ile işaretli zorunlu alanları doldurun.");
+    setBusy(true);
+    const res = await createCompany({ ...f, category, ce_module: category === "asansor" ? "H1" : "" });
+    setBusy(false);
+    if (!res.ok) return setErr(res.error);
+    onCreated({ id: (res as any).id, short_name: f.short_name, legal_name: f.legal_name || null, city: f.city || null });
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/40 flex items-start justify-center overflow-y-auto p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl">
+          <h2 className="font-extrabold text-lg">Yeni Müşteri</h2>
+          <button onClick={onClose} className="material-symbols-rounded text-slate-400 hover:text-slate-700">close</button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Müşteri Kategorisi *</label>
+            <div className="flex gap-2">
+              {[{ v: "asansor", t: "Asansör" }, { v: "diger", t: "Diğer" }].map((k) => (
+                <button key={k.v} type="button" onClick={() => setCategory(k.v)}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold border ${category === k.v ? "bg-brand text-white border-transparent" : "bg-white border-slate-200 text-slate-600 hover:border-brand"}`}>{k.t}</button>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">Belgeler (CE vb.) için Yönetim → Müşteriler'den daha sonra düzenleyebilirsiniz.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="md:col-span-2"><Field label="Kısa Ad *"><input className={inp + rc("short_name")} value={f.short_name} onChange={(e) => set("short_name", e.target.value)} /></Field></div>
+            <div className="md:col-span-2"><Field label="Ticari Ünvan *"><input className={inp + rc("legal_name")} value={f.legal_name} onChange={(e) => set("legal_name", e.target.value)} /></Field></div>
+            <Field label="Yetkili Ad / Soyad *"><input className={inp + rc("authorized_person")} value={f.authorized_person} onChange={(e) => set("authorized_person", e.target.value)} /></Field>
+            {category === "diger"
+              ? <Field label="Sektör / Meslek *"><input className={inp + rc("sector")} value={f.sector} onChange={(e) => set("sector", e.target.value)} /></Field>
+              : <Field label="Tescilli Marka *"><input className={inp + rc("registered_brand")} value={f.registered_brand} onChange={(e) => set("registered_brand", e.target.value)} /></Field>}
+            <Field label="Şehir *">
+              <select className={inp + rc("city")} value={f.city} onChange={(e) => set("city", e.target.value)}>
+                <option value="">Seçiniz…</option>{provinces.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </Field>
+            {category === "diger"
+              ? <Field label="Cep Telefonu *"><input className={inp + rc("mobile_phone")} value={f.mobile_phone} onChange={(e) => set("mobile_phone", e.target.value)} placeholder="0 5xx xxx xx xx" /></Field>
+              : <Field label="Sanayi Sicil No *"><input className={inp + rc("industry_reg_no")} value={f.industry_reg_no} onChange={(e) => set("industry_reg_no", e.target.value)} /></Field>}
+            {category !== "diger" && <Field label="Cep Telefonu"><input className={inp} value={f.mobile_phone} onChange={(e) => set("mobile_phone", e.target.value)} placeholder="0 5xx xxx xx xx" /></Field>}
+            <Field label="E-Posta (opsiyonel)"><input type="email" className={inp} value={f.email} onChange={(e) => set("email", e.target.value)} /></Field>
+            <div className="md:col-span-2"><Field label="Adres *"><input className={inp + rc("address")} value={f.address} onChange={(e) => set("address", e.target.value)} /></Field></div>
+          </div>
+
+          {err && <div className="text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600">{err}</div>}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="text-sm font-semibold text-slate-500 px-4 py-2.5">İptal</button>
+            <button disabled={busy} onClick={submit} className="gs-btn text-sm font-bold px-5 py-2.5 rounded-xl disabled:opacity-50">{busy ? "Kaydediliyor…" : "Kaydet ve Seç"}</button>
           </div>
         </div>
       </div>

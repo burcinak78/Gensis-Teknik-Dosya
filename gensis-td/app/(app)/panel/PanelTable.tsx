@@ -130,9 +130,9 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
         )}
       </div>
 
-      <div>
+      <div className="overflow-auto max-h-[calc(100vh-240px)] rounded-b-[18px]">
         <table className="w-full text-sm">
-          <thead className="sticky top-[132px] z-10 bg-white">
+          <thead className="sticky top-0 z-10 bg-white">
             <tr className="text-left text-[12px] font-bold text-[#64748b] uppercase tracking-wide bg-white">
               <Th k="ada_parsel">Ada/Parsel</Th>
               <Th k="firma">Firma Adı</Th>

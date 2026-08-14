@@ -34,7 +34,8 @@ export default function SideNav({
     { href: "/firmam", label: "Firmam", icon: "apartment", match: (p) => p.startsWith("/firmam") },
     { href: "/muhendislerim", label: "Mühendislerim", icon: "engineering", match: (p) => p.startsWith("/muhendislerim") },
   );
-  if (isAdmin || isMuhasebeci) items.push({ href: "/muhasebe", label: "Muhasebe", icon: "account_balance", match: (p) => p.startsWith("/muhasebe"), badge: muhasebeCount });
+  // Muhasebe: Admin ve Muhasebe/Finans tam; Kullanıcı (gensis) salt-okunur
+  if (isAdmin || isMuhasebeci || isStaff) items.push({ href: "/muhasebe", label: "Muhasebe", icon: "account_balance", match: (p) => p.startsWith("/muhasebe"), badge: (isAdmin || isMuhasebeci) ? muhasebeCount : 0 });
   // Yönetim: Admin ve Kullanıcı (gensis)
   if (isStaff) items.push({ href: "/admin", label: "Yönetim", icon: "admin_panel_settings", match: (p) => p.startsWith("/admin") });
 

@@ -433,10 +433,10 @@ export default function MusterilerClient({
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white border border-slate-200 rounded-2xl">
+        <div className="overflow-auto max-h-[calc(100vh-220px)] rounded-2xl">
           <table className="w-full border-collapse">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
               <tr>
                 <th className={th}>Firma Adı</th>
                 <th className={th}>Şehir</th>

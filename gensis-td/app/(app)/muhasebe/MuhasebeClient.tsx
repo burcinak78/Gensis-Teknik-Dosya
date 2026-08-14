@@ -27,8 +27,8 @@ const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString
 const TIP_TR: Record<string, string> = { mimari: "Mimari", uygulama: "Uygulama" };
 
 export default function MuhasebeClient({
-  rows, companies, sorumlular,
-}: { rows: Row[]; companies: Company[]; sorumlular: Sorumlu[] }) {
+  rows, companies, sorumlular, readOnly = false,
+}: { rows: Row[]; companies: Company[]; sorumlular: Sorumlu[]; readOnly?: boolean }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -106,10 +106,10 @@ export default function MuhasebeClient({
           </button>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-white border border-slate-200 rounded-2xl">
+          <div className="overflow-auto max-h-[calc(100vh-220px)] rounded-2xl">
             <table className="w-full border-collapse">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                 <tr>
                   <th className={th}>Durum</th>
                   <th className={th}>Proje No</th>
@@ -168,10 +168,12 @@ export default function MuhasebeClient({
                     <tr key={r.id} className={`border-b border-slate-100 last:border-0 ${rowClass(r)}`}>
                       <td className={td}>
                         {sent
-                          ? <button onClick={() => openModal(r, false)} title="Muhasebe işlemleri"
-                              className={`text-[11px] font-bold px-2 py-1 rounded-full hover:opacity-80 ${done ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
-                              {done ? "Teslim edildi" : "İşlem bekliyor"}
-                            </button>
+                          ? (readOnly
+                              ? <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${done ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>{done ? "Teslim edildi" : "İşlem bekliyor"}</span>
+                              : <button onClick={() => openModal(r, false)} title="Muhasebe işlemleri"
+                                  className={`text-[11px] font-bold px-2 py-1 rounded-full hover:opacity-80 ${done ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                                  {done ? "Teslim edildi" : "İşlem bekliyor"}
+                                </button>)
                           : <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-500">{r.durum}</span>}
                       </td>
                       <td className={td + " font-bold text-navy"}>
@@ -189,7 +191,7 @@ export default function MuhasebeClient({
                       <td className={td + " text-slate-500"}>{dt(r.muhasebe?.teslim_tarihi)}</td>
                       <td className={td + " text-right"}>
                         {sent
-                          ? <button onClick={() => openModal(r, true)} className="text-xs font-bold text-brand hover:underline">Güncelle</button>
+                          ? <button onClick={() => openModal(r, !readOnly)} className="text-xs font-bold text-brand hover:underline">{readOnly ? "Görüntüle" : "Güncelle"}</button>
                           : <span className="text-xs text-slate-300">—</span>}
                       </td>
                     </tr>
@@ -206,7 +208,7 @@ export default function MuhasebeClient({
 
       {modalRow && (
         <MuhModal
-          row={modalRow} firmaAd={firmaAd(modalRow.company_id)} forceEdit={modalEdit}
+          row={modalRow} firmaAd={firmaAd(modalRow.company_id)} forceEdit={modalEdit && !readOnly} viewOnly={readOnly}
           onClose={() => { setModalRow(null); setModalEdit(false); }}
           onSaved={() => { setModalRow(null); setModalEdit(false); router.refresh(); }}
         />
@@ -215,7 +217,7 @@ export default function MuhasebeClient({
   );
 }
 
-function MuhModal({ row, firmaAd, forceEdit, onClose, onSaved }: { row: Row; firmaAd: string; forceEdit?: boolean; onClose: () => void; onSaved: () => void }) {
+function MuhModal({ row, firmaAd, forceEdit, viewOnly, onClose, onSaved }: { row: Row; firmaAd: string; forceEdit?: boolean; viewOnly?: boolean; onClose: () => void; onSaved: () => void }) {
   const m = row.muhasebe;
   const faturali = row.fatura_tipi === "faturali";
   const hardCopy = row.teslim_tipi === "hard_copy";
@@ -231,7 +233,7 @@ function MuhModal({ row, firmaAd, forceEdit, onClose, onSaved }: { row: Row; fir
   const [err, setErr] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
 
-  const readonly = !!m?.cariye_islendi && !forceEdit;
+  const readonly = !!viewOnly || (!!m?.cariye_islendi && !forceEdit);
   const teslimTarihi = m?.teslim_tarihi ?? bugun;
 
   const req = (bad: boolean) => (touched && bad ? " border-red-400 bg-red-50" : "");
@@ -279,7 +281,12 @@ function MuhModal({ row, firmaAd, forceEdit, onClose, onSaved }: { row: Row; fir
             <Info l="Teslim Tipi" v={hardCopy ? `Hard Copy (${row.hard_copy_adedi ?? "?"} adet)` : "Dijital"} />
           </div>
 
-          {readonly && (
+          {viewOnly && (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600">
+              👁 Görüntüleme modu — bu ekranda değişiklik yapamazsınız.
+            </div>
+          )}
+          {readonly && !viewOnly && (
             <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm text-green-800">
               ✓ Bu proje teslim edildi ({dt(teslimTarihi)}). Kayıt görüntüleniyor.
             </div>

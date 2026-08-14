@@ -6,6 +6,7 @@ export default async function MuhasebeLayout({ children }: { children: React.Rea
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/giris");
   const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (prof?.role !== "admin" && prof?.role !== "muhasebeci") redirect("/panel");
+  // Admin/Muhasebe tam yetki; Kullanıcı (gensis) salt-okunur görüntüler
+  if (!["admin", "muhasebeci", "gensis"].includes(prof?.role as string)) redirect("/panel");
   return <>{children}</>;
 }

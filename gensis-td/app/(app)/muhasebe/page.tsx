@@ -7,6 +7,9 @@ export const dynamic = "force-dynamic";
 export default async function MuhasebePage() {
   const supabase = createClient();
   const admin = createAdminClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: prof } = user ? await supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null } as any;
+  const readOnly = prof?.role === "gensis"; // Kullanıcı: salt-okunur
 
   const [{ data: projeler }, { data: muhasebe }, { data: companies }, { data: sorumlular }] = await Promise.all([
     admin.from("takip_projeler").select("*").order("proje_no", { ascending: false }).order("created_at", { ascending: true }).limit(5000),
@@ -25,6 +28,7 @@ export default async function MuhasebePage() {
       rows={rows as any}
       companies={(companies ?? []) as any}
       sorumlular={(sorumlular ?? []) as any}
+      readOnly={readOnly}
     />
   );
 }
