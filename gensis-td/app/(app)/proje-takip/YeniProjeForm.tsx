@@ -38,7 +38,7 @@ const AST = [
 ];
 type UploadSlot = { kind: string; label: string; required: boolean };
 const SLOTS_MIMARI: UploadSlot[] = [
-  { kind: "mimari_proje", label: "Mimari Proje", required: false },
+  { kind: "mimari_proje", label: "Mimari Proje", required: true },
   { kind: "elektrik_projesi", label: "Elektrik Projesi", required: false },
   { kind: "statik_projesi", label: "Statik Projesi", required: false },
   { kind: "diger", label: "Diğer", required: false },
@@ -46,7 +46,7 @@ const SLOTS_MIMARI: UploadSlot[] = [
 const SLOTS_UYGULAMA: UploadSlot[] = [
   { kind: "mimari_proje", label: "Mimari Proje", required: false },
   { kind: "elektrik_projesi", label: "Elektrik Projesi", required: false },
-  { kind: "olcu_formu", label: "Ölçü Formu", required: false },
+  { kind: "olcu_formu", label: "Ölçü Formu", required: true },
   { kind: "yapi_ruhsati", label: "Yapı Ruhsatı", required: false },
   { kind: "diger", label: "Diğer", required: false },
 ];
