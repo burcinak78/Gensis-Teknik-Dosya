@@ -14,9 +14,11 @@ export default function SideNav({
   const isMuhasebeci = role === "muhasebeci";
   const isCustomer = !isStaff && !isMuhasebeci;
 
-  const items: Item[] = [
+  const items: Item[] = [];
+  // Bildirimler: Muhasebe/Finans hariç herkes (muhasebeci sadece Muhasebe + Proje Takip görür)
+  if (!isMuhasebeci) items.push(
     { href: "/bildirimler", label: "Bildirimler", icon: "notifications", match: (p) => p.startsWith("/bildirimler"), badge: bildirimCount },
-  ];
+  );
   // Proje Takip, Bildirimler'in hemen altında
   if (isStaff) items.push({ href: "/proje-takip", label: "Proje Takip", icon: "table_view", match: (p) => p.startsWith("/proje-takip"), badge: takipCount });
   if (isStaff) items.push({ href: "/onaylar", label: "Onay Bekleyenler", icon: "rate_review", match: (p) => p.startsWith("/onaylar"), badge: onayCount });

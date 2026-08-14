@@ -110,7 +110,7 @@ export async function updateCompany(id: string, form: Record<string, string>): P
 // ---------- Müşteri Sil ----------
 export async function deleteCompany(id: string): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!id) return { ok: false, error: "Kayıt bulunamadı." };
     const admin = createAdminClient();
     // Güvenlik: teknik dosyası / proje onayı olan firma silinmesin (bu kayıtlar sessizce yok olmasın)
@@ -171,7 +171,7 @@ export async function createUser(form: {
   email: string; password: string; full_name: string; role: string; company_id: string;
 }): Promise<Result> {
   try {
-    await assertStaff();
+    await assertAdmin();
     if (!form.email || !form.password) return { ok: false, error: "E-posta ve şifre zorunlu." };
     if (!["admin", "gensis", "customer", "muhasebeci"].includes(form.role)) return { ok: false, error: "Geçersiz rol." };
     const admin = createAdminClient();
@@ -209,7 +209,7 @@ export async function updateUser(form: {
   id: string; full_name: string; role: string; company_id: string; is_active: string; password?: string;
 }): Promise<Result> {
   try {
-    await assertStaff();
+    await assertAdmin();
     if (!form.id) return { ok: false, error: "Kullanıcı bulunamadı." };
     if (!["admin", "gensis", "customer", "muhasebeci"].includes(form.role)) return { ok: false, error: "Geçersiz rol." };
     const admin = createAdminClient();
@@ -364,7 +364,7 @@ export async function updateEngineer(id: string, form: {
 // ---------- Mühendis Sil ----------
 export async function deleteEngineer(id: string): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!id) return { ok: false, error: "Kayıt bulunamadı." };
     const admin = createAdminClient();
     // projelerdeki referansları temizle (FK engellemesin)
@@ -454,7 +454,7 @@ export async function uploadCompanyDocument(formData: FormData): Promise<Result>
 // ---------- Müşteri Belgesi Sil ----------
 export async function deleteCompanyDocument(id: string): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!id) return { ok: false, error: "Kayıt bulunamadı." };
     const admin = createAdminClient();
     const { data: doc } = await admin.from("company_documents").select("storage_path").eq("id", id).maybeSingle();
@@ -528,7 +528,7 @@ export async function uploadEngineerDocument(formData: FormData): Promise<Result
 // ---------- Mühendis Belgesi Sil ----------
 export async function deleteEngineerDocument(id: string): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!id) return { ok: false, error: "Kayıt bulunamadı." };
     const admin = createAdminClient();
     const { data: doc } = await admin.from("engineer_documents").select("storage_path").eq("id", id).maybeSingle();
@@ -608,7 +608,7 @@ export async function updateCertificate(formData: FormData): Promise<Result> {
 // ---------- Sertifika Sil (admin) ----------
 export async function deleteCertificate(id: string): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!id) return { ok: false, error: "Kayıt yok." };
     const admin = createAdminClient();
     await admin.from("equipment_models").update({ certificate_id: null }).eq("certificate_id", id);
@@ -644,7 +644,7 @@ export async function createEquipmentBrand(form: { category_id: string; name: st
 // ---------- Ekipman-Model Sil (admin) ----------
 export async function deleteEquipmentModel(id: string): Promise<Result> {
   try {
-    await assertAdmin();
+    await assertStaff();
     if (!id) return { ok: false, error: "Kayıt yok." };
     const admin = createAdminClient();
     await admin.from("model_certificates").delete().eq("model_id", id);

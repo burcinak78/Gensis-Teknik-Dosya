@@ -16,7 +16,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div>
       <div className="bg-white/80 backdrop-blur border-b border-[#e5e9f0] px-8 pt-5 sticky top-0 z-20">
         <h1 className="text-[22px] font-extrabold tracking-tight mb-2">Yönetim</h1>
-        <AdminTabs />
+        <AdminTabs role={prof?.role ?? ""} />
       </div>
       <div className="p-8 gs-fade">{children}</div>
     </div>

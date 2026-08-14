@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import KullanicilarClient from "./KullanicilarClient";
@@ -6,6 +7,11 @@ export const dynamic = "force-dynamic";
 
 export default async function KullanicilarPage() {
   const supabase = createClient();
+  // Kullanıcı yönetimi yalnız admin'e açık; gensis (Kullanıcı) erişemez
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: me } = user ? await supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null } as any;
+  if (me?.role !== "admin") redirect("/admin/musteriler");
+
   const [{ data: profiles }, { data: companies }] = await Promise.all([
     supabase
       .from("profiles")

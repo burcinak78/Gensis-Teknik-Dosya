@@ -4,17 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/admin/kullanicilar", label: "Kullanıcılar", icon: "group" },
+  { href: "/admin/kullanicilar", label: "Kullanıcılar", icon: "group", adminOnly: true },
   { href: "/admin/muhendisler", label: "Yetkili Mühendisler", icon: "engineering" },
   { href: "/admin/musteriler", label: "Müşteriler", icon: "business" },
   { href: "/admin/ekipmanlar", label: "Güvenlik Ekipmanları", icon: "verified_user" },
 ];
 
-export default function AdminTabs() {
+export default function AdminTabs({ role = "admin" }: { role?: string }) {
   const path = usePathname();
+  const tabs = TABS.filter((t) => !t.adminOnly || role === "admin"); // Kullanıcılar sekmesi yalnız admin
   return (
     <nav className="flex gap-1 -mb-px">
-      {TABS.map((t) => {
+      {tabs.map((t) => {
         const active = path.startsWith(t.href);
         return (
           <Link key={t.href} href={t.href}

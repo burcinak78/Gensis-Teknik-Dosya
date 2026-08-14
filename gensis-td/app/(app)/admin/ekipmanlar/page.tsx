@@ -9,7 +9,7 @@ export default async function GuvenlikEkipmanlariPage() {
   const admin = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: prof } = user ? await supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null } as any;
-  const isAdmin = prof?.role === "admin";
+  const isAdmin = prof?.role === "admin" || prof?.role === "gensis"; // silme yetkisi (Kullanıcı da dahil)
 
   const [
     { data: categories }, { data: brands }, { data: models },
