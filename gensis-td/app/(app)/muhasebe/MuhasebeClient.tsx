@@ -12,7 +12,7 @@ type Muh = {
 };
 type Row = {
   id: string; proje_no: number; parent_id: string | null; rev_no: string | null;
-  proje_tipi: string; company_id: string | null;
+  proje_tipi: string; company_id: string | null; montaj_firma_id: string | null;
   ada_parsel: string | null; is_adi: string | null; il_adi: string | null; ilce_adi: string | null;
   fiyat: number | null; fatura_tipi: string | null; toplam_tutar: number | null;
   proje_sorumlusu_id: string | null; durum: string; tamamlanma_tarihi: string | null;
@@ -38,10 +38,18 @@ export default function MuhasebeClient({
   const setFilter = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
   const openModal = (r: Row, edit: boolean) => { setModalRow(r); setModalEdit(edit); };
   const firmaAd = (id: string | null) => companies.find((c) => c.id === id)?.short_name ?? "—";
+  const montajAd = (mid: string | null) => (mid ? (companies.find((c) => c.id === mid)?.short_name ?? null) : null);
   const tc = (v: unknown) => String(v ?? "").toLocaleLowerCase("tr");
 
-  // muhasebe durum kategorisi
-  const muhCat = (r: Row) => r.muhasebe?.cariye_islendi ? "tamamlandi" : (r.muhasebeye_gonderildi ? "bekliyor" : "diger");
+  // Durum filtresi: muhasebe kategorileri + gönderilmemişlerde proje durumu (HAZIRLANIYOR/BEKLIYOR)
+  const durumMatch = (r: Row, val: string) => {
+    if (!val) return true;
+    if (val === "tamamlandi") return !!r.muhasebe?.cariye_islendi;
+    if (val === "bekliyor") return r.muhasebeye_gonderildi && !r.muhasebe?.cariye_islendi;
+    // Muhasebeye gönderilmemiş kayıtlarda gösterilen proje durumu
+    if (val === "HAZIRLANIYOR" || val === "BEKLIYOR") return !r.muhasebeye_gonderildi && r.durum === val;
+    return true;
+  };
 
   const filtered = useMemo(() => {
     const s = q.trim().toLocaleLowerCase("tr");
@@ -50,7 +58,7 @@ export default function MuhasebeClient({
         const hay = [String(r.proje_no), firmaAd(r.company_id), r.ada_parsel, r.is_adi].map(tc).join(" ");
         if (!hay.includes(s)) return false;
       }
-      if (f.durum && muhCat(r) !== f.durum) return false;
+      if (!durumMatch(r, f.durum)) return false;
       if (f.projeNo && !String(r.proje_no).includes(f.projeNo.trim())) return false;
       if (f.tip && r.proje_tipi !== f.tip) return false;
       if (f.firma && r.company_id !== f.firma) return false;
@@ -127,7 +135,11 @@ export default function MuhasebeClient({
                   <tr className="bg-white border-b border-slate-200">
                     <th className={fTh}>
                       <select className={fInp} value={f.durum} onChange={(e) => setFilter("durum", e.target.value)}>
-                        <option value="">Hepsi</option><option value="bekliyor">İşlem bekliyor</option><option value="tamamlandi">Teslim edildi</option><option value="diger">Gönderilmedi</option>
+                        <option value="">Hepsi</option>
+                        <option value="HAZIRLANIYOR">Hazırlanıyor</option>
+                        <option value="BEKLIYOR">Bekliyor</option>
+                        <option value="bekliyor">İşlem bekliyor</option>
+                        <option value="tamamlandi">Teslim edildi</option>
                       </select>
                     </th>
                     <th className={fTh}><input className={fInp} value={f.projeNo} onChange={(e) => setFilter("projeNo", e.target.value)} placeholder="No" /></th>
@@ -182,7 +194,12 @@ export default function MuhasebeClient({
                         {r.parent_id && <span className="ml-1.5 text-[10px] font-bold bg-brand-light text-brand px-1.5 py-0.5 rounded">Rev {r.rev_no ?? ""}</span>}
                       </td>
                       <td className={td + " font-semibold text-center"}>{TIP_KISA[r.proje_tipi] ?? "—"}</td>
-                      <td className={td + " font-semibold"}>{firmaAd(r.company_id)}</td>
+                      <td className={td + " font-semibold"}>
+                        {firmaAd(r.company_id)}
+                        {montajAd(r.montaj_firma_id) && (
+                          <div className="text-[11px] font-normal text-slate-400">Montaj: {montajAd(r.montaj_firma_id)}</div>
+                        )}
+                      </td>
                       <td className={td + " text-slate-500"}>{r.ada_parsel ?? "—"}</td>
                       <td className={td}>{r.is_adi ?? "—"}</td>
                       <td className={td + " font-semibold"}>{money(r.toplam_tutar)}</td>

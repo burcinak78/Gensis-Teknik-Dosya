@@ -38,20 +38,21 @@ const AST = [
 ];
 type UploadSlot = { kind: string; label: string; required: boolean };
 const SLOTS_MIMARI: UploadSlot[] = [
-  { kind: "mimari_proje", label: "Mimari Proje", required: true },
+  { kind: "mimari_proje", label: "Mimari Proje", required: false },
   { kind: "elektrik_projesi", label: "Elektrik Projesi", required: false },
   { kind: "statik_projesi", label: "Statik Projesi", required: false },
   { kind: "diger", label: "Diğer", required: false },
 ];
 const SLOTS_UYGULAMA: UploadSlot[] = [
-  { kind: "mimari_proje", label: "Mimari Proje", required: true },
+  { kind: "mimari_proje", label: "Mimari Proje", required: false },
   { kind: "elektrik_projesi", label: "Elektrik Projesi", required: false },
   { kind: "olcu_formu", label: "Ölçü Formu", required: false },
-  { kind: "yapi_ruhsati", label: "Yapı Ruhsatı", required: true },
+  { kind: "yapi_ruhsati", label: "Yapı Ruhsatı", required: false },
   { kind: "diger", label: "Diğer", required: false },
 ];
-// Proje çizimleri yalnızca DWG kabul eder (Ölçü Formu / Yapı Ruhsatı / Diğer serbest)
-const DWG_KINDS = ["mimari_proje", "elektrik_projesi", "statik_projesi", "tamamlanan_proje"];
+// Proje çizimleri DWG veya PDF kabul eder (Diğer serbest; tamamlanan proje yalnız DWG)
+const DWG_KINDS = ["mimari_proje", "elektrik_projesi", "statik_projesi"];
+const DWG_PDF_EXT = [".dwg", ".pdf"];
 
 export default function YeniProjeForm({
   companies: companiesInit, provinces, sorumlular, nextNo = null, edit,
@@ -132,11 +133,12 @@ export default function YeniProjeForm({
   function addFiles(kind: string, list: FileList | null) {
     let arr = list ? Array.from(list).filter((x): x is File => !!x) : [];
     if (arr.length === 0) return;
-    // Proje çizimleri yalnızca DWG
+    // Proje çizimleri DWG veya PDF olabilir
     if (DWG_KINDS.includes(kind)) {
-      const bad = arr.filter((fl) => !fl.name.toLowerCase().endsWith(".dwg"));
-      arr = arr.filter((fl) => fl.name.toLowerCase().endsWith(".dwg"));
-      if (bad.length) setErr("Proje çizimleri yalnızca DWG dosyası olabilir.");
+      const ok = (fl: File) => DWG_PDF_EXT.some((e) => fl.name.toLowerCase().endsWith(e));
+      const bad = arr.filter((fl) => !ok(fl));
+      arr = arr.filter(ok);
+      if (bad.length) setErr("Proje çizimleri yalnızca DWG veya PDF dosyası olabilir.");
       if (arr.length === 0) return;
     }
     const multiple = kind === "diger";
@@ -259,6 +261,9 @@ export default function YeniProjeForm({
     // --- Yeni / Güncelle ---
     if (!f.company_id) return setErr("Firma seçiniz.");
     if (!f.proje_tipi) return setErr("Proje tipi seçiniz.");
+    if (!f.tahmini_tamamlanma) return setErr("Tahmini tamamlanma tarihi zorunludur.");
+    if (f.siparis_tarihi && f.tahmini_tamamlanma < f.siparis_tarihi)
+      return setErr("Tahmini tamamlanma tarihi, sipariş tarihinden önce olamaz.");
     for (const s of slots) {
       const have = (files[s.kind] ?? []).length + existingDocs.filter((d) => d.kind === s.kind).length;
       if (s.required && have === 0) return setErr(`${s.label} zorunludur (bir dosya seçin).`);
@@ -291,7 +296,7 @@ export default function YeniProjeForm({
           <DocSlot key={s.kind} label={s.label}
             required={!revMode && s.required}
             multiple={s.kind === "diger"}
-            accept={DWG_KINDS.includes(s.kind) ? ".dwg" : undefined}
+            accept={DWG_KINDS.includes(s.kind) ? ".dwg,.pdf" : undefined}
             invalid={!revMode && touched && s.required && (files[s.kind] ?? []).length + existingDocs.filter((d) => d.kind === s.kind).length === 0}
             existing={existingDocs.filter((d) => d.kind === s.kind)}
             staged={files[s.kind] ?? []}
@@ -468,8 +473,11 @@ export default function YeniProjeForm({
                   {sorumlular.map((s) => <option key={s.id} value={s.id}>{s.full_name ?? "—"}</option>)}
                 </select>
               </Field>
-              <Field label="Tahmini Tamamlanma Tarihi">
-                <input type="date" className={inp} value={f.tahmini_tamamlanma} onChange={(e) => set("tahmini_tamamlanma", e.target.value)} />
+              <Field label="Tahmini Tamamlanma Tarihi *">
+                <input type="date" min={f.siparis_tarihi || undefined}
+                  className={inp + reqCls(!f.tahmini_tamamlanma || (!!f.siparis_tarihi && f.tahmini_tamamlanma < f.siparis_tarihi))}
+                  value={f.tahmini_tamamlanma} onChange={(e) => set("tahmini_tamamlanma", e.target.value)} />
+                {f.siparis_tarihi && <p className="text-[11px] text-slate-400 mt-1">Sipariş tarihinden ({new Date(f.siparis_tarihi).toLocaleDateString("tr-TR")}) eski olamaz.</p>}
               </Field>
             </div>
           </div>
@@ -643,7 +651,7 @@ function DocSlot({
     <div className={`rounded-xl border bg-white p-3 space-y-2 ${invalid ? "border-red-400 bg-red-50" : "border-slate-200"}`}>
       <div className="text-sm font-semibold text-slate-800">
         {label} {required ? <span className="text-red-500">*</span> : <span className="text-slate-400 text-xs font-normal">({multiple ? "çoklu, opsiyonel" : "tek dosya, opsiyonel"})</span>}
-        {accept === ".dwg" && <span className="text-slate-400 text-xs font-normal"> · yalnızca DWG</span>}
+        {accept === ".dwg,.pdf" && <span className="text-slate-400 text-xs font-normal"> · DWG veya PDF</span>}
       </div>
       {existing.map((d) => (
         <div key={d.id} className="flex items-center justify-between text-xs">
