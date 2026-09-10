@@ -17,6 +17,7 @@ type ModelCert = { model_id: string; certificate_id: string };
 const BELGE_TIPI = [
   { v: "mod_b", t: "Mod B" },
   { v: "mod_c2", t: "Mod C2" },
+  { v: "mod_e", t: "Mod E" },
   { v: "uygunluk_beyani", t: "Uygunluk Beyanı" },
   { v: "tip_inceleme", t: "Tip İnceleme" },
   { v: "yangin", t: "Yangın Sertifikası" },
