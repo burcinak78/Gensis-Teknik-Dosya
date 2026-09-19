@@ -14,7 +14,7 @@ type Doc = { id: string; company_id: string; doc_type: string; original_name: st
 type NB = { id: string; identity_no: string | null; name: string };
 type Row = { uid: string; id?: string; belge_no: string; issue_date: string; valid_until: string; notified_body_id: string; file: File | null; original_name?: string | null; sub_type?: string };
 type BRow = Row & { sub_type: string; eki: Row[] };
-type DocsState = { sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_tasarim: Row[]; ce_b: BRow[] };
+type DocsState = { imza_sirkuleri: Row; sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_tasarim: Row[]; ce_b: BRow[] };
 
 const BLANK: Record<string, string> = {
   short_name: "", legal_name: "", authorized_person: "", registered_brand: "",
@@ -44,7 +44,7 @@ const RANK: Record<string, number> = { red: 3, amber: 2, green: 1, slate: 0 };
 const uid = () => (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 const emptyRow = (): Row => ({ uid: uid(), belge_no: "", issue_date: "", valid_until: "", notified_body_id: "", file: null });
 const emptyBRow = (): BRow => ({ ...emptyRow(), sub_type: "", eki: [] });
-const emptyDocs = (): DocsState => ({ sanayi_sicil: emptyRow(), tse_hyb: emptyRow(), ce_h1: emptyRow(), ce_e: emptyRow(), ce_tasarim: [], ce_b: [] });
+const emptyDocs = (): DocsState => ({ imza_sirkuleri: emptyRow(), sanayi_sicil: emptyRow(), tse_hyb: emptyRow(), ce_h1: emptyRow(), ce_e: emptyRow(), ce_tasarim: [], ce_b: [] });
 
 const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
 const fInp = "w-full text-xs px-2 py-1 border border-slate-200 rounded focus:outline-none focus:border-brand";
@@ -111,9 +111,9 @@ export default function MusterilerClient({
       ...rowFromDoc(d), sub_type: d.sub_type ?? "",
       eki: all.filter((x) => x.doc_type === "ce_b_eki" && x.parent_id === d.id).map(rowFromDoc),
     }));
-    return { sanayi_sicil: one("sanayi_sicil"), tse_hyb: one("tse_hyb"), ce_h1: one("ce_h1"), ce_e: one("ce_e"), ce_tasarim: many("ce_tasarim"), ce_b: bList };
+    return { imza_sirkuleri: one("imza_sirkuleri"), sanayi_sicil: one("sanayi_sicil"), tse_hyb: one("tse_hyb"), ce_h1: one("ce_h1"), ce_e: one("ce_e"), ce_tasarim: many("ce_tasarim"), ce_b: bList };
   }
-  const setSingle = (t: "sanayi_sicil" | "tse_hyb" | "ce_h1" | "ce_e", patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: { ...s[t], ...patch } }));
+  const setSingle = (t: "imza_sirkuleri" | "sanayi_sicil" | "tse_hyb" | "ce_h1" | "ce_e", patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: { ...s[t], ...patch } }));
   const setTasarim = (i: number, patch: Partial<Row>) => setDocs((s) => ({ ...s, ce_tasarim: s.ce_tasarim.map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
   const addTasarim = () => setDocs((s) => ({ ...s, ce_tasarim: [...s.ce_tasarim, emptyRow()] }));
   const removeTasarim = (i: number) => setDocs((s) => { const r = s.ce_tasarim[i]; if (r?.id) setDeletedIds((d) => [...d, r.id!]); return { ...s, ce_tasarim: s.ce_tasarim.filter((_, j) => j !== i) }; });
@@ -227,6 +227,7 @@ export default function MusterilerClient({
     }
 
     const nd = emptyDocs();
+    nd.imza_sirkuleri = wantUp(docs.imza_sirkuleri) ? await up("imza_sirkuleri", docs.imza_sirkuleri) : { ...docs.imza_sirkuleri, file: null };
     nd.sanayi_sicil = wantUp(docs.sanayi_sicil) ? await up("sanayi_sicil", docs.sanayi_sicil) : { ...docs.sanayi_sicil, file: null };
     nd.tse_hyb = wantUp(docs.tse_hyb) ? await up("tse_hyb", docs.tse_hyb) : { ...docs.tse_hyb, file: null };
 
@@ -301,6 +302,7 @@ export default function MusterilerClient({
         <h3 className="font-bold text-sm">Belgeler</h3>
         <p className="text-xs text-slate-400">Dosya + tarihleri gir; Kaydet ile birlikte yüklenir. 1 aydan az kalınca sarı, dolunca kırmızı.</p>
       </div>
+      <DocRow ad="İmza Sirküleri" row={docs.imza_sirkuleri} nbs={[]} hideDates onlyFile onChange={(p) => setSingle("imza_sirkuleri", p)} rk={`${docKey}-imza`} />
       <DocRow ad="Sanayi Sicil Belgesi" row={docs.sanayi_sicil} nbs={notifiedBodies} onChange={(p) => setSingle("sanayi_sicil", p)} rk={`${docKey}-sanayi`} />
       <DocRow ad="TSE HYB Belgesi" row={docs.tse_hyb} nbs={notifiedBodies} onChange={(p) => setSingle("tse_hyb", p)} rk={`${docKey}-hyb`} />
       <div className="border border-brand/20 bg-brand-light/40 rounded-xl p-3">
