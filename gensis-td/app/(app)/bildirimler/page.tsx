@@ -41,7 +41,7 @@ export default async function BildirimlerPage() {
 
   // Ekipman sertifikaları — yalnız personel (modele bağlı olmasa da doğrudan sertifika bazlı)
   const BELGE_TIPI_TR: Record<string, string> = {
-    mod_b: "Mod B", mod_c2: "Mod C2", mod_e: "Mod E", uygunluk_beyani: "Uygunluk Beyanı", tip_inceleme: "Tip İnceleme", yangin: "Yangın Sertifikası", deney_raporu: "Deney Raporu",
+    mod_b: "Mod B", mod_c2: "Mod C2", mod_e: "Mod E", modul_h: "Modül H", uygunluk_beyani: "Uygunluk Beyanı", tip_inceleme: "Tip İnceleme", yangin: "Yangın Sertifikası", deney_raporu: "Deney Raporu",
   };
   let ekipman: any[] = [];
   if (isStaff) {
