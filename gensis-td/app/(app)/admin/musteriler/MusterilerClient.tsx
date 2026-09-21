@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument, deleteCompanyDocument } from "../actions";
+import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument, deleteCompanyDocument, createNotifiedBody } from "../actions";
 
 type Company = {
   id: string; short_name: string; legal_name: string | null; address: string | null;
@@ -81,6 +81,7 @@ export default function MusterilerClient({
   const [editId, setEditId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [category, setCategory] = useState("asansor");
+  const [nbs, setNbs] = useState<NB[]>(notifiedBodies);
   const [form, setForm] = useState<Record<string, string>>({ ...BLANK });
   const [ceModule, setCeModule] = useState("H1");
   const [docs, setDocs] = useState<DocsState>(emptyDocs());
@@ -303,8 +304,8 @@ export default function MusterilerClient({
         <p className="text-xs text-slate-400">Dosya + tarihleri gir; Kaydet ile birlikte yüklenir. 1 aydan az kalınca sarı, dolunca kırmızı.</p>
       </div>
       <DocRow ad="İmza Sirküleri" row={docs.imza_sirkuleri} nbs={[]} hideDates onlyFile onChange={(p) => setSingle("imza_sirkuleri", p)} rk={`${docKey}-imza`} />
-      <DocRow ad="Sanayi Sicil Belgesi" row={docs.sanayi_sicil} nbs={notifiedBodies} onChange={(p) => setSingle("sanayi_sicil", p)} rk={`${docKey}-sanayi`} />
-      <DocRow ad="TSE HYB Belgesi" row={docs.tse_hyb} nbs={notifiedBodies} onChange={(p) => setSingle("tse_hyb", p)} rk={`${docKey}-hyb`} />
+      <DocRow ad="Sanayi Sicil Belgesi" row={docs.sanayi_sicil} nbs={nbs} onChange={(p) => setSingle("sanayi_sicil", p)} rk={`${docKey}-sanayi`} />
+      <DocRow ad="TSE HYB Belgesi" row={docs.tse_hyb} nbs={nbs} onChange={(p) => setSingle("tse_hyb", p)} rk={`${docKey}-hyb`} />
       <div className="border border-brand/20 bg-brand-light/40 rounded-xl p-3">
         <div className="flex items-center gap-3 mb-2">
           <span className="text-sm font-bold text-brand">CE Belgeleri</span>
@@ -319,7 +320,7 @@ export default function MusterilerClient({
         </div>
         {ceModule === "H1" ? (
           <div className="space-y-3">
-            <DocRow ad="Mod H1 Belgesi" row={docs.ce_h1} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setSingle("ce_h1", p)} rk={`${docKey}-h1`} />
+            <DocRow ad="Mod H1 Belgesi" row={docs.ce_h1} nbs={nbs} showBelgeNo showNb canAddNb={!isCustomer} onNbAdded={(n) => setNbs((a) => [...a, n])} onChange={(p) => setSingle("ce_h1", p)} rk={`${docKey}-h1`} />
             <div className="text-xs font-semibold text-slate-600">Tasarım İnceleme Belgeleri</div>
             {docs.ce_tasarim.map((r, i) => (
               <div key={r.uid} className="border border-slate-200 rounded-xl p-3 space-y-2 bg-white">
@@ -334,7 +335,7 @@ export default function MusterilerClient({
                     {TI_TIPLERI.map((t) => <option key={t.v} value={t.v}>{t.ad}</option>)}
                   </select>
                 </div>
-                <DocRow ad="Belge Bilgileri" row={r} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setTasarim(i, p)} rk={r.uid} />
+                <DocRow ad="Belge Bilgileri" row={r} nbs={nbs} showBelgeNo showNb onChange={(p) => setTasarim(i, p)} rk={r.uid} />
               </div>
             ))}
             <button type="button" onClick={addTasarim} className="text-xs font-semibold text-brand hover:underline">+ Tasarım İnceleme Ekle</button>
@@ -354,7 +355,7 @@ export default function MusterilerClient({
                     {B_TIPLERI.map((t) => <option key={t.v} value={t.v}>{t.ad}</option>)}
                   </select>
                 </div>
-                <DocRow ad="Belge Bilgileri" row={b} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setB(i, p)} rk={b.uid} />
+                <DocRow ad="Belge Bilgileri" row={b} nbs={nbs} showBelgeNo showNb canAddNb={!isCustomer} onNbAdded={(n) => setNbs((a) => [...a, n])} onChange={(p) => setB(i, p)} rk={b.uid} />
                 <div className="pl-3 border-l-2 border-brand/20 space-y-2">
                   <div className="text-[11px] font-semibold text-slate-500">Bu Mod B'ye ait ekler (sadece dosya)</div>
                   {b.eki.map((e, j) => (
@@ -365,7 +366,7 @@ export default function MusterilerClient({
               </div>
             ))}
             <button type="button" onClick={addB} className="text-xs font-semibold text-brand hover:underline">+ Mod B Ekle</button>
-            <DocRow ad="Mod E Belgesi" row={docs.ce_e} nbs={notifiedBodies} showBelgeNo showNb onChange={(p) => setSingle("ce_e", p)} rk={`${docKey}-e`} />
+            <DocRow ad="Mod E Belgesi" row={docs.ce_e} nbs={nbs} showBelgeNo showNb canAddNb={!isCustomer} onNbAdded={(n) => setNbs((a) => [...a, n])} onChange={(p) => setSingle("ce_e", p)} rk={`${docKey}-e`} />
           </div>
         )}
       </div>
@@ -500,9 +501,10 @@ export default function MusterilerClient({
 }
 
 function DocRow({
-  ad, row, nbs, showBelgeNo, showNb, hideDates, onlyFile, onChange, onRemove, rk,
+  ad, row, nbs, showBelgeNo, showNb, hideDates, onlyFile, canAddNb, onNbAdded, onChange, onRemove, rk,
 }: {
   ad: string; row: Row; nbs: NB[]; showBelgeNo?: boolean; showNb?: boolean; hideDates?: boolean; onlyFile?: boolean;
+  canAddNb?: boolean; onNbAdded?: (n: NB) => void;
   onChange: (p: Partial<Row>) => void; onRemove?: () => void; rk: string;
 }) {
   const durum = (hideDates || onlyFile)
@@ -510,6 +512,23 @@ function DocRow({
     : belgeDurum(row.valid_until, !!row.original_name || !!row.file);
   const nb = nbs.find((n) => n.id === row.notified_body_id);
   const dinp = "w-full text-xs px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
+  // "+ Yeni" ile satır içinde onaylanmış kuruluş ekleme
+  const [showAddNb, setShowAddNb] = useState(false);
+  const [nbForm, setNbForm] = useState({ name: "", identity_no: "", address: "" });
+  const [nbBusy, setNbBusy] = useState(false);
+  const [nbErr, setNbErr] = useState<string | null>(null);
+  async function addNb() {
+    if (!nbForm.name.trim()) { setNbErr("Kuruluş adı zorunlu."); return; }
+    setNbBusy(true); setNbErr(null);
+    const res = await createNotifiedBody(nbForm);
+    setNbBusy(false);
+    if (!res.ok) { setNbErr(res.error); return; }
+    const n: NB = { id: (res as any).id, name: nbForm.name.trim(), identity_no: nbForm.identity_no.trim() || null };
+    onNbAdded?.(n);
+    onChange({ notified_body_id: n.id });
+    setNbForm({ name: "", identity_no: "", address: "" });
+    setShowAddNb(false);
+  }
   return (
     <div className="border border-slate-100 rounded-xl p-3">
       <div className="flex items-center justify-between mb-2">
@@ -545,18 +564,45 @@ function DocRow({
         </div>
       )}
       {!onlyFile && showNb && (
-        <div className="grid grid-cols-[1fr_90px] gap-2 mb-2">
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Onaylanmış Kuruluş</label>
-            <select value={row.notified_body_id} onChange={(e) => onChange({ notified_body_id: e.target.value })} className={dinp}>
-              <option value="">Seçiniz…</option>
-              {nbs.filter((n) => n.identity_no).map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
-            </select>
+        <div className="mb-2">
+          <div className="grid grid-cols-[1fr_90px] gap-2">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Onaylanmış Kuruluş</label>
+              <div className="flex gap-1.5">
+                <select value={row.notified_body_id} onChange={(e) => onChange({ notified_body_id: e.target.value })} className={dinp}>
+                  <option value="">Seçiniz…</option>
+                  {nbs.filter((n) => n.identity_no).map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
+                </select>
+                {canAddNb && onNbAdded && (
+                  <button type="button" onClick={() => { setShowAddNb((v) => !v); setNbErr(null); }}
+                    className="flex-none text-[11px] font-bold text-brand border border-brand/30 rounded-lg px-2 hover:bg-brand-light whitespace-nowrap">
+                    {showAddNb ? "Kapat" : "+ Yeni"}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Kuruluş No</label>
+              <input value={nb?.identity_no ?? ""} disabled className={dinp + " bg-slate-100"} />
+            </div>
           </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Kuruluş No</label>
-            <input value={nb?.identity_no ?? ""} disabled className={dinp + " bg-slate-100"} />
-          </div>
+          {showAddNb && canAddNb && (
+            <div className="mt-2 bg-brand-light/40 border border-brand/15 rounded-lg p-3 space-y-2">
+              <p className="text-xs font-bold text-slate-600">Yeni Onaylanmış Kuruluş</p>
+              <div className="grid grid-cols-3 gap-2">
+                <input className={dinp} placeholder="Adı *" value={nbForm.name} onChange={(e) => setNbForm((s) => ({ ...s, name: e.target.value }))} />
+                <input className={dinp} placeholder="No" value={nbForm.identity_no} onChange={(e) => setNbForm((s) => ({ ...s, identity_no: e.target.value }))} />
+                <input className={dinp} placeholder="Adres" value={nbForm.address} onChange={(e) => setNbForm((s) => ({ ...s, address: e.target.value }))} />
+              </div>
+              {nbErr && <div className="text-xs text-red-600">{nbErr}</div>}
+              <div className="flex justify-end">
+                <button type="button" onClick={addNb} disabled={nbBusy}
+                  className="text-xs font-bold text-white bg-brand hover:bg-brand-dark px-4 py-2 rounded-lg disabled:opacity-50">
+                  {nbBusy ? "Ekleniyor…" : "Ekle ve Seç"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
       <input key={rk} type="file" onChange={(e) => onChange({ file: e.target.files?.[0] ?? null })}
