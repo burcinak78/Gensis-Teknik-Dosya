@@ -25,12 +25,16 @@ export default function SifreYenilePage() {
       if (event === "PASSWORD_RECOVERY" || session) finish();
     });
 
-    // PKCE akışı: ?code=... varsa oturuma çevir
+    // PKCE akışı: ?code=... varsa oturuma çevir.
+    // Bağlantı farklı tarayıcıda açıldıysa code verifier bulunamayıp hata dönebilir;
+    // oturum onAuthStateChange/detectSessionInUrl ile de kurulabildiği için bu hatayı
+    // yüzeye çıkarmıyoruz — gerçekten oturum kurulamazsa aşağıdaki zaman aşımı uyarır.
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     if (code) {
       supabase.auth.exchangeCodeForSession(code)
-        .then(({ error }) => { if (error) setError("Bağlantı doğrulanamadı: " + error.message); else finish(); });
+        .then(({ error }) => { if (!error) finish(); })
+        .catch(() => {});
     }
 
     // Bir süre içinde oturum bulunamazsa uyar
