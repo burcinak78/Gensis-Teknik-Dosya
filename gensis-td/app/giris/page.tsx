@@ -10,12 +10,15 @@ export default function GirisPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setNotice(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
@@ -24,6 +27,25 @@ export default function GirisPage() {
     }
     router.push("/");
     router.refresh();
+  }
+
+  async function handleReset() {
+    setError(null);
+    setNotice(null);
+    if (!email.trim()) {
+      setError("Şifre sıfırlamak için önce e-posta adresinizi girin.");
+      return;
+    }
+    setResetting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/sifre-yenile`,
+    });
+    setResetting(false);
+    if (error) {
+      setError("Sıfırlama bağlantısı gönderilemedi: " + error.message);
+      return;
+    }
+    setNotice("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Gelen kutunuzu kontrol edin.");
   }
 
   return (
@@ -92,12 +114,19 @@ export default function GirisPage() {
           {error && (
             <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>
           )}
+          {notice && (
+            <div className="mb-4 text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">{notice}</div>
+          )}
 
           <button type="submit" disabled={loading} className="gs-btn w-full font-bold py-3 rounded-xl">
             {loading ? "Giriş yapılıyor…" : "Giriş Yap"}
           </button>
           <p className="text-center text-xs text-slate-400 mt-4">
-            Şifreni mi unuttun? <span className="text-navy font-semibold">Sıfırla</span>
+            Şifreni mi unuttun?{" "}
+            <button type="button" onClick={handleReset} disabled={resetting}
+              className="text-navy font-semibold hover:underline disabled:opacity-50">
+              {resetting ? "Gönderiliyor…" : "Sıfırla"}
+            </button>
           </p>
         </form>
       </div>

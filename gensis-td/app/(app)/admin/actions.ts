@@ -239,6 +239,29 @@ export async function updateUser(form: {
   }
 }
 
+// ---------- Kullanıcı Sil ----------
+export async function deleteUser(id: string): Promise<Result> {
+  try {
+    const me = await assertAdmin();
+    if (!id) return { ok: false, error: "Kullanıcı bulunamadı." };
+    if (id === me.id) return { ok: false, error: "Kendi hesabınızı silemezsiniz." };
+    const admin = createAdminClient();
+    // Profillere bağlı referansları çöz (FK engellemesin) — tablo/kolon yoksa yok say
+    try { await admin.from("takip_projeler").update({ proje_sorumlusu_id: null }).eq("proje_sorumlusu_id", id); } catch {}
+    try { await admin.from("takip_projeler").update({ created_by: null }).eq("created_by", id); } catch {}
+    try { await admin.from("proje_onay").update({ created_by: null }).eq("created_by", id); } catch {}
+    try { await admin.from("pending_changes").update({ submitted_by: null }).eq("submitted_by", id); } catch {}
+    // Profil satırını sil, ardından auth kullanıcısını sil
+    await admin.from("profiles").delete().eq("id", id);
+    const { error } = await admin.auth.admin.deleteUser(id);
+    if (error) return { ok: false, error: "Kullanıcı silinemedi: " + error.message };
+    revalidatePath("/admin/kullanicilar");
+    return { ok: true, message: "Kullanıcı silindi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // ---------- Yeni Ekipman-Model (çoklu sertifika bağla) ----------
 export async function createEquipmentModel(form: {
   category_id: string; brand_id: string; new_brand: string; model_name: string; certificate_id?: string; cert_ids?: string[];

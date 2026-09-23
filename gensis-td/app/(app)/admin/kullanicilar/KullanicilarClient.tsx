@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createUser, updateUser } from "../actions";
+import { createUser, updateUser, deleteUser } from "../actions";
 
 type User = {
   id: string; full_name: string | null; role: string; is_active: boolean;
@@ -171,6 +171,16 @@ function UserModal({
   const set = (k: string, v: string) => setForm((s) => ({ ...s, [k]: v }));
   const staff = form.role === "admin" || form.role === "gensis" || form.role === "muhasebeci";
 
+  async function sil() {
+    if (!user) return;
+    if (!confirm(`"${user.full_name || user.email}" kullanıcısı kalıcı olarak silinsin mi? Bu işlem geri alınamaz.`)) return;
+    setBusy(true); setErr(null);
+    const res = await deleteUser(user.id);
+    setBusy(false);
+    if (!res.ok) return setErr(res.error);
+    onSaved();
+  }
+
   async function submit() {
     setErr(null);
     if (!isEdit && !form.email.trim()) return setErr("E-posta zorunlu.");
@@ -239,6 +249,11 @@ function UserModal({
 
         {err && <div className="text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600">{err}</div>}
         <div className="flex justify-end gap-2 pt-1">
+          {isEdit && (
+            <button type="button" onClick={sil} disabled={busy} className="mr-auto text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg disabled:opacity-50">
+              Kullanıcı Sil
+            </button>
+          )}
           <button onClick={onClose} className="text-sm font-semibold text-slate-500 px-4 py-2.5">İptal</button>
           <button disabled={busy} onClick={submit} className="gs-btn text-sm font-bold px-5 py-2.5 rounded-xl disabled:opacity-50">
             {busy ? "Kaydediliyor…" : isEdit ? "Değişiklikleri Kaydet" : "Kullanıcı Ekle"}
