@@ -37,14 +37,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
   const rolTr = rol === "admin" ? "Admin" : rol === "gensis" ? "Kullanıcı" : rol === "muhasebeci" ? "Muhasebe/Finans" : "Müşteri";
   const adSoyad = profile?.full_name ?? user.email ?? "";
-  const bas = adSoyad.trim().slice(0, 2).toUpperCase() || "GT";
+  const bas = adSoyad.trim().slice(0, 2).toUpperCase() || "DL";
 
   return (
     <div className="grid grid-cols-[248px_1fr] min-h-screen">
       <aside className="bg-[#f8fafc] border-r border-[#e7ebf2] flex flex-col sticky top-0 h-screen">
         <div className="flex items-center px-5 py-5 border-b border-[#e7ebf2]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="GENSIS" style={{ height: 26, width: "auto" }} />
+          <img src="/logo.png" alt="Dosyalift" style={{ height: 40, width: "auto" }} />
         </div>
 
         <SideNav role={rol} bildirimCount={bildirimCount} onayCount={onayCount} takipCount={takipCount} muhasebeCount={muhasebeCount} />

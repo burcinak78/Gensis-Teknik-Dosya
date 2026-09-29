@@ -64,7 +64,7 @@ export default function SifreYenilePage() {
       <form onSubmit={submit} className="w-full max-w-[380px]">
         <div className="mb-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="GENSIS" style={{ height: 32, width: "auto" }} />
+          <img src="/logo.png" alt="Dosyalift" style={{ height: 44, width: "auto" }} />
         </div>
         <h2 className="text-[24px] font-extrabold tracking-tight">Yeni şifre belirle</h2>
         <p className="text-sm text-slate-500 mb-6">Hesabınız için yeni bir şifre girin.</p>

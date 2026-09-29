@@ -10,7 +10,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Gensis Teknik Dosya",
+  title: "Dosyalift",
   description: "Asansör CE teknik dosya oluşturma platformu",
 };
 

@@ -56,7 +56,7 @@ export default function GirisPage() {
         <div className="absolute bottom-10 -left-16 w-56 h-56 rounded-full bg-white/5" />
         <div className="relative z-10 bg-white rounded-2xl px-5 py-3 w-fit">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="GENSIS" style={{ height: 34, width: "auto" }} />
+          <img src="/logo.png" alt="Dosyalift" style={{ height: 54, width: "auto" }} />
         </div>
         <div className="relative z-10">
           <h1 className="text-[40px] leading-tight font-extrabold max-w-[15ch]">
@@ -86,7 +86,7 @@ export default function GirisPage() {
         <form onSubmit={handleLogin} className="w-full max-w-[380px]">
           <div className="lg:hidden mb-6">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="GENSIS" style={{ height: 32, width: "auto" }} />
+            <img src="/logo.png" alt="Dosyalift" style={{ height: 44, width: "auto" }} />
           </div>
           <h2 className="text-[24px] font-extrabold tracking-tight">Hesabına giriş yap</h2>
           <p className="text-sm text-slate-500 mb-6">Teknik dosya platformuna erişmek için oturum aç.</p>

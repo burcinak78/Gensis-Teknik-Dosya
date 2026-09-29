@@ -1,4 +1,4 @@
-// Gensis logosu. Gerçek görsel: public/logo.png
+// Dosyalift logosu. Gerçek görsel: public/logo.png
 // - dark  : açık zeminde doğrudan gösterilir (giriş ekranı, beyaz kart)
 // - light : lacivert kenar menüde görünür olması için beyaz bir kutu içine alınır
 //           (orijinal logodaki lacivert yazı koyu zeminde kaybolmasın diye)
@@ -14,7 +14,7 @@ export default function Logo({
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src="/logo.png"
-      alt="GENSIS"
+      alt="Dosyalift"
       style={{ height, width: "auto", display: "block" }}
     />
   );
