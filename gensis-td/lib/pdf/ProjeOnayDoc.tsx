@@ -47,6 +47,15 @@ function FRow({ l, val }: { l: string; val?: any }) {
 function FSection({ children }: { children: any }) {
   return <Text style={st.fSection}>{children}</Text>;
 }
+function SigRow({ l, val }: { l: string; val?: any }) {
+  const t = val != null && String(val).trim() !== "" ? String(val) : "";
+  return (
+    <View style={{ flexDirection: "row", marginBottom: 6 }}>
+      <Text style={{ width: 84, fontSize: 9, fontWeight: "bold" }}>{l}</Text>
+      <Text style={{ fontSize: 9 }}>: {t}</Text>
+    </View>
+  );
+}
 
 function DilekcePage({ d }: { d: any }) {
   const firmaAdi = v(d.firma_adi) || v(d.firma?.unvan) || "—";
@@ -91,7 +100,7 @@ function Prow({ l, val }: { l: string; val?: any }) {
 function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
   const m = disc === "makine" ? d.muh?.makine : d.muh?.elektrik;
   const unvan = disc === "makine" ? "MAKİNA MÜHENDİSİ" : "ELEKTRİK MÜHENDİSİ";
-  const unvanKisa = disc === "makine" ? "Mak.Müh." : "Elk.Müh.";
+  const unvanTam = disc === "makine" ? "Makine Mühendisi" : "Elektrik Mühendisi";
   const fname = v(d.firma?.unvan || d.firma?.kisa_ad || d.firma_adi);
   return (
     <Page key={"muh_taahhut_" + disc} size="A4" style={st.formPage}>
@@ -116,20 +125,12 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
         Yukarıdaki bilgilere sahip projenin müellifliğini üstlenmemde 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında süreli veya süresiz olarak mesleki faaliyet haklarımda herhangi bir kısıtlılık bulunmadığını, Yukarıdaki bilgilere sahp yapıya ilişkin hazırlanacak tüm projelerde, 3194 sayılı Kanun ve deprem, yangın,enerji verimliliği,asansör gibi ilgili tüm mevzuat hükümlerini eksiksiz uygulayacağımı taahhüt ederim.
       </Text>
       <Text style={{ fontSize: 9.5, marginTop: 14 }}>Tarih : …./…./20…</Text>
-      <View style={{ marginTop: 8, alignSelf: "flex-end", width: "60%" }}>
-        <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-          <View style={{ marginRight: 16, alignItems: "center" }}>
-            <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 6 }}>Proje Müellifi</Text>
-            <Text style={{ fontSize: 9, fontWeight: "bold", marginBottom: 5 }}>{unvanKisa}</Text>
-            <Text style={{ fontSize: 9, marginBottom: 5 }}>{v(m?.ad)}</Text>
-            <Text style={{ fontSize: 9 }}>Oda Sicil No: {v(m?.oda_sicil)}</Text>
-          </View>
-          <View style={{ minWidth: 68, paddingTop: 21 }}>
-            <Text style={{ fontSize: 9, marginBottom: 5 }}>Adı-Soyadı</Text>
-            <Text style={{ fontSize: 9, marginBottom: 5 }}>Ünvanı</Text>
-            <Text style={{ fontSize: 9 }}>İmza</Text>
-          </View>
-        </View>
+      <View style={{ marginTop: 10, alignSelf: "flex-end", width: "58%" }}>
+        <Text style={{ fontSize: 9.5, fontWeight: "bold", textAlign: "center", marginBottom: 8 }}>Proje Müellifi</Text>
+        <SigRow l="Adı-Soyadı" val={v(m?.ad)} />
+        <SigRow l="Ünvanı" val={unvanTam} />
+        <SigRow l="Oda Sicil No" val={v(m?.oda_sicil)} />
+        <SigRow l="İmza" val="" />
       </View>
       <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
         Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
