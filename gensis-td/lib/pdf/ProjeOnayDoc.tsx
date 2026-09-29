@@ -115,7 +115,8 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
       <Text style={{ fontSize: 8.6, marginTop: 10, textAlign: "justify", lineHeight: 1.5 }}>
         Yukarıdaki bilgilere sahip projenin müellifliğini üstlenmemde 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında süreli veya süresiz olarak mesleki faaliyet haklarımda herhangi bir kısıtlılık bulunmadığını, Yukarıdaki bilgilere sahp yapıya ilişkin hazırlanacak tüm projelerde, 3194 sayılı Kanun ve deprem, yangın,enerji verimliliği,asansör gibi ilgili tüm mevzuat hükümlerini eksiksiz uygulayacağımı taahhüt ederim.
       </Text>
-      <View style={{ marginTop: 30, alignSelf: "flex-end", width: "60%" }}>
+      <Text style={{ fontSize: 9.5, marginTop: 14 }}>Tarih : …./…./20…</Text>
+      <View style={{ marginTop: 8, alignSelf: "flex-end", width: "60%" }}>
         <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
           <View style={{ marginRight: 16, alignItems: "center" }}>
             <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 6 }}>Proje Müellifi</Text>
