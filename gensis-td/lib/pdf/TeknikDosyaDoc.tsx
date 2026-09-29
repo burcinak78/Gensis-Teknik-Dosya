@@ -630,11 +630,12 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FRow l="ÜNVANI" val={c.firma.unvan} />
         <FRow l="ADRESİ" val={c.firma.adres} />
         <FRow l="TELEFON VE FAKS NUMARASI, DİĞER İLETİŞİM BİLGİLERİ" val={c.firma.telefon} />
+        <FRow l="E-POSTA" val={c.firma.email} />
         <FSection>FATURANIN</FSection>
         <FRow l="TARİHİ" val={c.faturaTarihi} />
         <FRow l="SAYISI" val={c.faturaNo} />
         <FSection>MALIN</FSection>
-        <FRow l="CİNSİ" val={c.malinCinsi} />
+        <FRow l="CİNSİ" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} />
         <FRow l="MARKASI" val={c.firma.tescilli_marka} />
         <FRow l="MODELİ" val={c.inp.asansor_sinifi ? String(c.inp.asansor_sinifi).split(":")[0].trim() : c.garantiSinif} />
         <FRow l="SERİ NUMARASI" val={c.inp.asansor_seri_no} />
@@ -647,6 +648,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FRow l="ÜNVANI" val={c.firma.unvan} />
         <FRow l="ADRESİ" val={c.firma.adres} />
         <FRow l="TELEFON VE FAKS NUMARASI, DİĞER İLETİŞİM BİLGİLERİ" val={c.firma.telefon} />
+        <FRow l="E-POSTA" val={c.firma.email} />
         <FSection>ONAY</FSection>
         <FRow l="FİRMA YETKİLİSİNİN ADI VE SOYADI" val={c.firma.yetkili} />
         <FRow l="FİRMA YETKİLİSİNİN İMZASI" val="" tall={52} />
