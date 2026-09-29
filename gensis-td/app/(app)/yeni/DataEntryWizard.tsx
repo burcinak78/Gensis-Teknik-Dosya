@@ -460,7 +460,11 @@ export default function DataEntryWizard(props: Props) {
     let modulBelgeNo = "", modulBelgeTarihi = "", modulNbId = "";
     if (modulSecim === "G") { modulBelgeNo = modulG.belge_no; modulBelgeTarihi = modulG.verilis; modulNbId = modulG.nb_id; }
     else {
-      const selDoc = cdocs.find((d) => modulBelgeIds.includes(d.id));
+      const selDocs = modulBelgeIds.map((id) => cdocs.find((d) => d.id === id)).filter(Boolean) as typeof cdocs;
+      // Mod H1 ve Tasarım İnceleme birlikte seçiliyse belge numarası Mod H1'den gelir
+      const selDoc = selDocs.find((d) => d.doc_type === "ce_h1")
+        || selDocs.find((d) => d.doc_type !== "ce_tasarim")
+        || selDocs[0];
       if (selDoc) { modulBelgeNo = selDoc.belge_no ?? ""; modulBelgeTarihi = selDoc.issue_date ?? ""; modulNbId = selDoc.notified_body_id ?? ""; }
     }
     const modulNb = props.notifiedBodies.find((n) => n.id === modulNbId);

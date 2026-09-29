@@ -55,10 +55,10 @@ const st = StyleSheet.create({
   fVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#111827" },
   fSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#334155" },
   fColHead: { flexDirection: "row", backgroundColor: "#f1f5f9", borderBottomWidth: 0.8, borderColor: "#334155" },
-  fc1: { width: "40%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155" },
-  fc2: { width: "22%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
-  fc3: { width: "22%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
-  fc4: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", textAlign: "center" },
+  fc1: { width: "33%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155" },
+  fc2: { width: "15%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
+  fc3: { width: "15%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
+  fc4: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", textAlign: "left" },
   // Genel tablo (Marka/Tip/Model.. ve Seyir Defteri tabloları)
   tbl: { borderTopWidth: 0.6, borderLeftWidth: 0.6, borderColor: "#94a3b8", marginTop: 4 },
   trow: { flexDirection: "row" },
@@ -539,17 +539,29 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       ["Ağırlık Tamponu", eq.tampon_agirlik || {}],
       ["Elektronik aksamları içeren güvenlik şalterleri şeklindeki elektrikli güvenlik tertibatları", eq.kumanda || {}],
     ];
+    // Durak kapısı kilitleme tertibatı: kata karşılık gelen seri no'lar (Teknik Komponent tablosuyla aynı mantık)
+    const kk = eq.kapi_kilidi || {};
+    const katAdlari: string[] = Array.isArray(c.inp.kat_listesi) ? c.inp.kat_listesi.map((x: any) => String(x)) : [];
+    const katSeri: string[] = Array.isArray(kk.seri_list) ? kk.seri_list.map((x: any) => (x == null ? "" : String(x))) : [];
+    const nKat = Math.max(katAdlari.length, katSeri.length, Number(c.d.durak_adedi || 0) || 0, 0);
+    const kilitPairs = Array.from({ length: nKat }, (_, i) => ({ ad: katAdlari[i] || `${i + 1}.KAT`, seri: katSeri[i] || "" }))
+      .filter((x) => String(x.seri).trim() !== "");
+    // Tek satıra sığdır (tescil belgesi tek sayfa kalsın): "Kat: SeriNo" çiftleri
+    const kilitSeriMetin = kilitPairs.length
+      ? kilitPairs.map((x) => `${x.ad}: ${x.seri}`).join("   ")
+      : (kk.seri_no || "");
     return (
       <Page key="tescil" size="A4" style={st.pageForm}>
         <Text style={st.formTitle}>EK-1: YENİ ASANSÖR İÇİN TESCİL BELGESİ</Text>
         <View style={st.fBox}>
           <FRow l="TESCİL TARİHİ" val="" />
           <FRow l="TESCİL KAYIT NUMARASI" val="" />
-          <FRow l="TESCİLİ YAPAN İLGİLİ İDARENİN ADI VE ADRESİ" val={c.d.belediye ? `${v(c.d.belediye)} Belediyesi` : ""} />
+          <FRow l="TESCİLİ YAPAN İLGİLİ İDARENİN ADI VE ADRESİ" val={c.d.belediye ? `${String(v(c.d.belediye)).toLocaleUpperCase("tr")} BELEDİYESİ` : ""} />
           <FSection>ASANSÖR MONTE EDENE DAİR BİLGİLER</FSection>
           <FRow l="ASANSÖR MONTE EDENİN ADI" val={c.firma.unvan} />
           <FRow l="ASANSÖR MONTE EDENİN ADRESİ" val={c.firma.adres} />
-          <FRow l="ASANSÖR MONTE EDENE AİT İLETİŞİM BİLGİLERİ" val={c.firma.telefon} />
+          <FRow l="ASANSÖR MONTE EDENE AİT İLETİŞİM BİLGİLERİ (TELEFON)" val={c.firma.telefon} />
+          <FRow l="ASANSÖR MONTE EDENE AİT İLETİŞİM BİLGİLERİ (E-POSTA)" val={c.firma.email} />
           <FSection>ASANSÖRE DAİR BİLGİLER</FSection>
           <FRow l="ASANSÖR KİMLİK NUMARASI" val={c.inp.asansor_kimlik_no} />
           <FRow l="ADA VE PARSEL NO" val={c.adaParsel} />
@@ -557,7 +569,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <FRow l="ASANSÖRÜN MARKASI" val={c.firma.tescilli_marka} />
           <FRow l="ASANSÖRÜN SERİ NUMARASI" val={c.inp.asansor_seri_no} />
           <FRow l="ASANSÖRÜN İMAL YILI" val={c.d.imal_yili} />
-          <FRow l="ASANSÖRÜN TAHRİK TÜRÜ" val={c.malinCinsi} />
+          <FRow l="ASANSÖRÜN TAHRİK TÜRÜ" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} />
           <FRow l="ASANSÖRÜN HIZI" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} />
           <FRow l="ASANSÖRÜN KAPASİTESİ VEYA BEYAN YÜKÜ" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : ""} />
           <FRow l="ASANSÖRÜN DURAK SAYISI" val={c.d.durak_adedi} />
@@ -573,7 +585,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
               <Text style={st.fc1}>{lab}</Text>
               <Text style={st.fc2}>{e?.marka || ""}</Text>
               <Text style={st.fc3}>{e?.model || ""}</Text>
-              <Text style={st.fc4}>{e?.seri_no || ""}</Text>
+              <Text style={st.fc4}>{i === 0 ? kilitSeriMetin : (e?.seri_no || "")}</Text>
             </View>
           ))}
           <FSection>MEVZUAT</FSection>
@@ -588,7 +600,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <FRow l="ONAYLANMIŞ KURULUŞUN KİMLİK NUMARASI" val={c.inp.modul_kurulus_no || c.modul.kurulus_no} />
           <FSection>SANAYİ SİCİL BELGESİNE DAİR BİLGİLER</FSection>
           <FRow l="BELGE TARİHİ" val={fmtTR(c.inp.sanayi_sicil_tarihi)} />
-          <FRow l="BELGE NUMARASI" val={c.inp.sanayi_sicil_no} />
+          <FRow l="BELGE NUMARASI" val={c.inp.sanayi_sicil_no || c.firma.sanayi_sicil_no} />
           <FSection>TSE HİZMET YETERLİLİK BELGESİNE DAİR BİLGİLER</FSection>
           <FRow l="BELGENİN DÜZENLENDİĞİ TARİH" val={fmtTR(c.inp.tse_tarihi)} />
           <FRow l="BELGENİN GEÇERLİLİK SÜRESİ" val={fmtTR(c.inp.tse_gecerlilik)} />
