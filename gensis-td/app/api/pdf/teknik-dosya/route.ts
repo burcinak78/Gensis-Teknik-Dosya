@@ -75,6 +75,15 @@ export async function GET(req: NextRequest) {
     if (prow?.bina_adi && !(ctx as any).bina_adi) (ctx as any).bina_adi = prow.bina_adi;
     attach.isG = inp.modul_secim === "G";
     const companyId = prow?.company_id ?? null;
+    // Firma Bilgileri: Telefon/E-posta render context'te boşsa companies tablosundan tamamla
+    if (companyId) {
+      const { data: crow } = await admin.from("companies").select("phone, mobile_phone, email").eq("id", companyId).single();
+      if (crow) {
+        (ctx as any).firma = (ctx as any).firma || {};
+        if (!(ctx as any).firma.telefon) (ctx as any).firma.telefon = crow.phone || crow.mobile_phone || null;
+        if (!(ctx as any).firma.email) (ctx as any).firma.email = crow.email || null;
+      }
+    }
     const engIds = [prow?.makine_muhendis_id, prow?.elektrik_muhendis_id].filter(Boolean) as string[];
 
     const { data: pfiles } = await admin.from("project_files")

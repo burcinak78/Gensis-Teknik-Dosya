@@ -348,11 +348,11 @@ function R({ l, val }: { l: string; val?: any }) {
     </View>
   );
 }
-// Dilekçe için dar satır: değer, başlığın hemen yanında
-function LR({ l, val }: { l: string; val?: any }) {
+// Dar satır: değer, başlığın hemen yanında (Dilekçe / Firma Bilgileri)
+function LR({ l, val, w = 110 }: { l: string; val?: any; w?: number }) {
   return (
     <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
-      <View style={{ width: 110, paddingRight: 6 }}><Text style={{ color: "#6b7280" }}>{l}</Text></View>
+      <View style={{ width: w, paddingRight: 6 }}><Text style={{ color: "#6b7280" }}>{l}</Text></View>
       <View style={{ flex: 1 }}><Text style={{ fontWeight: "bold", color: "#111827" }}>{v(val)}</Text></View>
     </View>
   );
@@ -512,17 +512,19 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   firma_bilgileri: (c) => (
     <Page key="firma_bilgileri" size="A4" style={st.page}>
-      <DocHead firma={c.firma} title="FİRMA BİLGİLERİ" />
-      <R l="Ticari Ünvan" val={c.firma.unvan} />
-      <R l="Tescilli Marka" val={c.firma.tescilli_marka} />
-      <R l="Yetkili / Ünvanı" val={c.firma.yetkili} />
-      <R l="Adres" val={c.firma.adres} />
-      <R l="Yer" val={c.firma.sehir} />
-      <R l="Ülke" val="TÜRKİYE" />
-      <R l="Telefon" val={c.firma.telefon} />
-      <R l="Faks" val={c.firma.faks} />
-      <R l="Sanayi Sicil No" val={c.firma.sanayi_sicil_no} />
-      <R l="CE İşaretlemesi Sorumlusu" val={c.firma.yetkili} />
+      <View style={{ flexGrow: 1, justifyContent: "center" }}>
+        <DocHead firma={c.firma} title="FİRMA BİLGİLERİ" />
+        <LR l="Ticari Ünvan" val={c.firma.unvan} w={150} />
+        <LR l="Tescilli Marka" val={c.firma.tescilli_marka} w={150} />
+        <LR l="Yetkili / Ünvanı" val={c.firma.yetkili} w={150} />
+        <LR l="Adres" val={c.firma.adres} w={150} />
+        <LR l="Yer" val={c.firma.sehir} w={150} />
+        <LR l="Ülke" val="TÜRKİYE" w={150} />
+        <LR l="Telefon" val={c.firma.telefon} w={150} />
+        <LR l="E-posta" val={c.firma.email} w={150} />
+        <LR l="Sanayi Sicil No" val={c.firma.sanayi_sicil_no} w={150} />
+        <LR l="CE İşaretlemesi Sorumlusu" val={c.firma.yetkili} w={150} />
+      </View>
       <Footer firma={c.fname} />
     </Page>
   ),
