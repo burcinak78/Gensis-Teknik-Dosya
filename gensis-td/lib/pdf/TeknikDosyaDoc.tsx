@@ -69,18 +69,18 @@ const st = StyleSheet.create({
 
   // Teknik & Komponent Listesi (Excel birebir, tek sayfa)
   kPage: { fontFamily: "Roboto", fontSize: 8, color: "#111827", paddingTop: 26, paddingHorizontal: 30, paddingBottom: 30, lineHeight: 1.2 },
-  kTitle: { textAlign: "center", fontWeight: "bold", fontSize: 11, color: "#0f172a", marginBottom: 8 },
-  kInfoRow: { flexDirection: "row", paddingVertical: 0.8 },
-  kLbl: { width: "26%", fontSize: 7.6, fontWeight: "bold", color: "#1f2937" },
-  kSep: { width: "3%", fontSize: 7.6 },
-  kVal: { flex: 1, fontSize: 7.6, color: "#111827" },
-  kSub: { width: "26%", fontSize: 7.6, color: "#1f2937", paddingLeft: 10 },
-  kTbl: { borderTopWidth: 0.6, borderLeftWidth: 0.6, borderColor: "#334155", marginTop: 7 },
+  kTitle: { textAlign: "center", fontWeight: "bold", fontSize: 11, color: "#0f172a", marginBottom: 20 },
+  kInfoRow: { flexDirection: "row", paddingVertical: 1 },
+  kLbl: { width: "26%", fontSize: 12, fontWeight: "bold", color: "#1f2937" },
+  kSep: { width: "3%", fontSize: 12 },
+  kVal: { flex: 1, fontSize: 12, color: "#111827" },
+  kSub: { width: "26%", fontSize: 12, color: "#1f2937", paddingLeft: 10 },
+  kTbl: { borderTopWidth: 0.9, borderLeftWidth: 0.9, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#334155", marginTop: 10 },
   kRow: { flexDirection: "row" },
-  kH: { fontSize: 6, fontWeight: "bold", backgroundColor: "#e5e9f0", color: "#0f172a", paddingVertical: 3, paddingHorizontal: 2, borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#334155", textAlign: "center" },
-  kC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#334155" },
-  kCol: { borderRightWidth: 0.6, borderColor: "#334155" },
-  kSubC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, minHeight: 12, borderBottomWidth: 0.6, borderColor: "#334155" },
+  kH: { fontSize: 6, fontWeight: "bold", backgroundColor: "#e5e9f0", color: "#0f172a", paddingVertical: 3, paddingHorizontal: 2, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#334155", textAlign: "center" },
+  kC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#334155" },
+  kCol: { borderRightWidth: 0.9, borderColor: "#334155" },
+  kSubC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, minHeight: 12, borderBottomWidth: 0.9, borderColor: "#334155" },
 });
 
 // Teknik & Komponent tablosu kolon genişlikleri (Excel ile aynı sıra)
@@ -167,7 +167,7 @@ function KInfo({ l, val, unit, sub }: { l: string; val?: any; unit?: string; sub
   );
 }
 function KSection({ children }: { children: any }) {
-  return <Text style={{ fontSize: 7.8, fontWeight: "bold", marginTop: 3 }}>{children}</Text>;
+  return <Text style={{ fontSize: 12, fontWeight: "bold", marginTop: 4 }}>{children}</Text>;
 }
 
 // Çok satırlı komponent bloğu: seri no alt satır satır, diğer sütunlar birleşik
@@ -175,7 +175,7 @@ function KBlok({ ad, e, alt }: { ad: string; e: any; alt: { ad: string; seri: st
   const son = alt.length - 1;
   const kurulus = [e?.kurulus_no, e?.onaylanmis_kurulus].filter(Boolean).join(" ");
   return (
-    <View style={[st.kRow, { borderBottomWidth: 0.6, borderColor: "#334155" }]}>
+    <View style={[st.kRow, { borderBottomWidth: 0.9, borderColor: "#334155" }]}>
       <View style={[st.kCol, { width: KW.ad, justifyContent: "center", paddingHorizontal: 2 }]}>
         <Text style={{ fontSize: fitFs(ad, 26) }}>{ad}</Text>
       </View>
@@ -228,14 +228,22 @@ function teknikKomponentPage(c: any) {
   // Yukarı yön aşırı hızlanma: askı 1/1 ise fren bloğu, 2/1/4/1 ise makine motoru
   const yukari = aski.startsWith("1/1") ? (eq.fren_blogu || {}) : (eq.motor || {});
   const kurulus = (e: any) => [e?.kurulus_no, e?.onaylanmis_kurulus].filter(Boolean).join(" ");
-  const satirlar: [string, any][] = [
-    ["Aşırı Hız Sınırlayıcı Tertibat", eq.hiz_regulatoru],
-    ["Kabin Güvenlik Tertibatı", eq.fren_blogu],
-    ["Kabin Tamponu", eq.tampon_kabin || eq.tampon],
-    ["Ağırlık Tamponu", eq.tampon_agirlik],
-    ["Elektronik Aksam İçeren Güvenlik Tertibatı", eq.kumanda],
-    ["Yukarı Yön Aşırı Hızlanma Önleme Tertibat", yukari],
-  ];
+  // Hidrolik asansörde karşı ağırlık yoktur → Ağırlık Tamponu ve Yukarı Yön Aşırı Hızlanma (çekmeli) satırları gelmez
+  const satirlar: [string, any][] = c.isHid
+    ? [
+        ["Aşırı Hız Sınırlayıcı Tertibat", eq.hiz_regulatoru],
+        ["Kabin Güvenlik Tertibatı", eq.fren_blogu],
+        ["Kabin Tamponu", eq.tampon_kabin || eq.tampon],
+        ["Elektronik Aksam İçeren Güvenlik Tertibatı", eq.kumanda],
+      ]
+    : [
+        ["Aşırı Hız Sınırlayıcı Tertibat", eq.hiz_regulatoru],
+        ["Kabin Güvenlik Tertibatı", eq.fren_blogu],
+        ["Kabin Tamponu", eq.tampon_kabin || eq.tampon],
+        ["Ağırlık Tamponu", eq.tampon_agirlik],
+        ["Elektronik Aksam İçeren Güvenlik Tertibatı", eq.kumanda],
+        ["Yukarı Yön Aşırı Hızlanma Önleme Tertibat", yukari],
+      ];
   const son = katlar.length - 1;
 
   return (
