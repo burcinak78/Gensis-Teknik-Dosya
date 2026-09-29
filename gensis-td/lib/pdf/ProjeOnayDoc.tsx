@@ -47,6 +47,19 @@ function FRow({ l, val }: { l: string; val?: any }) {
 function FSection({ children }: { children: any }) {
   return <Text style={st.fSection}>{children}</Text>;
 }
+// Footer: Ticari Ünvan · Adres · Telefon · E-posta — tek satır, sığacak şekilde punto küçülür
+const fitFsPO = (s: any, base = 8, min = 5) => {
+  const txt = String(s || "");
+  const contentW = 490;
+  const est = txt.length * base * 0.5;
+  return est <= contentW ? base : Math.max(min, (base * contentW) / est);
+};
+function FooterBar({ d }: { d: any }) {
+  const f = d.firma || {};
+  const text = [f.unvan || f.kisa_ad || d.firma_adi, f.adres, f.telefon, f.email]
+    .filter(Boolean).map((x: any) => String(x).trim()).join(" · ");
+  return <Text style={[st.footer, { fontSize: fitFsPO(text) }]} fixed numberOfLines={1}>{text || " "}</Text>;
+}
 function SigRow({ l, val }: { l: string; val?: any }) {
   const t = val != null && String(val).trim() !== "" ? String(val) : "";
   return (
@@ -84,6 +97,7 @@ function DilekcePage({ d }: { d: any }) {
       <Text style={st.saygi}>Saygılarımızla,</Text>
       <Text style={st.imzaFirma}>{firmaAdi}</Text>
       <Text style={st.imzaLine}>Kaşe / İmza</Text>
+      <FooterBar d={d} />
     </Page>
   );
 }
@@ -135,9 +149,7 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
       <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
         Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
       </Text>
-      <Text style={st.footer} fixed>
-        {fname} · Proje Onay Dosyası · Gensis platformu ile üretilmiştir
-      </Text>
+      <FooterBar d={d} />
     </Page>
   );
 }

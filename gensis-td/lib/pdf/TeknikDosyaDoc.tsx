@@ -136,7 +136,7 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
       <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
         Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
       </Text>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   );
 }
@@ -313,7 +313,7 @@ function teknikKomponentPage(c: any) {
         ))}
       </View>
 
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   );
 }
@@ -357,10 +357,11 @@ function LR({ l, val, w = 110 }: { l: string; val?: any; w?: number }) {
     </View>
   );
 }
-function Footer({ firma }: { firma: string }) {
+function Footer({ text }: { text: string }) {
+  // Tek satıra sığacak şekilde punto küçülür
   return (
-    <Text style={st.footer} fixed>
-      {firma} · Teknik Dosya · Gensis Teknik Dosya platformu ile üretilmiştir
+    <Text style={[st.footer, { fontSize: fitFs(text, 100, 8, 5) }]} fixed numberOfLines={1}>
+      {text || " "}
     </Text>
   );
 }
@@ -444,7 +445,9 @@ function buildCtx(data: any) {
   const faturaNo = v(inp.fatura_no);
   const faturaTarihi = fmtTR(inp.fatura_tarihi);
   const assetBase = d.__assetBase || "";
-  return { d, firma, modul, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi, assetBase };
+  // Tüm evrak footer'ı: Ticari Ünvan · Adres · Telefon · E-posta (tek satır)
+  const footerText = [firma.unvan || firma.kisa_ad, firma.adres, firma.telefon, firma.email].filter(Boolean).map((x: any) => String(x).trim()).join(" · ");
+  return { d, firma, modul, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi, assetBase, footerText };
 }
 
 // CE işareti — kapak için (resmi CE markası görseli)
@@ -473,7 +476,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <View style={{ height: 20 }} />
         <Text style={{ fontSize: 9, color: "#6b7280" }}>{c.tarih}</Text>
       </View>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   ),
 
@@ -506,7 +509,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           </View>
         </View>
       </View>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   ),
 
@@ -525,7 +528,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <LR l="Sanayi Sicil No" val={c.firma.sanayi_sicil_no} w={150} />
         <LR l="CE İşaretlemesi Sorumlusu" val={c.firma.yetkili} w={150} />
       </View>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   ),
 
@@ -654,7 +657,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FRow l="FİRMA YETKİLİSİNİN İMZASI" val="" tall={52} />
         <FRow l="FİRMA KAŞESİ" val="" tall={78} />
       </View>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   ),
 
@@ -794,7 +797,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <View style={{ flex: 1, alignItems: "center" }}><Text style={{ fontSize: 9, fontWeight: "bold" }}>YÜKLENİCİ (İsim, Kaşe, İmza)</Text></View>
         <View style={{ flex: 1, alignItems: "center" }}><Text style={{ fontSize: 9, fontWeight: "bold" }}>MÜŞTERİ (İsim, Kaşe, İmza)</Text></View>
       </View>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   ),
 
@@ -883,7 +886,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <R l="Yetkili Kişi" val={c.firma.yetkili} />
         <R l="İmzanın Yeri ve Tarihi" val={`${yer} — …../…../……`} />
         <R l="Kaşe / İmza" val="" />
-        <Footer firma={c.fname} />
+        <Footer text={c.footerText} />
       </Page>
     );
   },
@@ -913,7 +916,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <Text style={{ fontSize: 9, fontWeight: "bold", marginBottom: 6 }}>FİRMA YETKİLİ ADI / SOYADI</Text>
         <Text style={{ fontSize: 9 }}>{v(c.firma.yetkili)}</Text>
       </View>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   ),
 
@@ -947,7 +950,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         </>
       )}
       <Text style={{ marginTop: 16, textAlign: "right" }}>SAYGILARIMIZLA</Text>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   ),
 
@@ -1045,7 +1048,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         NOT: Asansörün güvenliğini etkileyecek revizyon gerçekleştiren her asansör firması ile kontrolü
         gerçekleştiren her kuruluş, yaptığı işlemi bu deftere kaydetmekle yükümlüdür.
       </Text>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
     );
   },
@@ -1089,7 +1092,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         </View>
       </View>
       <Text style={{ marginTop: 14, color: "#6b7280" }}>Tarih : ...../...../.........</Text>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   ),
 
@@ -1133,7 +1136,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <Text style={[st.tcellTall, { minHeight: 54, width: "34%" }]}> </Text>
         </View>
       </View>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   ),
 
@@ -1172,7 +1175,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           </View>
         </View>
       </View>
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   ),
 };
@@ -1192,7 +1195,7 @@ function EkBelgelerPage(c: Ctx) {
           </View>
         )
       )}
-      <Footer firma={c.fname} />
+      <Footer text={c.footerText} />
     </Page>
   );
 }

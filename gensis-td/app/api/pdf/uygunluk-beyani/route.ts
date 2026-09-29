@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import React from "react";
 import { Font, renderToBuffer } from "@react-pdf/renderer";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { UygunlukBeyaniDoc } from "@/lib/pdf/UygunlukBeyaniDoc";
 
 export const runtime = "nodejs";
@@ -47,6 +48,20 @@ export async function GET(req: NextRequest) {
   if (error || !ctx) {
     return new Response("Veri alınamadı: " + (error?.message ?? ""), { status: 500 });
   }
+
+  // Footer için firma telefon/e-posta — render context'te yoksa companies'ten tamamla
+  try {
+    const admin = createAdminClient();
+    const { data: prow } = await admin.from("projects").select("company_id").eq("id", projectId).single();
+    if (prow?.company_id) {
+      const { data: crow } = await admin.from("companies").select("phone, mobile_phone, email").eq("id", prow.company_id).single();
+      if (crow) {
+        (ctx as any).firma = (ctx as any).firma || {};
+        if (!(ctx as any).firma.telefon) (ctx as any).firma.telefon = crow.phone || crow.mobile_phone || null;
+        if (!(ctx as any).firma.email) (ctx as any).firma.email = crow.email || null;
+      }
+    }
+  } catch { /* yoksay */ }
 
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
   const host = req.headers.get("host");

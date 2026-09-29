@@ -41,6 +41,13 @@ const CAT_LABEL: Record<string, string> = {
   motor: "Makine Motoru",
 };
 
+const fitFsUB = (str: any, base = 8, min = 5) => {
+  const txt = String(str || "");
+  const contentW = 510;
+  const est = txt.length * base * 0.5;
+  return est <= contentW ? base : Math.max(min, (base * contentW) / est);
+};
+
 function Field({ label, value }: { label: string; value?: any }) {
   return (
     <View style={s.row}>
@@ -135,8 +142,8 @@ export function UygunlukBeyaniDoc({ data }: { data: any }) {
           </View>
         </View>
 
-        <Text style={s.footer} fixed>
-          Bu belge {firma.unvan || ""} adına Gensis Teknik Dosya platformu ile üretilmiştir · {bugun}
+        <Text style={[s.footer, { fontSize: fitFsUB([firma.unvan || firma.kisa_ad, firma.adres, firma.telefon, firma.email].filter(Boolean).join(" · ")) }]} fixed numberOfLines={1}>
+          {[firma.unvan || firma.kisa_ad, firma.adres, firma.telefon, firma.email].filter(Boolean).map((x: any) => String(x).trim()).join(" · ") || " "}
         </Text>
       </Page>
     </Document>

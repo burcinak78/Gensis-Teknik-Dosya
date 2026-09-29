@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 
   const { data: row } = await supabase
     .from("proje_onay")
-    .select("*, companies(short_name, legal_name, address, city), provinces(name), districts(name), makine:engineers!makine_muhendis_id(full_name, chamber_reg_no, address, phone), elektrik:engineers!elektrik_muhendis_id(full_name, chamber_reg_no, address, phone)")
+    .select("*, companies(short_name, legal_name, address, city, phone, mobile_phone, email), provinces(name), districts(name), makine:engineers!makine_muhendis_id(full_name, chamber_reg_no, address, phone), elektrik:engineers!elektrik_muhendis_id(full_name, chamber_reg_no, address, phone)")
     .eq("id", id)
     .single();
   if (!row) return new Response("Kayıt bulunamadı veya yetkiniz yok.", { status: 404 });
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
   const r = row as any;
   const inp = (r.input_data ?? {}) as any;
   const data = {
-    firma: { unvan: r.companies?.legal_name, kisa_ad: r.companies?.short_name, adres: r.companies?.address, sehir: r.companies?.city },
+    firma: { unvan: r.companies?.legal_name, kisa_ad: r.companies?.short_name, adres: r.companies?.address, sehir: r.companies?.city, telefon: r.companies?.phone || r.companies?.mobile_phone || "", email: r.companies?.email || "" },
     firma_adi: r.companies?.short_name || r.companies?.legal_name || "",
     il: r.provinces?.name || inp.il || "",
     belediye: r.districts?.name || inp.belediye || "",
