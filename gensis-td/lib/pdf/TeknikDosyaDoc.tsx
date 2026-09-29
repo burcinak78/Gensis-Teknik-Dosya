@@ -1068,15 +1068,15 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   egitim_tutanagi: (c) => (
     <Page key="egitim_tutanagi" size="A4" style={st.page}>
-      <DocHead firma={c.firma} title="ASANSÖRDE MAHSUR KALAN KİŞİLERİN KURTARILMASI EĞİTİMİ" />
-      <R l="Asansör Tipi" val={c.malinCinsi} />
+      <DocHead firma={c.firma} title="ASANSÖRDE MAHSUR KALAN KİŞİLERİN KURTARILMASI EĞİTİM TUTANAĞI" />
+      <R l="Asansör Tipi" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
       <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
       <R l="Servise Veriliş Tarihi" val={c.servisTarihi} />
       <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
       <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
       <Text style={st.sec}>EĞİTİM İÇERİĞİ</Text>
-      <Text style={[st.p, { textAlign: "justify", lineHeight: 1.45 }]}>
+      <Text style={[st.p, { textAlign: "justify", lineHeight: 1.45, textIndent: 28 }]}>
         Aşağıda listede ismi bulunan kişilere , yetkili kişi tarafından , asansörde mahsur kalan kişilerin
         kurtarılması eğitimi 2 saatlik süreçte uygulamalı olarak verilmiştir. Kurtarma talimatları eğitim alan
         kişilere belirtilmiş olup birer adet kapı açma üçgen anahtarı teslim edilmiştir. Kapı açma üçgen anahtarı
