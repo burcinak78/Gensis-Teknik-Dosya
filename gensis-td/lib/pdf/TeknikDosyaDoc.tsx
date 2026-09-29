@@ -932,12 +932,12 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   motor_beyannamesi: (c) => (
     <Page key="motor_beyannamesi" size="A4" style={st.page}>
-      <View style={st.topRow}><Text> </Text><Text>Tarih: {c.tarih}</Text></View>
       <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 2 }}>MOTOR BEYANNAMESİ</Text>
+      <View style={{ height: 48 }} />
       <Text style={{ textAlign: "center", color: "#6b7280", marginBottom: 16 }}>
         {v(c.d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI RUHSAT VE DENETİM MÜDÜRLÜĞÜ
       </Text>
-      <Text style={st.p}>
+      <Text style={[st.p, { textIndent: 28 }]}>
         {v(c.d.montaj_adresi)} adresinde, {v(c.inp.pafta)} pafta {v(c.inp.ada)} ada {v(c.inp.parsel)} parsel
         sayılı yerde bulunan {c.isHid ? "hidrolik ünitesinin" : "elektrik motorunun"} fenni ve teknik şartlara uygun olarak kullanılacağını beyan ederiz.
       </Text>
