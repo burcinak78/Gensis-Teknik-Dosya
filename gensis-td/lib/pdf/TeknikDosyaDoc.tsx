@@ -672,8 +672,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           </View>
           <View style={{ flex: 1, borderWidth: 0.6, borderColor: "#94a3b8", padding: 5 }}>
             <Text style={{ fontWeight: "bold", fontSize: 8.6 }}>Müşteri (2)</Text>
-            <Text style={{ fontSize: 8.4, marginTop: 2 }}>Ünvanı : {v(c.inp.yapi_sahibi)}</Text>
-            <Text style={{ fontSize: 8.4 }}>Adresi : {v(c.inp.yapi_sahibi_adresi)}</Text>
+            <Text style={{ fontSize: 8.4, marginTop: 2 }}>Ünvanı :</Text>
+            <Text style={{ fontSize: 8.4 }}>Adresi :</Text>
             <Text style={{ fontSize: 7.6, color: "#64748b", marginTop: 3 }}>2) İş bu sözleşmede (MÜŞTERİ) kelimesi ile ifade edilmiştir.</Text>
           </View>
         </View>
@@ -751,7 +751,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
             <Text style={[st.tcell, { width: "13%" }]}>{c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : ""}</Text>
             <Text style={[st.tcell, { width: "13%" }]}>{c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""}</Text>
             <Text style={[st.tcell, { width: "11%" }]}>{v(c.d.durak_adedi)}</Text>
-            <Text style={[st.tcell, { width: "24%" }]}>{c.malinCinsi}</Text>
+            <Text style={[st.tcell, { width: "24%" }]}>{c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"}</Text>
             <Text style={[st.tcell, { width: "19%" }]}>{v(c.inp.asansor_kimlik_no)}</Text>
           </View>
         </View>
