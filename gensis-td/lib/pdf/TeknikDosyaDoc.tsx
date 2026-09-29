@@ -895,7 +895,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     <Page key="yazili_beyanname" size="A4" style={st.page}>
       <DocHead firma={c.firma} title="BEYANNAME" />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
-      <R l="Asansörün Tipi" val={c.tahrikTuru} />
+      <R l="Asansörün Tipi" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} />
       <R l="Yapım Yılı" val={c.d.imal_yili} />
       <R l="Seyir Mesafesi" val={c.inp.seyir_mesafesi ? `${c.inp.seyir_mesafesi} m` : undefined} />
       <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg` : undefined} />
