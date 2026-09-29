@@ -966,6 +966,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   seyir_defteri: (c) => {
     const tall = { minHeight: 34 } as const;
+    const ebMm = (a: any, b: any) => { const e = ebat(a, b); return e ? `${e} mm` : ""; };
     return (
     <Page key="seyir_defteri" size="A4" style={st.page} wrap>
       <Text style={st.formTitle}>ASANSÖR SEYİR DEFTERİ</Text>
@@ -989,8 +990,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FRow l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg · ${v(c.kisi)} kişi` : ""} />
         <FRow l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} />
         <FRow l="Kat / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
-        <FRow l="Kapı Tipi ve Ebatı" val={[c.inp.kat_kapisi, ebat(c.inp.kapi_genislik, c.inp.kapi_yukseklik)].filter(Boolean).join(" · ")} />
-        <FRow l="Kabin Ebatları ve Ağırlığı" val={[ebat(c.inp.kabin_genislik, c.inp.kabin_derinlik), (c.inp.kabin_agirligi || c.kap?.kabin_agirlik) ? `${c.inp.kabin_agirligi || c.kap?.kabin_agirlik} kg` : ""].filter(Boolean).join(" · ")} />
+        <FRow l="Kapı Tipi ve Ebatı" val={[c.inp.kat_kapisi, ebMm(c.inp.kapi_genislik, c.inp.kapi_yukseklik)].filter(Boolean).join(" · ")} />
+        <FRow l="Kabin Ebatları ve Ağırlığı" val={[ebMm(c.inp.kabin_genislik, c.inp.kabin_derinlik), (c.inp.kabin_agirligi || c.kap?.kabin_agirlik) ? `${c.inp.kabin_agirligi || c.kap?.kabin_agirlik} kg` : ""].filter(Boolean).join(" · ")} />
         {!c.isHid && <FRow l="Karşı Ağırlık Yeri ve Ağırlığı" val={[c.inp.karsi_agirlik_yeri, (c.inp.karsi_agirlik_agirligi || c.kap?.karsi_agirlik) ? `${c.inp.karsi_agirlik_agirligi || c.kap?.karsi_agirlik} kg` : ""].filter(Boolean).join(" · ")} />}
       </View>
 
@@ -1018,18 +1019,20 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <View style={[st.tbl, { flexGrow: 1 }]}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
-          <Text style={[st.thcell, { width: "30%" }]}>Kontrolü Yapan Kuruluş</Text>
-          <Text style={[st.thcell, { width: "33%" }]}>Kontrolü Gerçekleştiren{"\n"}Adı-Soyadı / Unvanı</Text>
-          <Text style={[st.thcell, { width: "16%" }]}>Kaşe / İmza</Text>
-          <Text style={[st.thcell, { width: "15%" }]}>Tarih</Text>
+          <Text style={[st.thcell, { width: "24%" }]}>Kontrolü Yapan Kuruluş</Text>
+          <Text style={[st.thcell, { width: "14%" }]}>Kontrol Tipi</Text>
+          <Text style={[st.thcell, { width: "27%" }]}>Kontrolü Gerçekleştiren{"\n"}Adı-Soyadı / Unvanı</Text>
+          <Text style={[st.thcell, { width: "15%" }]}>Kaşe / İmza</Text>
+          <Text style={[st.thcell, { width: "14%" }]}>Tarih</Text>
         </View>
         {[...Array(7)].map((_, i) => (
           <View style={[st.trow, { flexGrow: 1 }]} key={i}>
             <Text style={[st.tcellTall, tall, { width: "6%", textAlign: "center" }]}>{i + 1}</Text>
-            <Text style={[st.tcellTall, tall, { width: "30%" }]}> </Text>
-            <Text style={[st.tcellTall, tall, { width: "33%" }]}> </Text>
-            <Text style={[st.tcellTall, tall, { width: "16%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "24%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "14%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "27%" }]}> </Text>
             <Text style={[st.tcellTall, tall, { width: "15%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "14%" }]}> </Text>
           </View>
         ))}
       </View>
