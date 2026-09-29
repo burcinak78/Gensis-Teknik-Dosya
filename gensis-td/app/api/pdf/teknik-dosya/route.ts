@@ -56,7 +56,6 @@ export async function GET(req: NextRequest) {
   const cIsHid = (ctx as any)?.asansor_tipi === "hidrolik";
   const cAski = String((ctx as any)?.aski_tipi || "");
   const kilavuzFile = cIsHid ? "KK_HID.pdf" : (cAski.startsWith("1/1") ? "KK_E_MR.pdf" : "KK_E_MRL.pdf");
-  const firmaAdi = (ctx as any)?.firma?.unvan || (ctx as any)?.firma?.kisa_ad || "";
 
   // ---------- Yüklenmiş ekleri topla (hata olursa eksiz üret) ----------
   const admin = createAdminClient();
@@ -181,7 +180,11 @@ export async function GET(req: NextRequest) {
       const res = await fetch(`${assetBase}/kilavuz/${kilavuzFile}`);
       if (!res.ok) return;
       const doc = await PDFDocument.load(new Uint8Array(await res.arrayBuffer()), { ignoreEncryption: true });
-      if (firmaAdi) {
+      // Footer: Ticari Ünvan · Adres · Telefon · E-posta (tek satır, sayfa genişliğine göre punto küçülür)
+      const cf = (ctx as any)?.firma || {};
+      const kilavuzFooter = [cf.unvan || cf.kisa_ad, cf.adres, cf.telefon, cf.email]
+        .filter(Boolean).map((x: any) => String(x).trim()).join(" · ");
+      if (kilavuzFooter) {
         try {
           if (!robotoBytes) {
             const fr = await fetch(`${assetBase}/fonts/Roboto-Regular.ttf`);
@@ -190,11 +193,13 @@ export async function GET(req: NextRequest) {
           if (robotoBytes) {
             doc.registerFontkit(fontkit);
             const font = await doc.embedFont(robotoBytes);
-            const size = 8;
-            const tw = font.widthOfTextAtSize(firmaAdi, size);
             for (const pg of doc.getPages()) {
               const { width } = pg.getSize();
-              pg.drawText(firmaAdi, { x: Math.max(20, (width - tw) / 2), y: 16, size, font, color: rgb(0.42, 0.45, 0.5) });
+              const maxW = width - 40;
+              let size = 8;
+              while (size > 4.5 && font.widthOfTextAtSize(kilavuzFooter, size) > maxW) size -= 0.3;
+              const tw = font.widthOfTextAtSize(kilavuzFooter, size);
+              pg.drawText(kilavuzFooter, { x: Math.max(20, (width - tw) / 2), y: 16, size, font, color: rgb(0.42, 0.45, 0.5) });
             }
           }
         } catch { /* footer eklenemezse kılavuz yine eklenir */ }
