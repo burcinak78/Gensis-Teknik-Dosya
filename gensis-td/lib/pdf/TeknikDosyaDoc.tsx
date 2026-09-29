@@ -804,59 +804,75 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   uygunluk_beyani: (c) => {
     const tip = c.isHid ? "Hidrolik Yük Asansörü" : "Elektrikli Yolcu Asansörü";
     const yer = v(c.firma.sehir) || "BURSA";
-    const isG = c.inp.modul_secim === "G";
+    const modSec = String(c.inp.modul_secim || "");
+    const isG = modSec === "G";
+    const isH = modSec.includes("H");
+    const secW = 165; // etiket genişliği (değerleri sola yaklaştırır)
+    const modDirektif = isG
+      ? "2014/33 AB EK VIII (Modül G)"
+      : isH
+        ? "2014/33 AB EK XI (Modül H1)"
+        : "2014/33 AB EK IV-B / EK X (Modül B+E)";
+    const direktifler = [
+      modDirektif,
+      "2006/42/AT Makine Emniyeti Yönetmeliği",
+      "2014/35 AB Alçak Gerilim Yönetmeliği",
+      "2014/30 AB Elektromanyetik Uyumluluk Yönetmeliği",
+    ].join(", ");
+    const secHead = [st.sec, { marginBottom: 0 }];
     return (
       <Page key="uygunluk_beyani" size="A4" style={st.page}>
-        <Text style={st.formTitle}>AB UYGUNLUK BEYANI</Text>
-        <View style={{ height: 6 }} />
-        <R l="Montaj Firması" val={`${v(c.firma.unvan)}${c.firma.adres ? "\n" + v(c.firma.adres) : ""}`} />
-        <Text style={[st.p, { marginTop: 5, marginBottom: 0 }]}>
+        <Text style={[st.formTitle, { fontSize: 16 }]}>AB UYGUNLUK BEYANI</Text>
+        <View style={{ height: 18 }} />
+        <LR l="Montaj Firması" val={`${v(c.firma.unvan)}${c.firma.adres ? "\n" + v(c.firma.adres) : ""}`} w={secW} />
+        <Text style={[st.p, { marginTop: 5, marginBottom: 0, textIndent: 24 }]}>
           Aşağıda tanımı, modeli ve seri numarası verilen asansörün belirtilen standartlara ve direktiflere
           uygun olduğunu beyan ederiz.
         </Text>
-        <View style={{ height: 3 }} />
-        <R l="Asansörün Tipi" val={tip} />
-        <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg. - ${v(c.kisi)} Kişilik` : ""} />
-        <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} />
-        <R l="Askı Tipi" val={c.inp.aski_tipi} />
-        <R l="Kat Adedi / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} />
-        <R l="İmal Yılı" val={c.d.imal_yili} />
-        <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
-        <R l="Asansör Kimlik No" val={c.inp.asansor_kimlik_no} />
-        <R l="Montaj Adresi" val={c.d.montaj_adresi} />
-        <R l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
-        <R l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
+        <View style={{ height: 6 }} />
+        <LR l="Asansörün Tipi" val={tip} w={secW} />
+        <LR l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg. - ${v(c.kisi)} Kişilik` : ""} w={secW} />
+        <LR l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} w={secW} />
+        <LR l="Askı Tipi" val={c.inp.aski_tipi} w={secW} />
+        <LR l="Kat Adedi / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} w={secW} />
+        <LR l="İmal Yılı" val={c.d.imal_yili} w={secW} />
+        <LR l="Asansör Seri No" val={c.inp.asansor_seri_no} w={secW} />
+        <LR l="Asansör Kimlik No" val={c.inp.asansor_kimlik_no} w={secW} />
+        <LR l="Montaj Adresi" val={c.d.montaj_adresi} w={secW} />
+        <LR l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} w={secW} />
+        <LR l="Yapı Sahibi" val={c.inp.yapi_sahibi} w={secW} />
         <View style={{ height: 4 }} />
-        <R l="Uygulanan Standart" val="TS EN 81–20:2020, TS EN 81-50:2020, TS EN 81-70:2021, TS EN 81-28+AC:2019" />
-        <Text style={{ fontSize: 8.6, marginTop: 2, color: "#6b7280" }}>ve Direktifler:</Text>
-        {[
-          isG ? "2014/33 AB EK VIII ( Modül G )" : "2014/33 AB EK IV-B / EK X ( Modül B+E )",
-          "2006 / 42 / AT Makine Emniyeti Yönetmeliği",
-          "2014/35 AB Alçak Gerilim Yönetmeliği",
-          "2014/30 AB Elektromanyetik Uyumluluk Yönetmeliği",
-        ].map((t, i) => (
-          <Text key={i} style={{ fontSize: 8.6, marginLeft: 14 }}>• {t}</Text>
-        ))}
+        <LR l="Uygulanan Standartlar" val="TS EN 81–20:2020, TS EN 81-50:2020, TS EN 81-70:2021, TS EN 81-28+AC:2022" w={secW} />
+        <Text style={st.sec}>İlgili Direktifler</Text>
+        <Text style={{ fontSize: 8.6, textAlign: "justify" }}>{direktifler}</Text>
         {isG ? (
           <>
-            <Text style={st.sec}>MODÜL G</Text>
-            <R l="Onaylanmış Kuruluş" val={c.inp.modul_onaylanmis_kurulus} />
-            <R l="Ünvanı ve Adresi" val={c.inp.modul_nb_adres} />
-            <R l="Onaylanmış Kuruluş Numarası" val={c.inp.modul_kurulus_no} />
-            <R l="MODÜL G Belge No" val={c.inp.modul_belge_no} />
+            <Text style={secHead}>MODÜL G</Text>
+            <LR l="Onaylanmış Kuruluş" val={c.inp.modul_onaylanmis_kurulus} w={secW} />
+            <LR l="Ünvanı ve Adresi" val={c.inp.modul_nb_adres} w={secW} />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.modul_kurulus_no} w={secW} />
+            <LR l="MODÜL G Belge No" val={c.inp.modul_belge_no} w={secW} />
+          </>
+        ) : isH ? (
+          <>
+            <Text style={secHead}>MODÜL H1</Text>
+            <LR l="Onaylanmış Kuruluş" val={c.inp.modul_onaylanmis_kurulus} w={secW} />
+            <LR l="Ünvanı ve Adresi" val={c.inp.modul_nb_adres} w={secW} />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.modul_kurulus_no} w={secW} />
+            <LR l="MODÜL H1 Belge No" val={c.inp.modul_belge_no} w={secW} />
           </>
         ) : (
           <>
-            <Text style={st.sec}>MODÜL B</Text>
-            <R l="Onaylanmış Kuruluş" val={c.inp.ub_b_nb} />
-            <R l="Ünvanı ve Adresi" val={c.inp.ub_b_nb_adres} />
-            <R l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_b_nb_no} />
-            <R l="MODÜL B Belge No" val={c.inp.ub_b_belge_no} />
-            <Text style={st.sec}>MODÜL E</Text>
-            <R l="Onaylanmış Kuruluş" val={c.inp.ub_e_nb} />
-            <R l="Ünvanı ve Adresi" val={c.inp.ub_e_nb_adres} />
-            <R l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_e_nb_no} />
-            <R l="MODÜL E Belge No" val={c.inp.ub_e_belge_no} />
+            <Text style={secHead}>MODÜL B</Text>
+            <LR l="Onaylanmış Kuruluş" val={c.inp.ub_b_nb} w={secW} />
+            <LR l="Ünvanı ve Adresi" val={c.inp.ub_b_nb_adres} w={secW} />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_b_nb_no} w={secW} />
+            <LR l="MODÜL B Belge No" val={c.inp.ub_b_belge_no} w={secW} />
+            <Text style={secHead}>MODÜL E</Text>
+            <LR l="Onaylanmış Kuruluş" val={c.inp.ub_e_nb} w={secW} />
+            <LR l="Ünvanı ve Adresi" val={c.inp.ub_e_nb_adres} w={secW} />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_e_nb_no} w={secW} />
+            <LR l="MODÜL E Belge No" val={c.inp.ub_e_belge_no} w={secW} />
           </>
         )}
         <Text style={[st.p, { marginTop: 6, marginBottom: 0 }]}>
