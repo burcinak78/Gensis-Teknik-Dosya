@@ -146,17 +146,17 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
               <th className="px-5 pt-3 pb-2">İşlemler</th>
             </tr>
             <tr className="border-b border-[#e5e9f0] bg-white">
-              <td className="px-5 pb-3 align-top">{renderFilter("ada_parsel", "Ada/Parsel…")}</td>
+              <td className="px-5 pb-3 align-top"><TextFilter k="ada_parsel" ph="Ada/Parsel…" /></td>
               <td className="px-5 pb-3 align-top">
                 <select value={colF.firma} onChange={(e) => setF("firma", e.target.value)} className={fInput + " cursor-pointer"}>
                   <option value="">Tümü</option>
                   {firms.map((f) => <option key={f} value={f}>{f}</option>)}
                 </select>
               </td>
-              <td className="px-5 pb-3 align-top">{renderFilter("bina_adi", "Bina…")}</td>
-              <td className="px-5 pb-3 align-top">{renderFilter("seri_no", "Seri no…")}</td>
-              <td className="px-5 pb-3 align-top">{renderFilter("kapasite", "ör. 630")}</td>
-              <td className="px-5 pb-3 align-top">{renderFilter("created_at", "ör. 07.2026")}</td>
+              <td className="px-5 pb-3 align-top"><TextFilter k="bina_adi" ph="Bina…" /></td>
+              <td className="px-5 pb-3 align-top"><TextFilter k="seri_no" ph="Seri no…" /></td>
+              <td className="px-5 pb-3 align-top"><TextFilter k="kapasite" ph="ör. 630" /></td>
+              <td className="px-5 pb-3 align-top"><TextFilter k="created_at" ph="ör. 07.2026" /></td>
               <td className="px-5 pb-3 align-top">
                 <select value={colF.status} onChange={(e) => setF("status", e.target.value)} className={fInput + " cursor-pointer"}>
                   <option value="">Tümü</option>
