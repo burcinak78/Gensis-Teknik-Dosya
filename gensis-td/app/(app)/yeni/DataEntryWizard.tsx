@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { saveDraftProject, updateDraftProject, uploadProjectFile, deleteProjectFile, type DraftPayload } from "./actions";
+import { uploadEngineerDocument } from "../admin/actions";
 
 type Company = {
   id: string; short_name: string; legal_name: string; address: string | null;
@@ -19,7 +20,7 @@ type Province = { id: number; name: string };
 type Capacity = { beyan_yuku_kg: number; kisi_sayisi: number | null; kabin_agirlik_kg: number | null; karsi_agirlik_kg: number | null };
 type Lookup = { list_key: string; value: string; sort_order: number };
 type District = { id: string; name: string };
-type Engineer = { id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null };
+type Engineer = { id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null; imzaDocId?: string | null };
 type CompanyDoc = { id: string; company_id: string; doc_type: string; belge_no: string | null; issue_date: string | null; valid_until: string | null; notified_body_id: string | null };
 type ProjectFile = { id: string; kind: string; original_name: string | null };
 
@@ -85,6 +86,23 @@ const MULTI_SERI: Record<string, { count: "durak" | "giris" | "kat"; label: stri
   kabin_kilidi: { count: "giris", label: "Giriş" },
 };
 const empty = (x: any) => x === "" || x === null || x === undefined;
+
+// Eksik alan pop-up'ında gösterilecek okunur alan adları
+const FIELD_LABELS: Record<string, string> = {
+  companyId: "Montaj / Mimarlık Firması", dosyaNo: "Dosya No", dosyaTarihi: "Tarih",
+  makineMuhId: "Makine Mühendisi (Proje Müellifi)", elektrikMuhId: "Elektrik Mühendisi (Proje Müellifi)",
+  binaAdi: "Bina Adı", montajAdresi: "Montaj Adresi", provinceId: "İl", districtId: "Belediye",
+  pafta: "Pafta", ada: "Ada", parsel: "Parsel", yapiSahibi: "Yapı Sahibi", yapiSahibiAdresi: "Yapı Sahibi Adresi",
+  modulGOnaylanmisKurulus: "Onaylanmış Kuruluş (Mod G)",
+  asansorSinifi: "Asansör Sınıfı", makineDairesi: "Makine Dairesi", beyanYuku: "Beyan Yükü", beyanHizi: "Beyan Hızı",
+  baslangicKat: "Başlangıç Katı", katSayisi: "Kat Sayısı", katAdedi: "Kat Adedi", durakAdedi: "Durak Adedi",
+  girisSayisi: "Giriş Sayısı", imalYili: "İmal Yılı", askiTipi: "Askı Tipi", katKapisi: "Kat Kapısı",
+  kapiGenislik: "Kapı Genişliği", kapiYukseklik: "Kapı Yüksekliği", kabinGenislik: "Kabin Genişliği",
+  kabinDerinlik: "Kabin Derinliği", kabinAgirligi: "Kabin Ağırlığı", asansorSeriNo: "Asansör Seri No",
+  seyirMesafesi: "Seyir Mesafesi", pistonOlculeri: "Piston Ölçüleri", pistonYeri: "Piston Yeri", debi: "Debi",
+  uniteBilgisi: "Ünite / Motor Seri No", motorMarka: "Motor Markası", motorGucu: "Motor Gücü",
+  karsiAgirlikYeri: "Karşı Ağırlık Yeri",
+};
 
 const ASANSOR_SINIFLARI = [
   "Sınıf I: İnsan Asansörü",
@@ -213,6 +231,8 @@ export default function DataEntryWizard(props: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  // Eksik alan/belge uyarı pop-up'ı (her adım sonunda)
+  const [eksikModal, setEksikModal] = useState<{ adim: string; alanlar: string[] } | null>(null);
 
   const lookupGroups = useMemo(() => {
     const g: Record<string, string[]> = {};
@@ -376,11 +396,19 @@ export default function DataEntryWizard(props: Props) {
     if (!fields) return 0;
     return Object.values(fields).filter(empty).length;
   }
+  // Adımdaki eksik alanların okunur adları (pop-up için)
+  function stepMissingLabels(i: number): string[] {
+    if (i === S_EKIPMAN) return equipCards.filter((card) => eqIncomplete(card)).map((c) => c.label);
+    const fields = stepFieldMap[i];
+    if (!fields) return [];
+    return Object.entries(fields).filter(([, v]) => empty(v)).map(([k]) => FIELD_LABELS[k] ?? k);
+  }
   function goNext() {
-    const m = stepMissing(step);
-    if (m > 0) {
+    const alanlar = stepMissingLabels(step);
+    if (alanlar.length > 0) {
       setShowErrors(true);
-      setError(`Bu adımda ${m} zorunlu alan eksik. Lütfen kırmızı ile işaretli alanları doldurun.`);
+      setError(`Bu adımda ${alanlar.length} zorunlu alan eksik. Lütfen kırmızı ile işaretli alanları doldurun.`);
+      setEksikModal({ adim: STEPS[step], alanlar });
       return;
     }
     setShowErrors(false);
@@ -439,12 +467,18 @@ export default function DataEntryWizard(props: Props) {
     if (modulSecim === "G" && !modulG.nb_id) {
       setShowErrors(true);
       setError("Modül G için Onaylanmış Kuruluş seçimi zorunludur.");
+      setEksikModal({ adim: STEPS[S_BELGELER], alanlar: ["Onaylanmış Kuruluş (Mod G)"] });
       setStep(S_BELGELER);
       return;
     }
     if (!isValid) {
       setShowErrors(true);
       setError(`Kırmızı ile işaretli ${totalMissing} zorunlu alan boş. Lütfen tümünü doldurun.`);
+      const alanlar = [
+        ...missingText.map((k) => FIELD_LABELS[k] ?? k),
+        ...missingEquip.map((c) => c.label),
+      ];
+      setEksikModal({ adim: "Dosya oluşturma", alanlar });
       if (missingEquip.length > 0 && missingText.length === 0) setStep(S_EKIPMAN);
       else if (missingText.length > 0) setStep(S_FIRMA);
       return;
@@ -577,6 +611,33 @@ export default function DataEntryWizard(props: Props) {
 
   return (
     <div>
+      {eksikModal && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={() => setEksikModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3 px-6 pt-6">
+              <span className="material-symbols-rounded text-[28px] text-red-500">error</span>
+              <div>
+                <h2 className="font-extrabold text-lg leading-tight">Eksik zorunlu alanlar</h2>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  <b>{eksikModal.adim}</b> adımında {eksikModal.alanlar.length} alan/belge eksik. Devam etmeden önce tamamlayın.
+                </p>
+              </div>
+            </div>
+            <div className="px-6 py-4 max-h-[45vh] overflow-auto">
+              <ul className="space-y-1.5">
+                {eksikModal.alanlar.map((a, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
+                    <span className="material-symbols-rounded text-[16px] text-red-400">close</span>{a}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="px-6 pb-6 flex justify-end">
+              <button onClick={() => setEksikModal(null)} className="gs-btn text-sm font-bold px-5 py-2.5 rounded-xl">Tamam</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-white border-b border-slate-200 px-7 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="text-sm text-slate-500">
           {isEdit ? "Teknik Dosya Düzenle" : "Yeni Teknik Dosya"} › <b className="text-slate-900">{STEPS[step]}</b>
@@ -666,12 +727,14 @@ export default function DataEntryWizard(props: Props) {
                     <option value="">Seçiniz…</option>
                     {makineOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name}{m.chamber_reg_no ? ` · ${m.chamber_reg_no}` : ""}</option>)}
                   </select>
+                  {makineMuhId && <MuhImza engineerId={makineMuhId} imzaDocId={props.engineers.find((e) => e.id === makineMuhId)?.imzaDocId} />}
                 </Field>
                 <Field label="Elektrik Mühendisi (Proje Müellifi) *">
                   <select className={"inp" + ec(elektrikMuhId)} value={elektrikMuhId} onChange={(e) => setElektrikMuhId(e.target.value)}>
                     <option value="">Seçiniz…</option>
                     {elektrikOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name}{m.chamber_reg_no ? ` · ${m.chamber_reg_no}` : ""}</option>)}
                   </select>
+                  {elektrikMuhId && <MuhImza engineerId={elektrikMuhId} imzaDocId={props.engineers.find((e) => e.id === elektrikMuhId)?.imzaDocId} />}
                 </Field>
               </div>
               <p className="text-xs text-slate-400">Varsayılan olarak Gensis'e atanmış mühendisler gelir; gerekirse firmaya bağlı diğer mühendisleri seçebilirsiniz.</p>
@@ -970,7 +1033,7 @@ export default function DataEntryWizard(props: Props) {
                   <>
                     <Field label="Motor / Ünite Markası *"><input className={"inp" + ec(motorMarka)} value={motorMarka} onChange={(e) => setMotorMarka(e.target.value)} /></Field>
                     <Field label="Motor Gücü (kW) *"><input className={"inp" + ec(motorGucu)} value={motorGucu} onChange={(e) => setMotorGucu(e.target.value)} /></Field>
-                    <Field label="Ünite / Motor Bilgisi *"><input className={"inp" + ec(uniteBilgisi)} value={uniteBilgisi} onChange={(e) => setUniteBilgisi(e.target.value)} placeholder="Ek bilgi" /></Field>
+                    <Field label="Ünite / Motor Seri No *"><input className={"inp" + ec(uniteBilgisi)} value={uniteBilgisi} onChange={(e) => setUniteBilgisi(e.target.value)} placeholder="Seri no" /></Field>
                     <Field label="Piston Ölçüleri (mm) *" full>
                       <input className={"inp" + ec(pistonOlculeri)} value={pistonOlculeri} onChange={(e) => setPistonOlculeri(e.target.value)} placeholder="Örn. 165 x 8 x 4700" />
                       <p className="text-xs text-slate-500 mt-1">Piston Çapı × Et Kalınlığı × Piston Boyu olarak giriş yapınız.</p>
@@ -1245,6 +1308,40 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
 }
 function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (<div className={full ? "col-span-2" : undefined}><label className="block text-xs font-semibold text-slate-700 mb-1.5">{label}</label>{children}</div>);
+}
+// Seçili mühendisin imzası: yüklüyse otomatik göster, yoksa jpeg/png yüklemeye izin ver
+function MuhImza({ engineerId, imzaDocId }: { engineerId: string; imzaDocId?: string | null }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  async function up(file: File | null) {
+    if (!file) return;
+    setBusy(true); setMsg(null);
+    const fd = new FormData();
+    fd.set("engineer_id", engineerId); fd.set("doc_type", "imza"); fd.set("valid_until", "");
+    fd.set("file", file);
+    const r = await uploadEngineerDocument(fd);
+    setBusy(false);
+    setMsg(r.ok ? (r.message ?? "İmza yüklendi.") : ("Hata: " + r.error));
+    if (r.ok) router.refresh();
+  }
+  return (
+    <div className="mt-1.5">
+      {imzaDocId ? (
+        <div className="flex items-center gap-2">
+          <img src={`/api/belge/muhendis?id=${imzaDocId}`} alt="İmza" className="h-10 max-w-[140px] object-contain border border-slate-100 rounded bg-white p-0.5" />
+          <span className="text-[11px] text-green-600 font-semibold inline-flex items-center gap-0.5"><span className="material-symbols-rounded text-[14px]">check_circle</span>İmza yüklü</span>
+        </div>
+      ) : (
+        <label className="text-[11px] text-slate-500 inline-flex items-center gap-1.5 cursor-pointer hover:text-brand">
+          <span className="material-symbols-rounded text-[15px] text-brand">upload</span>
+          {busy ? "Yükleniyor…" : "İmza ekle (JPEG / PNG)"}
+          <input type="file" accept="image/png,image/jpeg" className="hidden" disabled={busy} onChange={(e) => up(e.target.files?.[0] ?? null)} />
+        </label>
+      )}
+      {msg && <div className="text-[11px] text-slate-500 mt-0.5">{msg}</div>}
+    </div>
+  );
 }
 function FileZone({
   label, accept, staged, existing, onAdd, onRemoveStaged, onDelete,

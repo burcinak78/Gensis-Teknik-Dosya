@@ -946,7 +946,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <Text style={st.sec}>{c.isHid ? "Ünite / Piston Özellikleri" : "Motorun Özellikleri"}</Text>
       {c.isHid ? (
         <>
-          <R l="Ünite / Motor Bilgisi" val={c.inp.unite_bilgisi} />
+          <R l="Ünite / Motor Seri No" val={c.inp.unite_bilgisi} />
           <R l="Piston Ölçüleri" val={c.inp.piston_olculeri ? `${c.inp.piston_olculeri} mm` : undefined} />
           <R l="Piston Yeri" val={c.inp.piston_yeri} />
           <R l="Debi" val={c.inp.debi ? `${c.inp.debi} l/d` : undefined} />

@@ -12,6 +12,10 @@ export default async function YeniProjeOnayPage() {
     supabase.from("engineers").select("id, full_name, discipline, chamber_reg_no, company_id").order("full_name").limit(2000),
     supabase.from("ilgili_idareler").select("id, name, address").order("name").limit(2000),
   ]);
+  const { data: imzaDocs } = await supabase.from("engineer_documents").select("id, engineer_id").eq("doc_type", "imza").limit(5000);
+  const imzaByEng = new Map((imzaDocs ?? []).map((d: any) => [d.engineer_id, d.id]));
+  const engineersWithImza = (engineers.data ?? []).map((e: any) => ({ ...e, imzaDocId: imzaByEng.get(e.id) ?? null }));
+
   const list = companies.data ?? [];
   const gensis = list.find((c) => (c.short_name ?? "").toLocaleLowerCase("tr").includes("gensis"));
 
@@ -20,7 +24,7 @@ export default async function YeniProjeOnayPage() {
       companies={list}
       provinces={provinces.data ?? []}
       capacity={(capacity.data ?? []) as any}
-      engineers={engineers.data ?? []}
+      engineers={engineersWithImza}
       gensisCompanyId={gensis?.id ?? null}
       ilgiliIdareler={(idareler.data ?? []) as any}
     />

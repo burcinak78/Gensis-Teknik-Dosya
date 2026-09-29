@@ -20,6 +20,10 @@ export default async function DuzenleProjeOnayPage({ params }: { params: { id: s
   const row = rowRes.data as any;
   if (!row) notFound();
 
+  const { data: imzaDocs } = await supabase.from("engineer_documents").select("id, engineer_id").eq("doc_type", "imza").limit(5000);
+  const imzaByEng = new Map((imzaDocs ?? []).map((d: any) => [d.engineer_id, d.id]));
+  const engineersWithImza = (engineers.data ?? []).map((e: any) => ({ ...e, imzaDocId: imzaByEng.get(e.id) ?? null }));
+
   let districts: { id: string; name: string }[] = [];
   if (row.province_id != null) {
     const { data } = await supabase.from("districts").select("id, name").eq("province_id", row.province_id).order("name").limit(2000);
@@ -55,7 +59,7 @@ export default async function DuzenleProjeOnayPage({ params }: { params: { id: s
       companies={list}
       provinces={provinces.data ?? []}
       capacity={(capacity.data ?? []) as any}
-      engineers={engineers.data ?? []}
+      engineers={engineersWithImza}
       gensisCompanyId={gensis?.id ?? null}
       ilgiliIdareler={(idareler.data ?? []) as any}
       initial={initial}

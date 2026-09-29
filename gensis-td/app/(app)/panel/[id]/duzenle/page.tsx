@@ -53,6 +53,11 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
   const project = projectRes.data as any;
   if (!project) notFound();
 
+  // Mühendis imzaları (doc_type = imza) → id eşlemesi
+  const { data: imzaDocs } = await supabase.from("engineer_documents").select("id, engineer_id").eq("doc_type", "imza").limit(5000);
+  const imzaByEng = new Map((imzaDocs ?? []).map((d: any) => [d.engineer_id, d.id]));
+  const engineersWithImza = (engineers.data ?? []).map((e: any) => ({ ...e, imzaDocId: imzaByEng.get(e.id) ?? null }));
+
   // Seçili ile ait ilçeleri önden yükle (select için)
   let districts: { id: string; name: string }[] = [];
   if (project.province_id != null) {
@@ -156,7 +161,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
       provinces={provinces.data ?? []}
       capacity={capacity.data ?? []}
       lookups={lookups.data ?? []}
-      engineers={engineers.data ?? []}
+      engineers={engineersWithImza}
       gensisCompanyId={gensis?.id ?? null}
       companyDocuments={companyDocsRes.data ?? []}
       initial={initial}

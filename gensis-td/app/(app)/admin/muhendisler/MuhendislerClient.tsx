@@ -72,6 +72,7 @@ export default function MuhendislerClient({
   const [form, setForm] = useState<Record<string, string>>({ ...blank });
   const [docForms, setDocForms] = useState<Record<string, DocForm>>({});
   const [docKey, setDocKey] = useState(0);
+  const [imzaFile, setImzaFile] = useState<File | null>(null); // opsiyonel imza (jpeg/png)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -140,10 +141,11 @@ export default function MuhendislerClient({
     setForm(f);
     snapshotRef.current = JSON.stringify(f);
     initDocForms(e.id, e.discipline ?? "makine");
+    setImzaFile(null);
     setMsg(null); setModalOpen(true);
   }
-  function yeni() { setEditId(null); setForm({ ...blank }); snapshotRef.current = ""; initDocForms(null, "makine"); setMsg(null); setModalOpen(true); }
-  function closeModal() { setModalOpen(false); setEditId(null); setForm({ ...blank }); setDocForms({}); setMsg(null); }
+  function yeni() { setEditId(null); setForm({ ...blank }); snapshotRef.current = ""; initDocForms(null, "makine"); setImzaFile(null); setMsg(null); setModalOpen(true); }
+  function closeModal() { setModalOpen(false); setEditId(null); setForm({ ...blank }); setDocForms({}); setImzaFile(null); setMsg(null); }
 
   async function submit(ev: React.FormEvent) {
     ev.preventDefault();
@@ -176,6 +178,14 @@ export default function MuhendislerClient({
         const r = await uploadEngineerDocument(fd);
         if (!r.ok) docErr = r.error;
       }
+      // İmza (opsiyonel, jpeg/png) — tarih yok
+      if (imzaFile) {
+        const fd = new FormData();
+        fd.set("engineer_id", engId); fd.set("doc_type", "imza"); fd.set("valid_until", "");
+        fd.set("file", imzaFile);
+        const r = await uploadEngineerDocument(fd);
+        if (!r.ok) docErr = r.error;
+      }
     }
 
     setBusy(false);
@@ -183,6 +193,7 @@ export default function MuhendislerClient({
     router.refresh();
     if (isCustomer) {
       setMsg({ ok: true, text: !editId ? "Yeni mühendis onaya gönderildi." : "Değişiklikleriniz onaya gönderildi." });
+      setImzaFile(null);
       if (editId) { setDocForms((s) => { const o: Record<string, DocForm> = {}; for (const k in s) o[k] = { ...s[k], file: null }; return o; }); setDocKey((k) => k + 1); }
     } else {
       closeModal(); // admin: modalı kapat
@@ -261,6 +272,21 @@ export default function MuhendislerClient({
         </div>
       </div>
 
+      {/* İmza (opsiyonel · JPEG/PNG) */}
+      <div className="border border-slate-200 rounded-xl p-3">
+        <h3 className="font-bold text-sm mb-1">İmza <span className="text-[11px] font-normal text-slate-400">(opsiyonel · JPEG / PNG)</span></h3>
+        <p className="text-[11px] text-slate-400 mb-2">Mühendisin imzası; teknik dosya ve proje onay belgelerinde kullanılabilir.</p>
+        {editId && docsByEng[editId]?.["imza"]?.original_name && (
+          <div className="mb-2 flex items-center gap-3">
+            <img src={`/api/belge/muhendis?id=${docsByEng[editId]!["imza"].id}`} alt="İmza" className="h-14 max-w-[180px] object-contain border border-slate-100 rounded bg-white p-1" />
+            <span className="text-xs text-slate-500">Yüklü: {docsByEng[editId]!["imza"].original_name}</span>
+          </div>
+        )}
+        <input type="file" accept="image/png,image/jpeg" onChange={(e) => setImzaFile(e.target.files?.[0] ?? null)}
+          className="text-xs w-full file:mr-2 file:text-xs file:font-semibold file:border-0 file:bg-brand-light file:text-brand file:px-2 file:py-1 file:rounded-md" />
+        {imzaFile && <div className="mt-1 text-xs text-slate-500">Yeni: {imzaFile.name}</div>}
+      </div>
+
       {msg && <div className={`text-sm px-3 py-2 rounded-lg ${msg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
       <div className="flex items-center justify-end gap-2 pt-1">
         {!isCustomer && editId && (
@@ -291,7 +317,7 @@ export default function MuhendislerClient({
               <tr key={m.id} className={`border-b border-slate-100 last:border-0 ${editId === m.id ? "bg-brand-light" : ""}`}>
                 <td className="px-5 py-2.5 font-semibold">{m.full_name}</td>
                 <td className="px-5 py-2.5"><span className="text-xs bg-brand-light text-brand px-2 py-1 rounded-full font-semibold">{BRANS[m.discipline] ?? m.discipline}</span></td>
-                <td className="px-5 py-2.5 text-right"><button onClick={() => { setEditId(m.id); const f = { full_name: m.full_name ?? "", discipline: m.discipline ?? "makine", chamber_reg_no: m.chamber_reg_no ?? "", company_id: m.company_id ?? "", address: m.address ?? "", phone: m.phone ?? "" }; setForm(f); snapshotRef.current = JSON.stringify(f); initDocForms(m.id, m.discipline ?? "makine"); }} className="text-xs font-semibold text-brand hover:underline">Düzenle</button></td>
+                <td className="px-5 py-2.5 text-right"><button onClick={() => { setEditId(m.id); const f = { full_name: m.full_name ?? "", discipline: m.discipline ?? "makine", chamber_reg_no: m.chamber_reg_no ?? "", company_id: m.company_id ?? "", address: m.address ?? "", phone: m.phone ?? "" }; setForm(f); snapshotRef.current = JSON.stringify(f); initDocForms(m.id, m.discipline ?? "makine"); setImzaFile(null); }} className="text-xs font-semibold text-brand hover:underline">Düzenle</button></td>
               </tr>
             ))}
           </tbody></table>

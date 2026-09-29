@@ -4,13 +4,13 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { saveProjeOnay, updateProjeOnay, type OnayPayload } from "./actions";
-import { createIlgiliIdare } from "@/app/(app)/admin/actions";
+import { createIlgiliIdare, uploadEngineerDocument } from "@/app/(app)/admin/actions";
 
 type Company = { id: string; short_name: string; legal_name: string | null };
 type Province = { id: number; name: string };
 type Cap = { beyan_yuku_kg: number; kisi_sayisi: number | null };
 type District = { id: string; name: string };
-type Engineer = { id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null };
+type Engineer = { id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null; imzaDocId?: string | null };
 type Idare = { id: string; name: string; address: string | null };
 
 export type OnayInitial = {
@@ -300,12 +300,14 @@ export default function ProjeOnayWizard(props: Props) {
                   <option value="">Seçiniz…</option>
                   {makineOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name}{m.chamber_reg_no ? ` · ${m.chamber_reg_no}` : ""}</option>)}
                 </select>
+                {makineMuhId && <MuhImza engineerId={makineMuhId} imzaDocId={props.engineers.find((e) => e.id === makineMuhId)?.imzaDocId} />}
               </F>
               <F label="Elektrik Mühendisi *">
                 <select value={elektrikMuhId} onChange={(e) => setElektrikMuhId(e.target.value)} className={inp + ec(elektrikMuhId)}>
                   <option value="">Seçiniz…</option>
                   {elektrikOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name}{m.chamber_reg_no ? ` · ${m.chamber_reg_no}` : ""}</option>)}
                 </select>
+                {elektrikMuhId && <MuhImza engineerId={elektrikMuhId} imzaDocId={props.engineers.find((e) => e.id === elektrikMuhId)?.imzaDocId} />}
               </F>
             </div>
             <p className="mt-4 text-xs text-slate-500">Seçilen mühendisler için Makine ve Elektrik Mühendis Taahhütnameleri belgeler adımında ayrı ayrı üretilir.</p>
@@ -334,6 +336,41 @@ export default function ProjeOnayWizard(props: Props) {
 
         {error && step < 2 && <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
       </div>
+    </div>
+  );
+}
+
+// Seçili mühendisin imzası: yüklüyse otomatik göster, yoksa jpeg/png yüklemeye izin ver
+function MuhImza({ engineerId, imzaDocId }: { engineerId: string; imzaDocId?: string | null }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  async function up(file: File | null) {
+    if (!file) return;
+    setBusy(true); setMsg(null);
+    const fd = new FormData();
+    fd.set("engineer_id", engineerId); fd.set("doc_type", "imza"); fd.set("valid_until", "");
+    fd.set("file", file);
+    const r = await uploadEngineerDocument(fd);
+    setBusy(false);
+    setMsg(r.ok ? (r.message ?? "İmza yüklendi.") : ("Hata: " + r.error));
+    if (r.ok) router.refresh();
+  }
+  return (
+    <div className="mt-1.5">
+      {imzaDocId ? (
+        <div className="flex items-center gap-2">
+          <img src={`/api/belge/muhendis?id=${imzaDocId}`} alt="İmza" className="h-10 max-w-[140px] object-contain border border-slate-100 rounded bg-white p-0.5" />
+          <span className="text-[11px] text-green-600 font-semibold inline-flex items-center gap-0.5"><span className="material-symbols-rounded text-[14px]">check_circle</span>İmza yüklü</span>
+        </div>
+      ) : (
+        <label className="text-[11px] text-slate-500 inline-flex items-center gap-1.5 cursor-pointer hover:text-brand">
+          <span className="material-symbols-rounded text-[15px] text-brand">upload</span>
+          {busy ? "Yükleniyor…" : "İmza ekle (JPEG / PNG)"}
+          <input type="file" accept="image/png,image/jpeg" className="hidden" disabled={busy} onChange={(e) => up(e.target.files?.[0] ?? null)} />
+        </label>
+      )}
+      {msg && <div className="text-[11px] text-slate-500 mt-0.5">{msg}</div>}
     </div>
   );
 }

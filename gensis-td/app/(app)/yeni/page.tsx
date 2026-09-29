@@ -41,6 +41,11 @@ export default async function YeniPage() {
     supabase.from("company_documents").select("id, company_id, doc_type, belge_no, issue_date, valid_until, notified_body_id").limit(5000),
   ]);
 
+  // Mühendis imzaları (doc_type = imza) → id eşlemesi
+  const { data: imzaDocs } = await supabase.from("engineer_documents").select("id, engineer_id").eq("doc_type", "imza").limit(5000);
+  const imzaByEng = new Map((imzaDocs ?? []).map((d: any) => [d.engineer_id, d.id]));
+  const engineersWithImza = (engineers.data ?? []).map((e: any) => ({ ...e, imzaDocId: imzaByEng.get(e.id) ?? null }));
+
   const companyList = companies.data ?? [];
   const gensis = companyList.find((c) => (c.short_name ?? "").toLocaleLowerCase("tr").includes("gensis"));
 
@@ -55,7 +60,7 @@ export default async function YeniPage() {
       provinces={provinces.data ?? []}
       capacity={capacity.data ?? []}
       lookups={lookups.data ?? []}
-      engineers={engineers.data ?? []}
+      engineers={engineersWithImza}
       gensisCompanyId={gensis?.id ?? null}
       companyDocuments={companyDocuments.data ?? []}
     />
