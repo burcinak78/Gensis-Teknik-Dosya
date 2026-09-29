@@ -2,8 +2,24 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export type OnayResult = { ok: true; id: string } | { ok: false; error: string };
+
+// ---------- İlgili İdare ekle (dilekçe adımından) ----------
+export async function createIlgiliIdare(form: { name: string; address?: string }): Promise<OnayResult> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Oturum bulunamadı." };
+  if (!form.name?.trim()) return { ok: false, error: "İlgili idare adı zorunlu." };
+  const admin = createAdminClient();
+  const { data, error } = await admin.from("ilgili_idareler")
+    .insert({ name: form.name.trim(), address: form.address?.trim() || null })
+    .select("id").single();
+  if (error || !data) return { ok: false, error: error?.message ?? "İlgili idare eklenemedi." };
+  revalidatePath("/proje-onay");
+  return { ok: true, id: data.id };
+}
 
 export type OnayPayload = {
   company_id: string;
@@ -23,6 +39,7 @@ export type OnayPayload = {
   durak_sayisi: number | null;
   makine_muhendis_id: string | null;
   elektrik_muhendis_id: string | null;
+  ilgili_idare_id: string | null;
   input_data: Record<string, unknown>;
 };
 

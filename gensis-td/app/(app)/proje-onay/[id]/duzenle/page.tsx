@@ -8,11 +8,12 @@ const s = (v: any) => (v == null ? "" : String(v));
 
 export default async function DuzenleProjeOnayPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  const [companies, provinces, capacity, engineers, rowRes] = await Promise.all([
+  const [companies, provinces, capacity, engineers, idareler, rowRes] = await Promise.all([
     supabase.from("companies").select("id, short_name, legal_name").order("short_name").limit(2000),
     supabase.from("provinces").select("id, name").order("name"),
     supabase.from("capacity_table").select("beyan_yuku_kg, kisi_sayisi").order("beyan_yuku_kg"),
     supabase.from("engineers").select("id, full_name, discipline, chamber_reg_no, company_id").order("full_name").limit(2000),
+    supabase.from("ilgili_idareler").select("id, name, address").order("name").limit(2000),
     supabase.from("proje_onay").select("*").eq("id", params.id).single(),
   ]);
 
@@ -43,6 +44,7 @@ export default async function DuzenleProjeOnayPage({ params }: { params: { id: s
     durak: s(row.durak_sayisi),
     makineMuhId: s(row.makine_muhendis_id),
     elektrikMuhId: s(row.elektrik_muhendis_id),
+    ilgiliIdareId: s(row.ilgili_idare_id),
   };
 
   const list = companies.data ?? [];
@@ -55,6 +57,7 @@ export default async function DuzenleProjeOnayPage({ params }: { params: { id: s
       capacity={(capacity.data ?? []) as any}
       engineers={engineers.data ?? []}
       gensisCompanyId={gensis?.id ?? null}
+      ilgiliIdareler={(idareler.data ?? []) as any}
       initial={initial}
     />
   );

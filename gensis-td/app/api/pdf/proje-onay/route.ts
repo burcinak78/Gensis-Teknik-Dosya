@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
     firma_adi: r.companies?.short_name || r.companies?.legal_name || "",
     il: r.provinces?.name || inp.il || "",
     belediye: r.districts?.name || inp.belediye || "",
+    ilgili_idare: inp.ilgili_idare || "",
     tarih: frmtTarih(r.dilekce_tarihi),
     adet: r.asansor_adedi ?? 1,
     yapi_sahibi: r.yapi_sahibi,

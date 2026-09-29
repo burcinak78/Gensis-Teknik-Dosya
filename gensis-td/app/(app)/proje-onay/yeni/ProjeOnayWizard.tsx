@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { saveProjeOnay, updateProjeOnay, type OnayPayload } from "./actions";
+import { saveProjeOnay, updateProjeOnay, createIlgiliIdare, type OnayPayload } from "./actions";
 
 type Company = { id: string; short_name: string; legal_name: string | null };
 type Province = { id: number; name: string };
 type Cap = { beyan_yuku_kg: number; kisi_sayisi: number | null };
 type District = { id: string; name: string };
 type Engineer = { id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null };
+type Idare = { id: string; name: string; address: string | null };
 
 export type OnayInitial = {
   id: string;
@@ -19,11 +20,13 @@ export type OnayInitial = {
   pafta: string; ada: string; parsel: string;
   beyanYuku: number | ""; beyanHizi: string; durak: string;
   makineMuhId: string; elektrikMuhId: string;
+  ilgiliIdareId: string;
 };
 
 type Props = {
   companies: Company[]; provinces: Province[]; capacity: Cap[];
   engineers: Engineer[]; gensisCompanyId: string | null;
+  ilgiliIdareler: Idare[];
   initial?: OnayInitial | null;
 };
 
@@ -54,6 +57,25 @@ export default function ProjeOnayWizard(props: Props) {
   const [beyanHizi, setBeyanHizi] = useState(init?.beyanHizi ?? "");
   const [durak, setDurak] = useState(init?.durak ?? "");
 
+  // İlgili İdare (dropdown + satır içi "Yeni" ekleme)
+  const [idareList, setIdareList] = useState<Idare[]>(props.ilgiliIdareler ?? []);
+  const [ilgiliIdareId, setIlgiliIdareId] = useState(init?.ilgiliIdareId ?? "");
+  const [showAddIdare, setShowAddIdare] = useState(false);
+  const [idareForm, setIdareForm] = useState({ name: "", address: "" });
+  const [idareBusy, setIdareBusy] = useState(false);
+  const [idareErr, setIdareErr] = useState<string | null>(null);
+  async function addIdare() {
+    if (!idareForm.name.trim()) { setIdareErr("İlgili idare adı zorunlu."); return; }
+    setIdareBusy(true); setIdareErr(null);
+    const res = await createIlgiliIdare(idareForm);
+    setIdareBusy(false);
+    if (!res.ok) { setIdareErr(res.error); return; }
+    const yeni: Idare = { id: res.id, name: idareForm.name.trim(), address: idareForm.address.trim() || null };
+    setIdareList((a) => [...a, yeni].sort((x, y) => x.name.localeCompare(y.name, "tr")));
+    setIlgiliIdareId(yeni.id);
+    setIdareForm({ name: "", address: "" }); setShowAddIdare(false);
+  }
+
   const gMak = props.engineers.find((e) => e.discipline === "makine" && e.company_id === props.gensisCompanyId);
   const gElk = props.engineers.find((e) => e.discipline === "elektrik" && e.company_id === props.gensisCompanyId);
   const [makineMuhId, setMakineMuhId] = useState(init?.makineMuhId ?? gMak?.id ?? "");
@@ -71,6 +93,7 @@ export default function ProjeOnayWizard(props: Props) {
   const company = props.companies.find((c) => c.id === companyId) || null;
   const provinceName = props.provinces.find((p) => p.id === provinceId)?.name;
   const districtName = districts.find((d) => d.id === districtId)?.name;
+  const idareAdi = idareList.find((x) => x.id === ilgiliIdareId)?.name ?? "";
 
   const makineOptions = useMemo(
     () => props.engineers.filter((e) => e.discipline === "makine" && (e.company_id === props.gensisCompanyId || (!!companyId && e.company_id === companyId))),
@@ -83,7 +106,7 @@ export default function ProjeOnayWizard(props: Props) {
 
   const ec = (v: any) => (showErrors && empty(v) ? " !border-red-300 !bg-red-50" : "");
   const stepFields: Record<number, Record<string, any>> = {
-    0: { companyId, provinceId, districtId, yapiSahibi, montajAdresi, beyanYuku, beyanHizi, durak },
+    0: { companyId, provinceId, districtId, ilgiliIdareId, yapiSahibi, montajAdresi, beyanYuku, beyanHizi, durak },
     1: { makineMuhId, elektrikMuhId },
   };
   function stepMissing(i: number) {
@@ -129,7 +152,8 @@ export default function ProjeOnayWizard(props: Props) {
       durak_sayisi: durak ? Number(durak) : null,
       makine_muhendis_id: makineMuhId || null,
       elektrik_muhendis_id: elektrikMuhId || null,
-      input_data: { il: provinceName ?? "", belediye: districtName ?? "", beyan_hizi_txt: beyanHizi },
+      ilgili_idare_id: ilgiliIdareId || null,
+      input_data: { il: provinceName ?? "", belediye: districtName ?? "", ilgili_idare: idareAdi, beyan_hizi_txt: beyanHizi },
     };
     const res = isEdit ? await updateProjeOnay(init!.id, payload) : await saveProjeOnay(payload);
     setSaving(false);
@@ -205,11 +229,39 @@ export default function ProjeOnayWizard(props: Props) {
                   {props.provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </F>
-              <F label="Belediye (İlçe) *">
+              <F label="İlçe *">
                 <select value={districtId} onChange={(e) => setDistrictId(e.target.value)} disabled={districts.length === 0} className={inp + ec(districtId)}>
                   <option value="">{provinceId === "" ? "Önce il seçin" : "Seçiniz…"}</option>
                   {districts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
+              </F>
+              <F label="İlgili İdare *" full>
+                <div className="flex gap-2">
+                  <select value={ilgiliIdareId} onChange={(e) => setIlgiliIdareId(e.target.value)} className={inp + ec(ilgiliIdareId)}>
+                    <option value="">Seçiniz…</option>
+                    {idareList.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                  </select>
+                  <button type="button" onClick={() => { setShowAddIdare((v) => !v); setIdareErr(null); }}
+                    className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-3 hover:bg-brand-light whitespace-nowrap">
+                    {showAddIdare ? "Kapat" : "+ Yeni"}
+                  </button>
+                </div>
+                {showAddIdare && (
+                  <div className="mt-2 bg-brand-light/40 border border-brand/15 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-bold text-slate-600">Yeni İlgili İdare</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <input className={inp + " col-span-1"} placeholder="Adı *" value={idareForm.name} onChange={(e) => setIdareForm((s) => ({ ...s, name: e.target.value }))} />
+                      <input className={inp + " col-span-2"} placeholder="Adres (opsiyonel)" value={idareForm.address} onChange={(e) => setIdareForm((s) => ({ ...s, address: e.target.value }))} />
+                    </div>
+                    {idareErr && <div className="text-xs text-red-600">{idareErr}</div>}
+                    <div className="flex justify-end">
+                      <button type="button" onClick={addIdare} disabled={idareBusy}
+                        className="text-xs font-bold text-white bg-brand hover:bg-brand-dark px-4 py-2 rounded-lg disabled:opacity-50">
+                        {idareBusy ? "Ekleniyor…" : "Ekle ve Seç"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </F>
               <F label="Dilekçe Tarihi"><input type="date" value={dilekceTarihi} onChange={(e) => setDilekceTarihi(e.target.value)} className={inp} /></F>
               <F label="Asansör Adedi"><input type="number" min={1} value={asansorAdedi} onChange={(e) => setAsansorAdedi(e.target.value)} className={inp} /></F>
@@ -266,7 +318,8 @@ export default function ProjeOnayWizard(props: Props) {
               <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{totalMissing} zorunlu alan eksik.</div>
             )}
             <Summ k="Firma" v={company?.short_name} />
-            <Summ k="Belediye / İl" v={[districtName, provinceName].filter(Boolean).join(" / ")} />
+            <Summ k="İlçe / İl" v={[districtName, provinceName].filter(Boolean).join(" / ")} />
+            <Summ k="İlgili İdare" v={idareAdi} />
             <Summ k="Yapı Sahibi" v={yapiSahibi} />
             <Summ k="Montaj Adresi" v={montajAdresi} />
             <Summ k="Ada / Parsel" v={[ada, parsel].filter(Boolean).join(" / ")} />

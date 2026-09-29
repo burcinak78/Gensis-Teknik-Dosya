@@ -105,7 +105,7 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
         <FRow l="Telefonu" val={m?.telefon} />
         <FSection>MÜELLİFLİĞİ ÜSTLENİLEN PROJE</FSection>
         <FRow l="İl / İlçe" val={[d.il, d.belediye].filter(Boolean).join(" / ")} />
-        <FRow l="İlgili İdare" val={d.belediye ? `${v(d.belediye)} Belediyesi` : ""} />
+        <FRow l="İlgili İdare" val={v(d.ilgili_idare) || (d.belediye ? `${v(d.belediye)} Belediyesi` : "")} />
         <FRow l="Pafta / Ada / Parsel No" val={[d.pafta, d.ada, d.parsel].filter(Boolean).join(" / ")} />
         <FRow l="Yapı Adresi" val={d.montaj_adresi} />
         <FRow l="Yapı Sahibi" val={d.yapi_sahibi} />
