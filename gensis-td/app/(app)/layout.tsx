@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <aside className="bg-[#f8fafc] border-r border-[#e7ebf2] flex flex-col sticky top-0 h-screen">
         <div className="flex items-center px-5 py-5 border-b border-[#e7ebf2]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Dosyalift" style={{ height: 40, width: "auto" }} />
+          <img src="/logo.png" alt="Dosyalift" style={{ height: 78, width: "auto" }} />
         </div>
 
         <SideNav role={rol} bildirimCount={bildirimCount} onayCount={onayCount} takipCount={takipCount} muhasebeCount={muhasebeCount} />
