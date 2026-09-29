@@ -348,6 +348,15 @@ function R({ l, val }: { l: string; val?: any }) {
     </View>
   );
 }
+// Dilekçe için dar satır: değer, başlığın hemen yanında
+function LR({ l, val }: { l: string; val?: any }) {
+  return (
+    <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
+      <View style={{ width: 110, paddingRight: 6 }}><Text style={{ color: "#6b7280" }}>{l}</Text></View>
+      <View style={{ flex: 1 }}><Text style={{ fontWeight: "bold", color: "#111827" }}>{v(val)}</Text></View>
+    </View>
+  );
+}
 function Footer({ firma }: { firma: string }) {
   return (
     <Text style={st.footer} fixed>
@@ -470,29 +479,31 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   dilekce: (c) => (
     <Page key="dilekce" size="A4" style={st.page}>
-      <View style={st.topRow}><Text> </Text><Text>{c.tarih}</Text></View>
-      <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 4 }}>
-        {v(c.d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI'NA
-      </Text>
-      <Text style={{ textAlign: "center", color: "#6b7280", marginBottom: 18 }}>{v(c.d.il)}</Text>
-      <Text style={st.p}>
-        Aşağıda özellikleri verilmiş olan ve firmamız tarafından montajı yapılan 1 adet asansör için
-        tescil belgesinin tarafımıza verilmesini arz ederiz.
-      </Text>
-      <R l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
-      <R l="Montaj Adresi" val={c.d.montaj_adresi} />
-      <R l="Pafta" val={c.inp.pafta} />
-      <R l="Ada" val={c.inp.ada} />
-      <R l="Parsel" val={c.inp.parsel} />
-      <R l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg. · ${v(c.kisi)} Kişi` : undefined} />
-      <R l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
-      <R l="Durak Sayısı" val={c.d.durak_adedi} />
-      <Text style={{ marginTop: 20 }}>Saygılarımızla,</Text>
-      <View style={st.signWrap}>
-        <View />
-        <View style={st.signBox}>
-          <Text style={{ fontWeight: "bold" }}>{c.fname}</Text>
-          <Text style={st.signLine}>Kaşe / İmza</Text>
+      <View style={{ flexGrow: 1, justifyContent: "center" }}>
+        <View style={st.topRow}><Text> </Text><Text>…./…./20…</Text></View>
+        <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 4 }}>
+          {v(c.d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI'NA
+        </Text>
+        <Text style={{ textAlign: "center", color: "#6b7280", marginBottom: 18 }}>{v(c.d.il)}</Text>
+        <Text style={{ textAlign: "justify", marginBottom: 14, textIndent: 28 }}>
+          Aşağıda özellikleri verilmiş olan ve firmamız tarafından montajı yapılan 1 adet asansör için
+          tescil belgesinin tarafımıza verilmesini arz ederiz.
+        </Text>
+        <LR l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
+        <LR l="Montaj Adresi" val={c.d.montaj_adresi} />
+        <LR l="Pafta" val={c.inp.pafta} />
+        <LR l="Ada" val={c.inp.ada} />
+        <LR l="Parsel" val={c.inp.parsel} />
+        <LR l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg. · ${v(c.kisi)} Kişi` : undefined} />
+        <LR l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
+        <LR l="Durak Sayısı" val={c.d.durak_adedi} />
+        <Text style={{ marginTop: 20 }}>Saygılarımızla,</Text>
+        <View style={st.signWrap}>
+          <View />
+          <View style={st.signBox}>
+            <Text style={{ fontWeight: "bold" }}>{c.fname}</Text>
+            <Text style={st.signLine}>Kaşe / İmza</Text>
+          </View>
         </View>
       </View>
       <Footer firma={c.fname} />
