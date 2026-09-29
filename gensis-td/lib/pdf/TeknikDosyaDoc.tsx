@@ -438,15 +438,11 @@ function buildCtx(data: any) {
   return { d, firma, modul, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi, assetBase };
 }
 
-// CE işareti (vektör) — kapak için
-function CeMark({ size = 150 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size * 0.58} viewBox="0 0 120 70">
-      <Path d="M46.9,13.7 A26,26 0 1 0 46.9,56.3" stroke="#111827" strokeWidth={10} fill="none" strokeLinecap="butt" />
-      <Path d="M98.9,13.7 A26,26 0 1 0 98.9,56.3" stroke="#111827" strokeWidth={10} fill="none" strokeLinecap="butt" />
-      <Path d="M58,35 L94,35" stroke="#111827" strokeWidth={10} fill="none" strokeLinecap="butt" />
-    </Svg>
-  );
+// CE işareti — kapak için (resmi CE markası görseli)
+const CE_RATIO = 0.7047; // yükseklik / genişlik (ce-mark.png: 1192x840)
+function CeMark({ size = 150, src }: { size?: number; src?: string }) {
+  if (!src) return null;
+  return <Image src={src} style={{ width: size, height: size * CE_RATIO }} />;
 }
 
 // Her belge için render fonksiyonu (code -> Page)
@@ -454,8 +450,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   kapak: (c) => (
     <Page key="kapak" size="A4" style={st.page}>
       <View style={st.coverWrap}>
-        <View style={{ alignItems: "center", marginBottom: 22 }}>
-          <CeMark size={150} />
+        <View style={{ alignItems: "center", marginBottom: 22, marginTop: -(150 * 0.7047) }}>
+          <CeMark size={150} src={c.assetBase ? `${c.assetBase}/ce-mark.png` : undefined} />
         </View>
         <Text style={st.coverBig}>ASANSÖR TEKNİK DOSYASI</Text>
         <Text style={st.coverSub}>2014/33 AB ASANSÖR YÖNETMELİĞİ</Text>

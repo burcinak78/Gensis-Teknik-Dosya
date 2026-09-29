@@ -69,8 +69,10 @@ export async function GET(req: NextRequest) {
   } = { isG: false, pf: {}, engMakine: [], engElektrik: [], coSanayi: [], coTse: [], coCe: [], motorCerts: [], otherCerts: [] };
   try {
     const { data: prow } = await admin.from("projects")
-      .select("makine_muhendis_id, elektrik_muhendis_id, company_id, input_data").eq("id", projectId).single();
+      .select("makine_muhendis_id, elektrik_muhendis_id, company_id, input_data, bina_adi").eq("id", projectId).single();
     const inp = (prow?.input_data ?? {}) as Record<string, any>;
+    // Kapakta Bina Adı — render context'te yoksa projects tablosundan tamamla
+    if (prow?.bina_adi && !(ctx as any).bina_adi) (ctx as any).bina_adi = prow.bina_adi;
     attach.isG = inp.modul_secim === "G";
     const companyId = prow?.company_id ?? null;
     const engIds = [prow?.makine_muhendis_id, prow?.elektrik_muhendis_id].filter(Boolean) as string[];
