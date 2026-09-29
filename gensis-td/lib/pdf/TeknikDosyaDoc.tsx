@@ -2,6 +2,7 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet, Svg, Path, Image } from "@react-pdf/renderer";
 import { TEKNIK_DOSYA_BELGELERI } from "./belgeler";
 import { SON_KONTROL } from "./belge_icerik";
+import { SON_KONTROL_NO } from "./son_kontrol_no";
 
 // Birleşik Teknik Dosya — belgeleri tek PDF'te birleştirir VEYA tek belge üretir (only).
 // Veri = project_render_context (jsonb). Font 'Roboto' route'ta register edilir.
@@ -37,11 +38,12 @@ const st = StyleSheet.create({
   klvItem: { flexDirection: "row", paddingVertical: 2, fontSize: 9.5 },
   klvNo: { width: 22, color: TEAL },
   klvText: { flex: 1, textAlign: "justify" },
-  skHead: { flexDirection: "row", backgroundColor: "#f1f5f9", paddingVertical: 3, paddingHorizontal: 2, fontSize: 8.5, fontWeight: "bold", color: NAVY },
+  skHead: { flexDirection: "row", backgroundColor: "#f1f5f9", paddingVertical: 3, paddingHorizontal: 2, fontSize: 7.6, fontWeight: "bold", color: NAVY },
   skRow: { flexDirection: "row", paddingVertical: 2.5, paddingHorizontal: 2, borderBottomWidth: 0.5, borderBottomColor: "#f1f5f9", fontSize: 8.5 },
-  skNo: { width: 20, color: "#94a3b8" },
+  skNo: { width: 92, paddingRight: 4, fontSize: 6.6, color: "#334155" },
   skItem: { flex: 1, paddingRight: 4 },
-  skBox: { width: 44, alignItems: "center" },
+  skBox: { width: 40, alignItems: "center" },
+  skFirmaHdr: { position: "absolute", top: 14, left: 30, fontSize: 8, fontWeight: "bold", color: "#94a3b8" },
   skSquare: { width: 11, height: 11, borderWidth: 0.8, borderColor: "#9ca3af", borderRadius: 2 },
 
   // Resmi form (EK-1 / EK-3 / Taahhütname) — kutulu, keskin köşeli, koyu kenarlık
@@ -1153,22 +1155,27 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   son_kontrol_formu: (c) => (
     <Page key="son_kontrol_formu" size="A4" style={st.page} wrap>
-      <DocHead firma={c.firma} title="ASANSÖR SON KONTROL FORMU (EN 81-20 / 28 / 70 / 73)" />
+      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <Text style={st.docTitle}>ASANSÖR SON KONTROL FORMU</Text>
+      <Text style={{ textAlign: "center", fontSize: 9.5, fontWeight: "bold", color: TEAL, marginTop: 2, marginBottom: 2 }}>(TS EN 81-20 / 28 / 70 / 73)</Text>
+      <View style={st.rule} />
       <View style={[st.fBox, { marginBottom: 8 }]}>
         <FRow l="Montaj Adresi" val={c.d.montaj_adresi} />
         <FRow l="Ada / Pafta / Parsel" val={[c.inp.ada, c.inp.pafta, c.inp.parsel].filter(Boolean).join(" / ")} />
         <FRow l="Asansör Seri No" val={c.inp.asansor_seri_no} />
       </View>
       <View style={st.skHead} fixed>
-        <Text style={st.skNo}>#</Text>
+        <Text style={st.skNo}>Madde No</Text>
         <Text style={st.skItem}>Kontrol Maddesi</Text>
         <Text style={st.skBox}>Uygun</Text>
         <Text style={st.skBox}>Uygun D.</Text>
+        <Text style={st.skBox}>Uyg. Yok{"\n"}(N/A)</Text>
       </View>
       {SON_KONTROL.map((t, i) => (
         <View key={i} style={st.skRow} wrap={false}>
-          <Text style={st.skNo}>{i + 1}</Text>
+          <Text style={st.skNo}>{SON_KONTROL_NO[i] || ""}</Text>
           <Text style={st.skItem}>{t}</Text>
+          <View style={st.skBox}><View style={st.skSquare} /></View>
           <View style={st.skBox}><View style={st.skSquare} /></View>
           <View style={st.skBox}><View style={st.skSquare} /></View>
         </View>
