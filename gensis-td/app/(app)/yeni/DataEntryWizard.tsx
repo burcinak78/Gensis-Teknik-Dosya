@@ -235,6 +235,12 @@ export default function DataEntryWizard(props: Props) {
     if (beyanYuku === "") return null;
     return props.capacity.find((c) => c.beyan_yuku_kg === beyanYuku)?.kisi_sayisi ?? null;
   }, [beyanYuku, props.capacity]);
+  // Beyan yükü seçenekleri: mevcut kapasite değerleri + 10 tona kadar 500'er kg
+  const beyanYukuOptions = useMemo(() => {
+    const set = new Set<number>(props.capacity.map((c) => c.beyan_yuku_kg));
+    for (let w = 500; w <= 10000; w += 500) set.add(w);
+    return Array.from(set).sort((a, b) => a - b);
+  }, [props.capacity]);
 
   const certById = useMemo(() => new Map(props.certificates.map((c) => [c.id, c])), [props.certificates]);
   const nbById = useMemo(() => new Map(props.notifiedBodies.map((n) => [n.id, n])), [props.notifiedBodies]);
@@ -361,6 +367,7 @@ export default function DataEntryWizard(props: Props) {
   const stepFieldMap: Record<number, Record<string, any>> = {
     [S_FIRMA]: { companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId },
     [S_RUHSAT]: { binaAdi, montajAdresi, provinceId, districtId, pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi },
+    [S_BELGELER]: modulSecim === "G" ? { modulGOnaylanmisKurulus: modulG.nb_id } : {},
     [S_ASANSOR]: { asansorSinifi, makineDairesi, beyanYuku, beyanHizi, baslangicKat, katSayisi, katAdedi, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, kapiGenislik, kapiYukseklik, kabinGenislik, kabinDerinlik, kabinAgirligi, asansorSeriNo, seyirMesafesi, ...driveReq },
   };
   function stepMissing(i: number): number {
@@ -429,6 +436,12 @@ export default function DataEntryWizard(props: Props) {
   }
 
   async function handleSave(opts?: { gotoBelge?: boolean }) {
+    if (modulSecim === "G" && !modulG.nb_id) {
+      setShowErrors(true);
+      setError("Modül G için Onaylanmış Kuruluş seçimi zorunludur.");
+      setStep(S_BELGELER);
+      return;
+    }
     if (!isValid) {
       setShowErrors(true);
       setError(`Kırmızı ile işaretli ${totalMissing} zorunlu alan boş. Lütfen tümünü doldurun.`);
@@ -755,14 +768,13 @@ export default function DataEntryWizard(props: Props) {
                   <div className="text-sm font-bold text-slate-800">Modül G Belgesi</div>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Belge No"><input className="inp" value={modulG.belge_no} onChange={(e) => setModulG({ ...modulG, belge_no: e.target.value })} /></Field>
-                    <Field label="Onaylanmış Kuruluş">
-                      <select className="inp" value={modulG.nb_id} onChange={(e) => setModulG({ ...modulG, nb_id: e.target.value })}>
+                    <Field label="Onaylanmış Kuruluş *">
+                      <select className={"inp" + ec(modulG.nb_id)} value={modulG.nb_id} onChange={(e) => setModulG({ ...modulG, nb_id: e.target.value })}>
                         <option value="">Seçiniz…</option>
                         {props.notifiedBodies.filter((n) => n.identity_no).map((n) => <option key={n.id} value={n.id}>{n.identity_no} · {n.name}</option>)}
                       </select>
                     </Field>
                     <Field label="Veriliş Tarihi"><input type="date" className="inp" value={modulG.verilis} onChange={(e) => setModulG({ ...modulG, verilis: e.target.value })} /></Field>
-                    <Field label="Geçerlilik Tarihi"><input type="date" className="inp" value={modulG.gecerlilik} onChange={(e) => setModulG({ ...modulG, gecerlilik: e.target.value })} /></Field>
                   </div>
                   <FileZone label="Modül G Belgesini Yükle" accept="application/pdf,image/*"
                     staged={pending["modul_g_belge"] ?? []} existing={existingFiles.filter((f) => f.kind === "modul_g_belge")}
@@ -826,7 +838,7 @@ export default function DataEntryWizard(props: Props) {
                 <Field label="Beyan Yükü (kg) *">
                   <select className={"inp" + ec(beyanYuku)} value={beyanYuku} onChange={(e) => setBeyanYuku(e.target.value ? Number(e.target.value) : "")}>
                     <option value="">Seçiniz…</option>
-                    {props.capacity.map((c) => <option key={c.beyan_yuku_kg} value={c.beyan_yuku_kg}>{c.beyan_yuku_kg}</option>)}
+                    {beyanYukuOptions.map((w) => <option key={w} value={w}>{w}</option>)}
                   </select>
                 </Field>
                 <Field label="Kişi Sayısı (otomatik)"><input className="inp bg-slate-100" value={kisi ?? ""} disabled /></Field>
@@ -1026,9 +1038,14 @@ export default function DataEntryWizard(props: Props) {
                       )}
                       {sel.modelId && multiCfg && multiN > 0 && (
                         <div className="mt-3">
-                          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
                             Seri No — her {multiCfg.label.toLocaleLowerCase("tr")} için ayrı ({multiN} adet) *
                           </label>
+                          {cat.code === "kapi_kilidi" && (
+                            <p className="text-[11px] text-slate-500 mb-1.5">
+                              Aynı durakta/kapıda birden fazla seri no varsa &apos;xxx / xxx&apos; şeklinde giriniz.
+                            </p>
+                          )}
                           <div className="space-y-2">
                             {Array.from({ length: multiN }).map((_, i) => {
                               const v = sel.seriList?.[i] ?? "";
