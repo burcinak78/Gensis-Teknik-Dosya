@@ -680,6 +680,54 @@ export async function deleteEquipmentModel(id: string): Promise<Result> {
   }
 }
 
+// ---------- İlgili İdareler (Belediye vb.) ----------
+export async function createIlgiliIdare(form: { name: string; address?: string }): Promise<Result> {
+  try {
+    await assertStaff();
+    if (!form.name?.trim()) return { ok: false, error: "İlgili idare adı zorunlu." };
+    const admin = createAdminClient();
+    const { data, error } = await admin.from("ilgili_idareler")
+      .insert({ name: form.name.trim(), address: form.address?.trim() || null })
+      .select("id").single();
+    if (error || !data) return { ok: false, error: error?.message ?? "İlgili idare eklenemedi." };
+    revalidatePath("/admin/ilgili-idareler");
+    revalidatePath("/proje-onay");
+    return { ok: true, message: "İlgili idare eklendi.", id: data.id };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+export async function updateIlgiliIdare(id: string, form: { name: string; address?: string }): Promise<Result> {
+  try {
+    await assertStaff();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    if (!form.name?.trim()) return { ok: false, error: "İlgili idare adı zorunlu." };
+    const admin = createAdminClient();
+    const { error } = await admin.from("ilgili_idareler")
+      .update({ name: form.name.trim(), address: form.address?.trim() || null }).eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/ilgili-idareler");
+    return { ok: true, message: "İlgili idare güncellendi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+export async function deleteIlgiliIdare(id: string): Promise<Result> {
+  try {
+    await assertStaff();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    const admin = createAdminClient();
+    // Proje onay kayıtlarındaki referansı çöz (FK engellemesin)
+    try { await admin.from("proje_onay").update({ ilgili_idare_id: null }).eq("ilgili_idare_id", id); } catch {}
+    const { error } = await admin.from("ilgili_idareler").delete().eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/ilgili-idareler");
+    return { ok: true, message: "İlgili idare silindi." };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // ---------- Yeni Onaylanmış Kuruluş ----------
 export async function createNotifiedBody(form: { name: string; identity_no: string; address: string }): Promise<Result> {
   try {

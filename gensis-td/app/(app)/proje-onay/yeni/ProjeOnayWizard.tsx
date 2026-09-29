@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { saveProjeOnay, updateProjeOnay, createIlgiliIdare, type OnayPayload } from "./actions";
+import { saveProjeOnay, updateProjeOnay, type OnayPayload } from "./actions";
+import { createIlgiliIdare } from "@/app/(app)/admin/actions";
 
 type Company = { id: string; short_name: string; legal_name: string | null };
 type Province = { id: number; name: string };
