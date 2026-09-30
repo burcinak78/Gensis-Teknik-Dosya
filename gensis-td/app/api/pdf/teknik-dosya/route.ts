@@ -63,9 +63,9 @@ export async function GET(req: NextRequest) {
     isG: boolean;
     pf: Record<string, string[]>;
     engMakine: string[]; engElektrik: string[];
-    coSanayi: string[]; coTse: string[]; coCe: string[];
+    coSanayi: string[]; coTse: string[]; coCe: string[]; coCeSelected: string[];
     motorCerts: string[]; otherCerts: string[];
-  } = { isG: false, pf: {}, engMakine: [], engElektrik: [], coSanayi: [], coTse: [], coCe: [], motorCerts: [], otherCerts: [] };
+  } = { isG: false, pf: {}, engMakine: [], engElektrik: [], coSanayi: [], coTse: [], coCe: [], coCeSelected: [], motorCerts: [], otherCerts: [] };
   // Müşteri logosu (varsa header'da kısa ad yerine kullanılır)
   let logoBytes: Uint8Array | null = null;
   let logoMime = "image/png";
@@ -130,13 +130,20 @@ export async function GET(req: NextRequest) {
 
     if (companyId) {
       const { data: cdocs } = await admin.from("company_documents")
-        .select("doc_type, storage_path").eq("company_id", companyId);
+        .select("id, doc_type, storage_path").eq("company_id", companyId);
       for (const d of cdocs ?? []) {
         if (!d.storage_path) continue;
         if (d.doc_type === "sanayi_sicil") attach.coSanayi.push(d.storage_path);
         else if (d.doc_type === "tse_hyb") attach.coTse.push(d.storage_path);
         else if (String(d.doc_type).startsWith("ce")) attach.coCe.push(d.storage_path);
       }
+      // Firma Bilgileri arkasına yalnızca Belgeler'de SEÇİLEN CE belgeleri (H1 → Tasarım → Mod B(+Eki) → Mod E sırasıyla)
+      const selCeIds: string[] = Array.isArray(inp.modul_belge_ids) ? inp.modul_belge_ids : [];
+      const ceRank: Record<string, number> = { ce_h1: 0, ce_tasarim: 1, ce_b: 2, ce_b_eki: 3, ce_e: 4 };
+      attach.coCeSelected = (cdocs ?? [])
+        .filter((d: any) => d.storage_path && String(d.doc_type).startsWith("ce") && selCeIds.includes(d.id))
+        .sort((a: any, b: any) => (ceRank[a.doc_type] ?? 9) - (ceRank[b.doc_type] ?? 9))
+        .map((d: any) => d.storage_path as string);
       // Firma CE modül belgeleri (ce_h1 / ce_b / ce_e) → tescil + AB Uygunluk Beyanı
       const { data: ceDocs } = await admin.from("company_documents")
         .select("doc_type, belge_no, issue_date, notified_body_id")
@@ -348,9 +355,9 @@ export async function GET(req: NextRequest) {
     } else if (code === "firma_bilgileri") {
       for (const p of attach.coSanayi) await addFile("documents", p);
       for (const p of attach.coTse) await addFile("documents", p);
-      // Mod G seçiliyse: müşteri CE belgeleri yerine yüklenen Modül G belgesi
+      // Mod G seçiliyse: yüklenen Modül G belgesi; değilse Belgeler'de seçilen CE belgeleri
       if (attach.isG) { for (const p of (attach.pf["modul_g_belge"] ?? [])) await addFile("documents", p); }
-      else { for (const p of attach.coCe) await addFile("documents", p); }
+      else { for (const p of attach.coCeSelected) await addFile("documents", p); }
     } else if (code === "muh_taahhut_makine") {
       for (const p of attach.engMakine) await addFile("documents", p);
     } else if (code === "muh_taahhut_elektrik") {

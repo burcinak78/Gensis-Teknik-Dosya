@@ -21,7 +21,7 @@ type Capacity = { beyan_yuku_kg: number; kisi_sayisi: number | null; kabin_agirl
 type Lookup = { list_key: string; value: string; sort_order: number };
 type District = { id: string; name: string };
 type Engineer = { id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null; imzaDocId?: string | null };
-type CompanyDoc = { id: string; company_id: string; doc_type: string; belge_no: string | null; issue_date: string | null; valid_until: string | null; notified_body_id: string | null };
+type CompanyDoc = { id: string; company_id: string; doc_type: string; belge_no: string | null; issue_date: string | null; valid_until: string | null; notified_body_id: string | null; original_name?: string | null };
 type ProjectFile = { id: string; kind: string; original_name: string | null };
 
 type EquipInit = Record<string, { brandId?: string; modelId?: string; seriNo?: string; seriList?: string[] }>;
@@ -77,6 +77,8 @@ const COMPANY_DOC_ETIKET: Record<string, string> = {
   ce_h1: "Mod H1 Belgesi", ce_tasarim: "Tasarım İnceleme Belgesi",
   ce_b: "Mod B Belgesi", ce_b_eki: "Mod B Eki", ce_e: "Mod E Belgesi",
 };
+// CE belgelerinin gösterim/ekleme sırası: H1 → Tasarım İnceleme → Mod B (+Eki) → Mod E
+const CE_ORDER: Record<string, number> = { ce_h1: 0, ce_tasarim: 1, ce_b: 2, ce_b_eki: 3, ce_e: 4 };
 const RANGE_100 = Array.from({ length: 100 }, (_, i) => i + 1);
 // Her kat/giriş için ayrı seri no giren kategoriler:
 //  - kapı kilidi: KAT ADEDİ kadar (kat listesindeki her kat) → kat isimleri; asma katlar pasif
@@ -202,6 +204,15 @@ export default function DataEntryWizard(props: Props) {
   const [modulSecim, setModulSecim] = useState(init?.modulSecim ?? "");
   const [modulBelgeIds, setModulBelgeIds] = useState<string[]>(init?.modulBelgeIds ?? []);
   const [modulG, setModulG] = useState(init?.modulG ?? { belge_no: "", verilis: "", gecerlilik: "", nb_id: "" });
+  const [belgeModal, setBelgeModal] = useState<string | null>(null); // CE belge önizleme (modal)
+  // Firma değişince, müşterinin yüklü Mod E belgesi varsa otomatik seç (ilk render/edit'te dokunma)
+  const ceAutoRef = useRef(false);
+  useEffect(() => {
+    if (!ceAutoRef.current) { ceAutoRef.current = true; return; }
+    const ceE = (props.companyDocuments ?? []).find((d) => d.company_id === companyId && d.doc_type === "ce_e");
+    if (ceE) setModulBelgeIds((s) => (s.includes(ceE.id) ? s : [...s, ceE.id]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId]);
   const [faturaNo, setFaturaNo] = useState(init?.faturaNo ?? "");
   const [faturaTarihi, setFaturaTarihi] = useState(init?.faturaTarihi ?? "");
   const [periyodikTarihi, setPeriyodikTarihi] = useState(init?.periyodikTarihi ?? "");
@@ -611,6 +622,22 @@ export default function DataEntryWizard(props: Props) {
 
   return (
     <div>
+      {belgeModal && (
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4" onClick={() => setBelgeModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <h2 className="font-bold text-sm">Belge Önizleme</h2>
+              <div className="flex items-center gap-3">
+                <a href={`/api/belge/musteri?id=${belgeModal}`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand hover:underline inline-flex items-center gap-1">
+                  <span className="material-symbols-rounded text-[16px]">open_in_new</span>Yeni sekmede aç
+                </a>
+                <button onClick={() => setBelgeModal(null)} className="material-symbols-rounded text-slate-400 hover:text-slate-700">close</button>
+              </div>
+            </div>
+            <iframe src={`/api/belge/musteri?id=${belgeModal}`} className="flex-1 w-full rounded-b-2xl" title="Belge" />
+          </div>
+        </div>
+      )}
       {eksikModal && (
         <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={() => setEksikModal(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
@@ -804,7 +831,9 @@ export default function DataEntryWizard(props: Props) {
                   <div className="text-sm font-bold text-slate-800 mb-1">Müşterinin CE belgelerinden seçin</div>
                   <div className="text-xs text-slate-500 mb-3">Bu asansör için kullanılacak, önceden yüklenmiş CE belgelerini (Mod B, Mod H1, Tasarım İnceleme, Mod E…) işaretleyin (birden fazla seçebilirsiniz).</div>
                   {(() => {
-                    const docs = (props.companyDocuments ?? []).filter((d) => d.company_id === companyId && d.doc_type.startsWith("ce"));
+                    const docs = (props.companyDocuments ?? [])
+                      .filter((d) => d.company_id === companyId && d.doc_type.startsWith("ce"))
+                      .sort((a, b) => (CE_ORDER[a.doc_type] ?? 9) - (CE_ORDER[b.doc_type] ?? 9));
                     if (!companyId) return <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Önce Firma adımında müşteri seçin.</div>;
                     if (docs.length === 0) return <div className="text-xs text-slate-400">Bu müşteriye ait yüklenmiş CE belgesi yok.</div>;
                     return (
@@ -816,7 +845,12 @@ export default function DataEntryWizard(props: Props) {
                               <input type="checkbox" checked={checked}
                                 onChange={() => setModulBelgeIds((s) => s.includes(d.id) ? s.filter((x) => x !== d.id) : [...s, d.id])} />
                               <span className="text-sm text-slate-800 flex-1">{COMPANY_DOC_ETIKET[d.doc_type] ?? d.doc_type}</span>
-                              {d.belge_no && <span className="text-xs text-slate-400">No: {d.belge_no}</span>}
+                              {d.original_name && (
+                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setBelgeModal(d.id); }}
+                                  className="flex-none text-xs font-semibold text-brand hover:underline inline-flex items-center gap-1">
+                                  <span className="material-symbols-rounded text-[15px]">description</span>Belgeyi Aç
+                                </button>
+                              )}
                             </label>
                           );
                         })}
