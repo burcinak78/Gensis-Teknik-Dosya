@@ -469,6 +469,8 @@ function buildCtx(data: any) {
   const firma = d.firma || {};
   const modul = d.firma_modul || {};
   const modulE = d.modulE || {}; // firmanın yüklenmiş Mod E belgesi (ce_e) — B/H seçiminde tescilde kullanılır
+  const modulH1 = d.modulH1 || {}; // firmanın Mod H1 belgesi (ce_h1)
+  const modulB = d.modulB || {};   // firmanın Mod B belgesi (ce_b)
   const muh = d.muhendis || {};
   const kap = d.kapasite || {};
   const inp = d.input_data || d;
@@ -498,7 +500,7 @@ function buildCtx(data: any) {
   const assetBase = d.__assetBase || "";
   // Tüm evrak footer'ı: Ticari Ünvan · Adres · Telefon · E-posta (tek satır)
   const footerText = [firma.unvan || firma.kisa_ad, firma.adres, firma.telefon, firma.email].filter(Boolean).map((x: any) => String(x).trim()).join(" · ");
-  return { d, firma, modul, modulE, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi, assetBase, footerText };
+  return { d, firma, modul, modulE, modulH1, modulB, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi, assetBase, footerText };
 }
 
 // CE işareti — kapak için (resmi CE markası görseli)
@@ -881,15 +883,15 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       : isH
         ? "2014/33 AB EK XI (Modül H1)"
         : "2014/33 AB EK IV-B / EK X (Modül B+E)";
-    const direktifler = [
-      modDirektif,
-      "2006/42/AT Makine Emniyeti Yönetmeliği",
-      "2014/35 AB Alçak Gerilim Yönetmeliği",
-      "2014/30 AB Elektromanyetik Uyumluluk Yönetmeliği",
-    ].join(", ");
-    const secHead = [st.sec, { marginBottom: 0 }];
+    // Seçimle gelen yönetmelik (modDirektif) aynı kalır; sonraki standart yönetmelikler kod olarak
+    const direktifler = [modDirektif, "2006/42/AT", "2014/35/AB", "2014/30/AB"].join(", ");
+    const secHead = [st.sec, { marginBottom: 0, fontSize: 9.5 }];
+    // Modül bloğu firmanın CE belgelerine göre: H1 varsa H1; yoksa B + E
+    // Not: bu dosyadaki v() boş değerde "—" döndürür; bu yüzden ham alanlara bakılır.
+    const hasVal = (o: any) => !!(o && (o.belge_no || o.onaylanmis_kurulus || o.kurulus_no));
+    const hasH1 = hasVal(c.modulH1);
     return (
-      <Page key="uygunluk_beyani" size="A4" style={st.page}>
+      <Page key="uygunluk_beyani" size="A4" style={[st.page, { fontSize: 9 }]}>
         <Text style={[st.formTitle, { fontSize: 16 }]}>AB UYGUNLUK BEYANI</Text>
         <View style={{ height: 18 }} />
         <LR l="Montaj Firması" val={`${v(c.firma.unvan)}${c.firma.adres ? "\n" + v(c.firma.adres) : ""}`} w={secW} />
@@ -911,8 +913,11 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <LR l="Yapı Sahibi" val={c.inp.yapi_sahibi} w={secW} />
         <View style={{ height: 4 }} />
         <LR l="Uygulanan Standartlar" val="TS EN 81–20:2020, TS EN 81-50:2020, TS EN 81-70:2021, TS EN 81-28+AC:2022" w={secW} />
-        <Text style={st.sec}>İlgili Direktifler</Text>
-        <Text style={{ fontSize: 8.6, textAlign: "justify" }}>{direktifler}</Text>
+        {/* İlgili Direktifler: Uygulanan Standartlar gibi — etiket solda, içerik sağda (içerik fontu küçültülmez) */}
+        <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
+          <View style={{ width: secW, paddingRight: 6 }}><Text style={{ color: "#6b7280" }}>İlgili Direktifler</Text></View>
+          <View style={{ flex: 1 }}><Text style={{ fontWeight: "bold", color: "#111827", fontSize: 10, textAlign: "justify" }}>{direktifler}</Text></View>
+        </View>
         {isG ? (
           <>
             <Text style={secHead}>MODÜL G</Text>
@@ -921,26 +926,26 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
             <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.modul_kurulus_no} w={secW} />
             <LR l="MODÜL G Belge No" val={c.inp.modul_belge_no} w={secW} />
           </>
-        ) : isH ? (
+        ) : hasH1 ? (
           <>
             <Text style={secHead}>MODÜL H1</Text>
-            <LR l="Onaylanmış Kuruluş" val={c.inp.modul_onaylanmis_kurulus} w={secW} />
-            <LR l="Ünvanı ve Adresi" val={c.inp.modul_nb_adres} w={secW} />
-            <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.modul_kurulus_no} w={secW} />
-            <LR l="MODÜL H1 Belge No" val={c.inp.modul_belge_no} w={secW} />
+            <LR l="Onaylanmış Kuruluş" val={c.modulH1.onaylanmis_kurulus} w={secW} />
+            <LR l="Ünvanı ve Adresi" val={c.modulH1.nb_adres} w={secW} />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulH1.kurulus_no} w={secW} />
+            <LR l="MODÜL H1 Belge No" val={c.modulH1.belge_no} w={secW} />
           </>
         ) : (
           <>
             <Text style={secHead}>MODÜL B</Text>
-            <LR l="Onaylanmış Kuruluş" val={c.inp.ub_b_nb} w={secW} />
-            <LR l="Ünvanı ve Adresi" val={c.inp.ub_b_nb_adres} w={secW} />
-            <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_b_nb_no} w={secW} />
-            <LR l="MODÜL B Belge No" val={c.inp.ub_b_belge_no} w={secW} />
+            <LR l="Onaylanmış Kuruluş" val={c.modulB.onaylanmis_kurulus} w={secW} />
+            <LR l="Ünvanı ve Adresi" val={c.modulB.nb_adres} w={secW} />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulB.kurulus_no} w={secW} />
+            <LR l="MODÜL B Belge No" val={c.modulB.belge_no} w={secW} />
             <Text style={secHead}>MODÜL E</Text>
-            <LR l="Onaylanmış Kuruluş" val={c.inp.ub_e_nb} w={secW} />
-            <LR l="Ünvanı ve Adresi" val={c.inp.ub_e_nb_adres} w={secW} />
-            <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.ub_e_nb_no} w={secW} />
-            <LR l="MODÜL E Belge No" val={c.inp.ub_e_belge_no} w={secW} />
+            <LR l="Onaylanmış Kuruluş" val={c.modulE.onaylanmis_kurulus} w={secW} />
+            <LR l="Ünvanı ve Adresi" val={c.modulE.nb_adres} w={secW} />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulE.kurulus_no} w={secW} />
+            <LR l="MODÜL E Belge No" val={c.modulE.belge_no} w={secW} />
           </>
         )}
         <Text style={[st.p, { marginTop: 6, marginBottom: 0 }]}>

@@ -111,18 +111,28 @@ export async function GET(req: NextRequest) {
         else if (d.doc_type === "tse_hyb") attach.coTse.push(d.storage_path);
         else if (String(d.doc_type).startsWith("ce")) attach.coCe.push(d.storage_path);
       }
-      // Mod E belgesi (ce_e) → tescilde "UYGUNLUK BELGESİNE DAİR BİLGİLER" (Modül B/H seçiminde)
-      const { data: ceE } = await admin.from("company_documents")
-        .select("belge_no, issue_date, notified_body_id")
-        .eq("company_id", companyId).eq("doc_type", "ce_e")
-        .order("issue_date", { ascending: false }).limit(1).maybeSingle();
-      if (ceE) {
-        let nbName: string | null = null, nbNo: string | null = null;
-        if (ceE.notified_body_id) {
-          const { data: nb } = await admin.from("notified_bodies").select("name, identity_no").eq("id", ceE.notified_body_id).maybeSingle();
-          nbName = nb?.name ?? null; nbNo = nb?.identity_no ?? null;
+      // Firma CE modül belgeleri (ce_h1 / ce_b / ce_e) → tescil + AB Uygunluk Beyanı
+      const { data: ceDocs } = await admin.from("company_documents")
+        .select("doc_type, belge_no, issue_date, notified_body_id")
+        .eq("company_id", companyId).in("doc_type", ["ce_h1", "ce_b", "ce_e"])
+        .order("issue_date", { ascending: false });
+      if (ceDocs && ceDocs.length) {
+        const nbIds = Array.from(new Set(ceDocs.map((d: any) => d.notified_body_id).filter(Boolean)));
+        const nbMap = new Map<string, any>();
+        if (nbIds.length) {
+          const { data: nbs } = await admin.from("notified_bodies").select("id, name, identity_no, address").in("id", nbIds as string[]);
+          for (const n of nbs ?? []) nbMap.set(n.id, n);
         }
-        (ctx as any).modulE = { belge_no: ceE.belge_no ?? null, tarih: ceE.issue_date ?? null, onaylanmis_kurulus: nbName, kurulus_no: nbNo };
+        const pick = (dt: string) => {
+          const d = ceDocs.find((x: any) => x.doc_type === dt); // sıralı: en yeni önce
+          if (!d) return null;
+          const nb = d.notified_body_id ? nbMap.get(d.notified_body_id) : null;
+          return { belge_no: d.belge_no ?? null, tarih: d.issue_date ?? null, onaylanmis_kurulus: nb?.name ?? null, kurulus_no: nb?.identity_no ?? null, nb_adres: nb?.address ?? null };
+        };
+        const mH1 = pick("ce_h1"), mB = pick("ce_b"), mE = pick("ce_e");
+        if (mH1) (ctx as any).modulH1 = mH1;
+        if (mB) (ctx as any).modulB = mB;
+        if (mE) (ctx as any).modulE = mE;
       }
     }
 
