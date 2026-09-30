@@ -66,6 +66,9 @@ export async function GET(req: NextRequest) {
     coSanayi: string[]; coTse: string[]; coCe: string[];
     motorCerts: string[]; otherCerts: string[];
   } = { isG: false, pf: {}, engMakine: [], engElektrik: [], coSanayi: [], coTse: [], coCe: [], motorCerts: [], otherCerts: [] };
+  // Müşteri logosu (varsa header'da kısa ad yerine kullanılır)
+  let logoBytes: Uint8Array | null = null;
+  let logoMime = "image/png";
   try {
     const { data: prow } = await admin.from("projects")
       .select("makine_muhendis_id, elektrik_muhendis_id, company_id, input_data, bina_adi, td_no").eq("id", projectId).single();
@@ -90,6 +93,21 @@ export async function GET(req: NextRequest) {
         if (!(ctx as any).firma.telefon) (ctx as any).firma.telefon = crow.phone || crow.mobile_phone || null;
         if (!(ctx as any).firma.email) (ctx as any).firma.email = crow.email || null;
       }
+      // Müşteri logosu (company_documents doc_type=logo) → header'da kısa ad yerine
+      try {
+        const { data: logoDoc } = await admin.from("company_documents")
+          .select("storage_path").eq("company_id", companyId).eq("doc_type", "logo").limit(1).maybeSingle();
+        if (logoDoc?.storage_path) {
+          const { data: blob } = await admin.storage.from("documents").download(logoDoc.storage_path);
+          if (blob) {
+            logoBytes = new Uint8Array(await blob.arrayBuffer());
+            const ext = (logoDoc.storage_path.split(".").pop() || "").toLowerCase();
+            logoMime = ext === "png" ? "image/png" : "image/jpeg";
+            (ctx as any).firma = (ctx as any).firma || {};
+            (ctx as any).firma.logo = `data:${logoMime};base64,${Buffer.from(logoBytes).toString("base64")}`;
+          }
+        }
+      } catch { /* logo alınamazsa kısa ad kalır */ }
     }
     const engIds = [prow?.makine_muhendis_id, prow?.elektrik_muhendis_id].filter(Boolean) as string[];
 
@@ -268,10 +286,18 @@ export async function GET(req: NextRequest) {
         const seriNo = String(sk.asansor_seri_no || "").trim();
         const black = rgb(0, 0, 0);
         const pages = doc.getPages();
-        // Sol üst köşe: firma kısa adı (her sayfa)
+        // Sol üst köşe: logo varsa logo, yoksa firma kısa adı (her sayfa)
+        let logoImg: any = null;
+        if (logoBytes) { try { logoImg = logoMime === "image/png" ? await doc.embedPng(logoBytes) : await doc.embedJpg(logoBytes); } catch { logoImg = null; } }
         for (const pg of pages) {
           const { height } = pg.getSize();
-          if (kisaAd) pg.drawText(kisaAd, { x: 30, y: height - 16, size: 8, font: fontB, color: rgb(0.25, 0.25, 0.25) });
+          if (logoImg) {
+            let lh = 28, lw = (logoImg.width / logoImg.height) * lh;
+            if (lw > 120) { lw = 120; lh = (logoImg.height / logoImg.width) * lw; }
+            pg.drawImage(logoImg, { x: 30, y: height - 10 - lh, width: lw, height: lh });
+          } else if (kisaAd) {
+            pg.drawText(kisaAd, { x: 30, y: height - 16, size: 8, font: fontB, color: rgb(0.25, 0.25, 0.25) });
+          }
         }
         // Bilgi: yalnız 1. sayfa, başlık altındaki boşluğa — çizgisiz (etiket : değer)
         const p1 = pages[0];

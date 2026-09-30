@@ -56,6 +56,7 @@ const st = StyleSheet.create({
   skItem: { flex: 1, paddingRight: 4 },
   skBox: { width: 40, alignItems: "center" },
   skFirmaHdr: { position: "absolute", top: 14, left: 30, fontSize: 8, fontWeight: "bold", color: "#000000" },
+  logoHdr: { position: "absolute", top: 12, left: 30, height: 30, objectFit: "contain", objectPositionX: 0 },
   skSquare: { width: 11, height: 11, borderWidth: 0.8, borderColor: "#000000", borderRadius: 2 },
 
   // Resmi form (EK-1 / EK-3 / Taahhütname) — kutulu, keskin köşeli, koyu kenarlık
@@ -297,7 +298,7 @@ function teknikKomponentPage(c: any) {
 
   return (
     <Page key="teknik_komponent" size="A4" style={st.kPage}>
-      <Text style={st.skFirmaHdr} fixed>{vb(c.firma?.kisa_ad || c.firma?.unvan)}</Text>
+      <FirmaHeader c={c} />
       <Text style={st.kTitle}>ASANSÖR TEKNİK ÖZELLİKLERİ &amp; GÜVENLİK EKİPMANLARI LİSTESİ</Text>
 
       <KInfo l="ASANSÖR SERİ NO" val={c.inp.asansor_seri_no} />
@@ -434,6 +435,11 @@ function Footer({ unvan, alt }: { unvan?: string; alt?: string }) {
     </View>
   );
 }
+// Sol üst köşe header: müşteri logosu varsa logo, yoksa firma kısa adı
+function FirmaHeader({ c, textStyle }: { c: any; textStyle?: any }) {
+  if (c?.firma?.logo) return <Image src={c.firma.logo} style={st.logoHdr} fixed />;
+  return <Text style={textStyle || st.skFirmaHdr} fixed>{v(c?.firma?.kisa_ad || c?.firma?.unvan)}</Text>;
+}
 function DocHead({ firma, title }: { firma: any; title: string }) {
   return (
     <>
@@ -559,7 +565,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   dilekce: (c) => (
     <Page key="dilekce" size="A4" style={st.page}>
       {/* Sol üst köşe: firma kısa adı (letterhead) */}
-      <Text style={st.dilekceHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <FirmaHeader c={c} textStyle={st.dilekceHdr} />
       <View style={{ flexGrow: 1, justifyContent: "center" }}>
         <View style={st.topRow}><Text> </Text><Text>…./…./20…</Text></View>
         <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 4 }}>
@@ -588,7 +594,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   firma_bilgileri: (c) => (
     <Page key="firma_bilgileri" size="A4" style={st.page}>
-      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <FirmaHeader c={c} />
       <View style={{ flexGrow: 1, justifyContent: "center" }}>
         <Text style={st.docTitle}>FİRMA BİLGİLERİ</Text>
         <View style={st.rule} />
@@ -748,7 +754,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   bakim_sozlesmesi: (c) => (
     <Page key="bakim_sozlesmesi" size="A4" style={st.page} wrap>
-      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <FirmaHeader c={c} />
       <Text style={[st.formTitle, { marginBottom: 4 }]}>ASANSÖR BAKIM SÖZLEŞMESİ</Text>
 
       <BsMadde no={1} baslik="AKİTLER">
@@ -911,7 +917,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     const hasH1 = hasVal(c.modulH1);
     return (
       <Page key="uygunluk_beyani" size="A4" style={[st.page, { fontSize: 9 }]}>
-        <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+        <FirmaHeader c={c} />
         <Text style={[st.formTitle, { fontSize: 16 }]}>AB UYGUNLUK BEYANI</Text>
         <View style={{ height: 18 }} />
         <LR l="Montaj Firması" val={`${v(c.firma.unvan)}${c.firma.adres ? "\n" + v(c.firma.adres) : ""}`} w={secW} plain dark />
@@ -983,7 +989,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   yazili_beyanname: (c) => (
     <Page key="yazili_beyanname" size="A4" style={st.page}>
-      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <FirmaHeader c={c} />
       <Text style={st.docTitle}>BEYANNAME</Text>
       <View style={st.rule} />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
@@ -1016,7 +1022,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   motor_beyannamesi: (c) => (
     <Page key="motor_beyannamesi" size="A4" style={st.page}>
-      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <FirmaHeader c={c} />
       <Text style={{ textAlign: "right", fontSize: 9, color: "#000000", marginBottom: 2 }}>{c.tarih}</Text>
       <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 2 }}>MOTOR BEYANNAMESİ</Text>
       <View style={{ height: 48 }} />
@@ -1052,7 +1058,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     const ebMm = (a: any, b: any) => { const e = ebat(a, b); return e ? `${e} mm` : ""; };
     return (
     <Page key="seyir_defteri" size="A4" style={st.page} wrap>
-      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <FirmaHeader c={c} />
       <Text style={st.formTitle}>ASANSÖR SEYİR DEFTERİ</Text>
       <View style={{ height: 6 }} />
       <View style={st.fBox}>
@@ -1152,7 +1158,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   egitim_tutanagi: (c) => (
     <Page key="egitim_tutanagi" size="A4" style={st.page}>
-      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <FirmaHeader c={c} />
       <Text style={st.docTitle}>{"ASANSÖRDE MAHSUR KALAN KİŞİLERİN KURTARILMASI\nEĞİTİM TUTANAĞI"}</Text>
       <View style={st.rule} />
       <R l="Asansör Tipi" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} />
@@ -1197,7 +1203,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   teslim_tutanagi: (c) => (
     <Page key="teslim_tutanagi" size="A4" style={st.page}>
-      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <FirmaHeader c={c} />
       <Text style={st.docTitle}>ASANSÖR ve DOKÜMAN TESLİM TUTANAĞI</Text>
       <View style={st.rule} />
       <R l="Asansör Tipi" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} />
@@ -1246,7 +1252,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   son_kontrol_formu: (c) => (
     <Page key="son_kontrol_formu" size="A4" style={st.page} wrap>
-      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <FirmaHeader c={c} />
       <Text style={st.docTitle}>ASANSÖR SON KONTROL FORMU</Text>
       <Text style={{ textAlign: "center", fontSize: 9.5, fontWeight: "bold", color: TEAL, marginTop: 2, marginBottom: 2 }}>(TS EN 81-20 / 28 / 70 / 73)</Text>
       <View style={st.rule} />
