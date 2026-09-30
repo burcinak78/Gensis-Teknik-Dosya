@@ -84,12 +84,12 @@ const st = StyleSheet.create({
 
   // Teknik & Komponent Listesi (Excel birebir, tek sayfa)
   kPage: { fontFamily: "Roboto", fontSize: 8, color: "#111827", paddingTop: 26, paddingHorizontal: 30, paddingBottom: 30, lineHeight: 1.2 },
-  kTitle: { textAlign: "center", fontWeight: "bold", fontSize: 11, color: "#0f172a", marginBottom: 20 },
+  kTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#0f172a", marginBottom: 20 },
   kInfoRow: { flexDirection: "row", paddingVertical: 1 },
-  kLbl: { width: "26%", fontSize: 12, fontWeight: "bold", color: "#1f2937" },
-  kSep: { width: "3%", fontSize: 12 },
-  kVal: { flex: 1, fontSize: 12, color: "#111827" },
-  kSub: { width: "26%", fontSize: 12, color: "#1f2937", paddingLeft: 10 },
+  kLbl: { width: "26%", fontSize: 10, fontWeight: "bold", color: "#1f2937" },
+  kSep: { width: "3%", fontSize: 10 },
+  kVal: { flex: 1, fontSize: 10, color: "#111827" },
+  kSub: { width: "26%", fontSize: 10, color: "#1f2937", paddingLeft: 10 },
   kTbl: { borderTopWidth: 0.9, borderLeftWidth: 0.9, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#334155", marginTop: 10 },
   kRow: { flexDirection: "row" },
   kH: { fontSize: 6, fontWeight: "bold", backgroundColor: "#e5e9f0", color: "#0f172a", paddingVertical: 3, paddingHorizontal: 2, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#334155", textAlign: "center" },
@@ -200,7 +200,7 @@ function KInfo({ l, val, unit, sub }: { l: string; val?: any; unit?: string; sub
   );
 }
 function KSection({ children }: { children: any }) {
-  return <Text style={{ fontSize: 12, fontWeight: "bold", marginTop: 4 }}>{children}</Text>;
+  return <Text style={{ fontSize: 10, fontWeight: "bold", marginTop: 4 }}>{children}</Text>;
 }
 
 // Çok satırlı komponent bloğu: seri no alt satır satır, diğer sütunlar birleşik
@@ -261,13 +261,24 @@ function teknikKomponentPage(c: any) {
   // Yukarı yön aşırı hızlanma: askı 1/1 ise fren bloğu, 2/1/4/1 ise makine motoru
   const yukari = aski.startsWith("1/1") ? (eq.fren_blogu || {}) : (eq.motor || {});
   const kurulus = (e: any) => [e?.kurulus_no, e?.onaylanmis_kurulus].filter(Boolean).join(" ");
-  // Hidrolik asansörde karşı ağırlık yoktur → Ağırlık Tamponu ve Yukarı Yön Aşırı Hızlanma (çekmeli) satırları gelmez
+  // Hidrolik valfleri kategori ADINA göre bul (kod Supabase'te tanımlı; ada göre eşleştir)
+  const cats: any[] = c.equipCats || [];
+  const findEqByName = (patterns: string[]) => {
+    const cat = cats.find((k: any) => { const n = String(k?.name || "").toLocaleLowerCase("tr"); return patterns.some((p) => n.includes(p)); });
+    return cat ? (eq[cat.code] || {}) : {};
+  };
+  const ruptureEq = findEqByName(["rupture", "patlak", "boru kır"]);
+  const ucmEq = findEqByName(["ucm", "istem dışı", "kontrolsüz"]);
+  // Hidrolik asansörde karşı ağırlık yoktur → Ağırlık Tamponu ve Yukarı Yön Aşırı Hızlanma (çekmeli) satırları gelmez.
+  // Hidrolikte son iki satır: Patlak Boru (Rupture) Valfi ve UCM Valfi (seçilen ekipmandan)
   const satirlar: [string, any][] = c.isHid
     ? [
         ["Aşırı Hız Sınırlayıcı Tertibat", eq.hiz_regulatoru],
         ["Kabin Güvenlik Tertibatı", eq.fren_blogu],
         ["Kabin Tamponu", eq.tampon_kabin || eq.tampon],
         ["Elektronik Aksam İçeren Güvenlik Tertibatı", eq.kumanda],
+        ["Patlak Boru (Rupture) Valfi", ruptureEq],
+        ["UCM Valfi", ucmEq],
       ]
     : [
         ["Aşırı Hız Sınırlayıcı Tertibat", eq.hiz_regulatoru],
@@ -475,6 +486,7 @@ function buildCtx(data: any) {
   const kap = d.kapasite || {};
   const inp = d.input_data || d;
   const ekipman: Record<string, any> = d.ekipman || {};
+  const equipCats: { code: string; name: string; drive_type?: string }[] = d.equipCats || [];
   const bugun = fmtTR(new Date());
   const tarih = d.dosya_tarihi ? fmtTR(d.dosya_tarihi) : bugun;
   const fname = v(firma.unvan || firma.kisa_ad);
@@ -500,7 +512,7 @@ function buildCtx(data: any) {
   const assetBase = d.__assetBase || "";
   // Tüm evrak footer'ı: Ticari Ünvan · Adres · Telefon · E-posta (tek satır)
   const footerText = [firma.unvan || firma.kisa_ad, firma.adres, firma.telefon, firma.email].filter(Boolean).map((x: any) => String(x).trim()).join(" · ");
-  return { d, firma, modul, modulE, modulH1, modulB, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi, assetBase, footerText };
+  return { d, firma, modul, modulE, modulH1, modulB, muh, kap, inp, ekipman, equipCats, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi, assetBase, footerText };
 }
 
 // CE işareti — kapak için (resmi CE markası görseli)

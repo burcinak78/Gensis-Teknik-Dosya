@@ -136,6 +136,10 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Ekipman kategorileri (kod → ad) — Teknik Komponent'te hidrolik valfleri ada göre bulmak için
+    const { data: allCats } = await admin.from("equipment_categories").select("code, name, drive_type");
+    if (allCats) (ctx as any).equipCats = allCats;
+
     const { data: peq } = await admin.from("project_equipment")
       .select("certificate_id, equipment_categories(code)").eq("project_id", projectId);
     const motorIds = new Set<string>(); const otherIds = new Set<string>();
