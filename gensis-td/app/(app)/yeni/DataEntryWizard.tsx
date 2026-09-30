@@ -87,6 +87,18 @@ const MULTI_SERI: Record<string, { count: "durak" | "giris" | "kat"; label: stri
   kapi_kilidi: { count: "kat", label: "Kat" },
   kabin_kilidi: { count: "giris", label: "Giriş" },
 };
+// Kapı kilidinde her kat için giriş sayısı kadar seri no vardır. Tek bir string olarak
+// "seri1 / seri2" biçiminde saklanır; UI'de giriş sayısı kadar ayrı kutuya bölünür.
+const splitSeri = (s: string | undefined, g: number): string[] => {
+  const parts = String(s ?? "").split("/").map((x) => x.trim());
+  while (parts.length < g) parts.push("");
+  return parts.slice(0, Math.max(1, g));
+};
+const joinSeri = (parts: string[]): string => {
+  const p = parts.map((x) => x.trim());
+  while (p.length > 1 && p[p.length - 1] === "") p.pop();
+  return p.join(" / ");
+};
 const empty = (x: any) => x === "" || x === null || x === undefined;
 
 // Eksik alan pop-up'ında gösterilecek okunur alan adları
@@ -343,6 +355,8 @@ export default function DataEntryWizard(props: Props) {
   // Asma (ara) kat satırları: kapı kilidinde ara kat karşısındaki seri no PASİF olur
   const araKatLabelSet = useMemo(() => new Set(araKatlar.map((m) => m.label)), [araKatlar]);
   const isPasifSeri = (code: string, i: number) => code === "kapi_kilidi" && araKatLabelSet.has(katListesi[i]);
+  // Kapı kilidinde bir kat için kaç seri no kutusu gösterileceği = giriş sayısı (en az 1)
+  const GIRIS = Math.max(1, Number(girisSayisi) || 1);
 
   // Kat listesi değiştiğinde (ör. asma kat ekle/çıkar) kapı kilidi seri no'larını
   // KONUMA göre değil KAT İSMİNE göre yeniden hizala. Böylece araya kat eklenince
@@ -380,7 +394,13 @@ export default function DataEntryWizard(props: Props) {
       const list = s.seriList || [];
       for (let i = 0; i < n; i++) {
         if (isPasifSeri(card.code, i)) continue;
-        if (!list[i] || !list[i].trim()) return true;
+        if (card.code === "kapi_kilidi") {
+          // her kat için giriş sayısı kadar seri no dolu olmalı
+          const parts = splitSeri(list[i], GIRIS);
+          if (parts.some((p) => !p.trim())) return true;
+        } else if (!list[i] || !list[i].trim()) {
+          return true;
+        }
       }
       return false;
     }
@@ -455,6 +475,16 @@ export default function DataEntryWizard(props: Props) {
     setEquip((e) => {
       const cur = e[catId]?.seriList ? [...e[catId].seriList!] : [];
       cur[i] = v;
+      return { ...e, [catId]: { ...e[catId], seriList: cur } };
+    });
+  }
+  // Kapı kilidi: kat i'nin g. giriş seri no'sunu günceller (tek string olarak "s1 / s2" saklanır)
+  function setSeriPartAt(catId: string, floorIdx: number, g: number, v: string) {
+    setEquip((e) => {
+      const cur = e[catId]?.seriList ? [...e[catId].seriList!] : [];
+      const parts = splitSeri(cur[floorIdx], GIRIS);
+      parts[g] = v;
+      cur[floorIdx] = joinSeri(parts);
       return { ...e, [catId]: { ...e[catId], seriList: cur } };
     });
   }
@@ -1141,27 +1171,39 @@ export default function DataEntryWizard(props: Props) {
                           <label className="block text-xs font-semibold text-slate-700 mb-1">
                             Seri No — her {multiCfg.label.toLocaleLowerCase("tr")} için ayrı ({multiN} adet) *
                           </label>
-                          {cat.code === "kapi_kilidi" && (
+                          {cat.code === "kapi_kilidi" && GIRIS > 1 && (
                             <p className="text-[11px] text-slate-500 mb-1.5">
-                              Aynı durakta/kapıda birden fazla seri no varsa &apos;xxx / xxx&apos; şeklinde giriniz.
+                              Giriş sayısı {GIRIS} olduğu için her kat için {GIRIS} adet seri no giriniz.
                             </p>
                           )}
                           <div className="space-y-2">
                             {Array.from({ length: multiN }).map((_, i) => {
-                              const v = sel.seriList?.[i] ?? "";
                               const pasif = isPasifSeri(cat.code, i);
+                              const parts = cat.code === "kapi_kilidi" ? splitSeri(sel.seriList?.[i], GIRIS) : [];
                               return (
                                 <div key={i} className="flex items-center gap-2">
                                   <span className="w-24 shrink-0 text-xs font-semibold text-slate-600">{seriEtiket(cat.code, i)}</span>
                                   {pasif ? (
                                     <input value="Giriş yapılamaz" disabled
                                       className="inp !bg-slate-100 !text-slate-400 !border-slate-200 cursor-not-allowed italic" />
+                                  ) : cat.code === "kapi_kilidi" ? (
+                                    <div className="flex flex-1 gap-2">
+                                      {parts.map((pv, g) => (
+                                        <input
+                                          key={g}
+                                          value={pv}
+                                          onChange={(e) => setSeriPartAt(cat.key, i, g, e.target.value)}
+                                          placeholder={GIRIS > 1 ? `Giriş ${g + 1} seri no` : "Seri no"}
+                                          className={"inp flex-1" + (showErrors && !pv.trim() ? " !border-red-300 !bg-red-50" : "")}
+                                        />
+                                      ))}
+                                    </div>
                                   ) : (
                                     <input
-                                      value={v}
+                                      value={sel.seriList?.[i] ?? ""}
                                       onChange={(e) => setSeriAt(cat.key, i, e.target.value)}
                                       placeholder="Seri no"
-                                      className={"inp" + (showErrors && !v.trim() ? " !border-red-300 !bg-red-50" : "")}
+                                      className={"inp" + (showErrors && !(sel.seriList?.[i] ?? "").trim() ? " !border-red-300 !bg-red-50" : "")}
                                     />
                                   )}
                                 </div>
