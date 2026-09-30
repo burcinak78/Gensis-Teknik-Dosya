@@ -54,7 +54,7 @@ const st = StyleSheet.create({
 
   // Resmi form (EK-1 / EK-3 / Taahhütname) — kutulu, keskin köşeli, koyu kenarlık
   // Resmi form için daraltılmış sayfa (tek sayfaya sığması için)
-  pageForm: { fontFamily: "Roboto", fontSize: 8, color: "#1f2937", paddingTop: 26, paddingHorizontal: 32, paddingBottom: 34, lineHeight: 1.25 },
+  pageForm: { fontFamily: "Roboto", fontSize: 8, color: "#1f2937", paddingTop: 24, paddingHorizontal: 32, paddingBottom: 18, lineHeight: 1.25 },
   formTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#0f172a", marginBottom: 1 },
   formSub: { textAlign: "center", fontSize: 8.5, color: "#475569", marginBottom: 6 },
   fBox: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderRightWidth: 0.8, borderColor: "#334155" },
@@ -63,9 +63,9 @@ const st = StyleSheet.create({
   fVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#111827" },
   fSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#334155" },
   fColHead: { flexDirection: "row", backgroundColor: "#f1f5f9", borderBottomWidth: 0.8, borderColor: "#334155" },
-  fc1: { width: "33%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155" },
-  fc2: { width: "15%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
-  fc3: { width: "15%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
+  fc1: { width: "26%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155" },
+  fc2: { width: "11%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
+  fc3: { width: "11%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
   fc4: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", textAlign: "left" },
   // Genel tablo (Marka/Tip/Model.. ve Seyir Defteri tabloları)
   tbl: { borderTopWidth: 0.6, borderLeftWidth: 0.6, borderColor: "#94a3b8", marginTop: 4 },
@@ -95,12 +95,13 @@ const st = StyleSheet.create({
 const KW = { ad: "26%", kat: "8%", marka: "14%", tip: "14%", seri: "14%", sert: "12%", kur: "12%" };
 
 // Resmi form yardımcıları
-function FRow({ l, val, tall }: { l: string; val?: any; tall?: number }) {
+function FRow({ l, val, tall, max }: { l: string; val?: any; tall?: number; max?: number }) {
   // tall verildiğinde alignItems'e dokunma (stretch kalsın) → ortadaki dikey çizgi tüm satır boyu tamamlanır
+  // max: değer en fazla bu kadar satır (tek sayfa güvencesi için uzun adreslerde kullanılır)
   return (
     <View style={[st.fRow, tall ? { minHeight: tall } : null]}>
       <Text style={st.fLabel}>{l}</Text>
-      <Text style={st.fVal}>{val !== undefined && val !== null && String(val).trim() !== "" ? String(val) : ""}</Text>
+      <Text style={st.fVal} numberOfLines={max}>{val !== undefined && val !== null && String(val).trim() !== "" ? String(val) : ""}</Text>
     </View>
   );
 }
@@ -443,6 +444,7 @@ function buildCtx(data: any) {
   const d = data || {};
   const firma = d.firma || {};
   const modul = d.firma_modul || {};
+  const modulE = d.modulE || {}; // firmanın yüklenmiş Mod E belgesi (ce_e) — B/H seçiminde tescilde kullanılır
   const muh = d.muhendis || {};
   const kap = d.kapasite || {};
   const inp = d.input_data || d;
@@ -472,7 +474,7 @@ function buildCtx(data: any) {
   const assetBase = d.__assetBase || "";
   // Tüm evrak footer'ı: Ticari Ünvan · Adres · Telefon · E-posta (tek satır)
   const footerText = [firma.unvan || firma.kisa_ad, firma.adres, firma.telefon, firma.email].filter(Boolean).map((x: any) => String(x).trim()).join(" · ");
-  return { d, firma, modul, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi, assetBase, footerText };
+  return { d, firma, modul, modulE, muh, kap, inp, ekipman, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi, assetBase, footerText };
 }
 
 // CE işareti — kapak için (resmi CE markası görseli)
@@ -562,6 +564,9 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   tescil: (c) => {
     const eq = c.ekipman;
+    // Modül seçimi: "G" → Mod G belgesi; aksi (H1B = Mod H1/B) → firmanın yüklenmiş Mod E belgesi
+    const isG = String(c.inp.modul_secim || "").toUpperCase() === "G";
+    const mE = c.modulE || {};
     const guv: [string, any][] = [
       ["Durak kapılarını kilitleme tertibatı", eq.kapi_kilidi || {}],
       ["Kabinin düşmesini veya kontrolsüz hareket etmesini engelleyen tertibatlar", eq.fren_blogu || {}],
@@ -587,16 +592,15 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <View style={st.fBox}>
           <FRow l="TESCİL TARİHİ" val="" />
           <FRow l="TESCİL KAYIT NUMARASI" val="" />
-          <FRow l="TESCİLİ YAPAN İLGİLİ İDARENİN ADI VE ADRESİ" val={c.d.belediye ? `${String(v(c.d.belediye)).toLocaleUpperCase("tr")} BELEDİYESİ` : ""} />
+          <FRow l="TESCİLİ YAPAN İLGİLİ İDARENİN ADI VE ADRESİ" val={c.d.belediye ? `${String(v(c.d.belediye)).toLocaleUpperCase("tr")} BELEDİYESİ` : ""} max={2} />
           <FSection>ASANSÖR MONTE EDENE DAİR BİLGİLER</FSection>
           <FRow l="ASANSÖR MONTE EDENİN ADI" val={c.firma.unvan} />
-          <FRow l="ASANSÖR MONTE EDENİN ADRESİ" val={c.firma.adres} />
-          <FRow l="ASANSÖR MONTE EDENE AİT İLETİŞİM BİLGİLERİ (TELEFON)" val={c.firma.telefon} />
-          <FRow l="ASANSÖR MONTE EDENE AİT İLETİŞİM BİLGİLERİ (E-POSTA)" val={c.firma.email} />
+          <FRow l="ASANSÖR MONTE EDENİN ADRESİ" val={c.firma.adres} max={2} />
+          <FRow l="ASANSÖR MONTE EDENE AİT İLETİŞİM BİLGİLERİ" val={[c.firma.telefon, c.firma.email].filter(Boolean).join(" / ")} />
           <FSection>ASANSÖRE DAİR BİLGİLER</FSection>
           <FRow l="ASANSÖR KİMLİK NUMARASI" val={c.inp.asansor_kimlik_no} />
           <FRow l="ADA VE PARSEL NO" val={c.adaParsel} />
-          <FRow l="ASANSÖRÜN MONTAJ ADRESİ" val={c.d.montaj_adresi} />
+          <FRow l="ASANSÖRÜN MONTAJ ADRESİ" val={c.d.montaj_adresi} max={2} />
           <FRow l="ASANSÖRÜN MARKASI" val={c.firma.tescilli_marka} />
           <FRow l="ASANSÖRÜN SERİ NUMARASI" val={c.inp.asansor_seri_no} />
           <FRow l="ASANSÖRÜN İMAL YILI" val={c.d.imal_yili} />
@@ -612,11 +616,11 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
             <Text style={st.fc4}>SERİ NO</Text>
           </View>
           {guv.map(([lab, e], i) => (
-            <View style={st.fRow} key={i}>
-              <Text style={st.fc1}>{lab}</Text>
-              <Text style={st.fc2}>{e?.marka || ""}</Text>
-              <Text style={st.fc3}>{e?.model || ""}</Text>
-              <Text style={st.fc4}>{i === 0 ? kilitSeriMetin : (e?.seri_no || "")}</Text>
+            <View style={st.fRow} key={i} wrap={false}>
+              <Text style={st.fc1} numberOfLines={2}>{lab}</Text>
+              <Text style={st.fc2} numberOfLines={2}>{e?.marka || ""}</Text>
+              <Text style={st.fc3} numberOfLines={2}>{e?.model || ""}</Text>
+              <Text style={st.fc4} numberOfLines={3}>{i === 0 ? kilitSeriMetin : (e?.seri_no || "")}</Text>
             </View>
           ))}
           <FSection>MEVZUAT</FSection>
@@ -625,10 +629,21 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <FRow l="BEYAN TARİHİ" val={c.servisTarihi} />
           <FRow l="İMZA SAHİBİNİN ADI VE SOYADI" val={c.firma.yetkili} />
           <FSection>UYGUNLUK BELGESİNE DAİR BİLGİLER</FSection>
-          <FRow l="BELGE NUMARASI" val={c.inp.modul_belge_no || c.modul.belge_no} />
-          <FRow l="BELGE DÜZENLENME TARİHİ" val={fmtTR(c.inp.modul_belge_tarihi) || c.modul.tarih} />
-          <FRow l="ONAYLANMIŞ KURULUŞUN ADI" val={c.inp.modul_onaylanmis_kurulus || c.modul.onaylanmis_kurulus} />
-          <FRow l="ONAYLANMIŞ KURULUŞUN KİMLİK NUMARASI" val={c.inp.modul_kurulus_no || c.modul.kurulus_no} />
+          {isG ? (
+            <>
+              <FRow l="BELGE NUMARASI" val={c.inp.modul_belge_no || c.modul.belge_no} />
+              <FRow l="BELGE DÜZENLENME TARİHİ" val={fmtTR(c.inp.modul_belge_tarihi) || c.modul.tarih} />
+              <FRow l="ONAYLANMIŞ KURULUŞUN ADI" val={c.inp.modul_onaylanmis_kurulus || c.modul.onaylanmis_kurulus} />
+              <FRow l="ONAYLANMIŞ KURULUŞUN KİMLİK NUMARASI" val={c.inp.modul_kurulus_no || c.modul.kurulus_no} />
+            </>
+          ) : (
+            <>
+              <FRow l="BELGE NUMARASI" val={mE.belge_no} />
+              <FRow l="BELGE DÜZENLENME TARİHİ" val={fmtTR(mE.tarih)} />
+              <FRow l="ONAYLANMIŞ KURULUŞUN ADI" val={mE.onaylanmis_kurulus} />
+              <FRow l="ONAYLANMIŞ KURULUŞUN KİMLİK NUMARASI" val={mE.kurulus_no} />
+            </>
+          )}
           <FSection>SANAYİ SİCİL BELGESİNE DAİR BİLGİLER</FSection>
           <FRow l="BELGE TARİHİ" val={fmtTR(c.inp.sanayi_sicil_tarihi)} />
           <FRow l="BELGE NUMARASI" val={c.inp.sanayi_sicil_no || c.firma.sanayi_sicil_no} />
@@ -642,7 +657,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <Text style={{ fontSize: 7.3, marginTop: 6, textAlign: "justify" }}>
           {v(c.d.montaj_adresi)} adresinde monte edilen ve {c.servisTarihi} Tarihinde piyasaya arz edilmiş olan asansörün tescili, 06.04.2019 tarihli ve 30737 sayılı Resmî Gazete’de yayımlanan Asansör İşletme ve Bakım Yönetmeliğine göre yapılmıştır.
         </Text>
-        <View style={{ marginTop: 14, alignSelf: "flex-end", borderWidth: 1, borderColor: "#9aa4b2", width: 240 }}>
+        <View style={{ marginTop: 8, alignSelf: "flex-end", borderWidth: 1, borderColor: "#9aa4b2", width: 240 }}>
           <Text style={{ fontSize: 7.3, textAlign: "center", padding: 4, borderBottomWidth: 1, borderColor: "#9aa4b2", fontWeight: "bold" }}>İLGİLİ İDARE ADINA İMZA YETKİLİSİNİN</Text>
           <Text style={{ fontSize: 7.3, textAlign: "center", paddingTop: 4, height: 46 }}>İMZA VE MÜHÜR</Text>
         </View>

@@ -111,6 +111,19 @@ export async function GET(req: NextRequest) {
         else if (d.doc_type === "tse_hyb") attach.coTse.push(d.storage_path);
         else if (String(d.doc_type).startsWith("ce")) attach.coCe.push(d.storage_path);
       }
+      // Mod E belgesi (ce_e) → tescilde "UYGUNLUK BELGESİNE DAİR BİLGİLER" (Modül B/H seçiminde)
+      const { data: ceE } = await admin.from("company_documents")
+        .select("belge_no, issue_date, notified_body_id")
+        .eq("company_id", companyId).eq("doc_type", "ce_e")
+        .order("issue_date", { ascending: false }).limit(1).maybeSingle();
+      if (ceE) {
+        let nbName: string | null = null, nbNo: string | null = null;
+        if (ceE.notified_body_id) {
+          const { data: nb } = await admin.from("notified_bodies").select("name, identity_no").eq("id", ceE.notified_body_id).maybeSingle();
+          nbName = nb?.name ?? null; nbNo = nb?.identity_no ?? null;
+        }
+        (ctx as any).modulE = { belge_no: ceE.belge_no ?? null, tarih: ceE.issue_date ?? null, onaylanmis_kurulus: nbName, kurulus_no: nbNo };
+      }
     }
 
     const { data: peq } = await admin.from("project_equipment")
