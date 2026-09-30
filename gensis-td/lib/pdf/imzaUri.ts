@@ -1,21 +1,13 @@
-import sharp from "sharp";
-
-// Mühendis imzasını react-pdf'in güvenle basabileceği temiz bir PNG data URI'ye çevirir.
-// Telefonla çekilmiş progressive/CMYK JPEG'ler react-pdf'te sessizce düşebildiği için
-// görsel her durumda yeniden kodlanır; şeffaflık korunur.
+// Mühendis imzasını react-pdf'in basabileceği bir data URI'ye çevirir.
+// (Harici bağımlılık yok — Vercel derlemesinde sorun çıkmaması için sharp kullanılmaz.)
+// MIME türü dosya içeriğinin sihirli baytlarından belirlenir; PNG değilse JPEG varsayılır.
 export async function imzaToPngDataUri(bytes: Uint8Array): Promise<string | null> {
   try {
-    const png = await sharp(Buffer.from(bytes))
-      .rotate() // EXIF yönünü uygula
-      .png()
-      .toBuffer();
-    return `data:image/png;base64,${png.toString("base64")}`;
+    if (!bytes || bytes.length < 4) return null;
+    const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+    const mime = isPng ? "image/png" : "image/jpeg";
+    return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
   } catch {
-    // sharp çözemezse ham baytları PNG/JPEG olarak denemeye bırak (son çare)
-    try {
-      return `data:image/png;base64,${Buffer.from(bytes).toString("base64")}`;
-    } catch {
-      return null;
-    }
+    return null;
   }
 }
