@@ -1207,7 +1207,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
       <Text style={st.docTitle}>ASANSÖR ve DOKÜMAN TESLİM TUTANAĞI</Text>
       <View style={st.rule} />
-      <R l="Asansör Tipi" val={c.malinCinsi} />
+      <R l="Asansör Tipi" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
       <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
       <R l="Servise Veriliş Tarihi" val={c.servisTarihi} />
