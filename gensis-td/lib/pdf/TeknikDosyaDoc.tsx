@@ -18,8 +18,10 @@ const st = StyleSheet.create({
   firmaName: { fontSize: 13, fontWeight: "bold", color: NAVY },
   firmaSub: { fontSize: 9, color: "#6b7280", marginBottom: 14 },
   docTitle: { fontSize: 15, fontWeight: "bold", color: NAVY, textAlign: "center", marginTop: 4 },
-  rule: { borderBottomWidth: 2, borderBottomColor: TEAL, width: 110, alignSelf: "center", marginTop: 4, marginBottom: 16 },
+  rule: { borderBottomWidth: 2, borderBottomColor: "#000000", width: 110, alignSelf: "center", marginTop: 4, marginBottom: 16 },
   sec: { fontSize: 10.5, fontWeight: "bold", color: TEAL, marginTop: 12, marginBottom: 6, borderBottomWidth: 0.5, borderBottomColor: "#e2e8f0", paddingBottom: 3 },
+  // Siyah başlık varyantı (Seyir Defteri / Eğitim & Teslim Tutanağı)
+  secB: { fontSize: 10.5, fontWeight: "bold", color: "#111827", marginTop: 12, marginBottom: 6, borderBottomWidth: 0.6, borderBottomColor: "#000000", paddingBottom: 3 },
   row: { flexDirection: "row", paddingVertical: 2.2 },
   lbl: { width: "42%", paddingLeft: 2, paddingRight: 4, color: "#6b7280" },
   val: { width: "58%", fontWeight: "bold", color: "#111827" },
@@ -32,7 +34,7 @@ const st = StyleSheet.create({
   signBox: { width: "45%" },
   signLine: { borderTopWidth: 0.5, borderTopColor: "#9ca3af", marginTop: 34, paddingTop: 4, fontSize: 9, color: "#6b7280" },
   listRow: { flexDirection: "row", paddingVertical: 2 },
-  listNo: { width: 22, color: TEAL, fontWeight: "bold" },
+  listNo: { width: 22, color: "#111827", fontWeight: "bold" },
   footer: { position: "absolute", bottom: 24, left: 42, right: 42, fontSize: 8, color: "#9ca3af", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#e2e8f0", paddingTop: 6 },
   coverWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   coverBig: { fontSize: 26, fontWeight: "bold", color: NAVY, marginBottom: 14, lineHeight: 1.1, textAlign: "center" },
@@ -57,9 +59,9 @@ const st = StyleSheet.create({
   pageForm: { fontFamily: "Roboto", fontSize: 8, color: "#1f2937", paddingTop: 24, paddingHorizontal: 32, paddingBottom: 18, lineHeight: 1.25 },
   formTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#0f172a", marginBottom: 1 },
   formSub: { textAlign: "center", fontSize: 8.5, color: "#475569", marginBottom: 6 },
-  fBox: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderRightWidth: 0.8, borderColor: "#334155" },
-  fRow: { flexDirection: "row", borderBottomWidth: 0.8, borderColor: "#334155" },
-  fLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#334155" },
+  fBox: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderRightWidth: 0.8, borderColor: "#000000" },
+  fRow: { flexDirection: "row", borderBottomWidth: 0.8, borderColor: "#000000" },
+  fLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#000000" },
   fVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#111827" },
   fSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#334155" },
   fColHead: { flexDirection: "row", backgroundColor: "#f1f5f9", borderBottomWidth: 0.8, borderColor: "#334155" },
@@ -75,11 +77,11 @@ const st = StyleSheet.create({
   tSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderTopWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#334155" },
   tOuter: { borderWidth: 0.8, borderColor: "#334155", padding: 10, marginTop: 12 },
   // Genel tablo (Marka/Tip/Model.. ve Seyir Defteri tabloları)
-  tbl: { borderTopWidth: 0.6, borderLeftWidth: 0.6, borderColor: "#94a3b8", marginTop: 4 },
+  tbl: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderColor: "#000000", marginTop: 4 },
   trow: { flexDirection: "row" },
-  thcell: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 7.4, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#94a3b8" },
-  tcell: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, color: "#111827", borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#94a3b8" },
-  tcellTall: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, minHeight: 20, borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: "#94a3b8" },
+  thcell: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 7.4, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", borderRightWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#000000" },
+  tcell: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, color: "#111827", borderRightWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#000000" },
+  tcellTall: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, minHeight: 20, borderRightWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#000000" },
   ckbox: { width: 11, height: 11, borderWidth: 0.9, borderColor: "#334155", borderRadius: 2, marginRight: 8 },
 
   // Teknik & Komponent Listesi (Excel birebir, tek sayfa)
@@ -1042,6 +1044,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     const ebMm = (a: any, b: any) => { const e = ebat(a, b); return e ? `${e} mm` : ""; };
     return (
     <Page key="seyir_defteri" size="A4" style={st.page} wrap>
+      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
       <Text style={st.formTitle}>ASANSÖR SEYİR DEFTERİ</Text>
       <View style={{ height: 6 }} />
       <View style={st.fBox}>
@@ -1056,7 +1059,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FRow l="Bakım Sözleşmesi Tarihi" val="" />
       </View>
 
-      <Text style={[st.sec, { marginTop: 10 }]}>ASANSÖR TEKNİK ÖZELLİKLERİ</Text>
+      <Text style={[st.secB, { marginTop: 10 }]}>ASANSÖR TEKNİK ÖZELLİKLERİ</Text>
       <View style={st.fBox}>
         <FRow l="Askı Tipi" val={c.inp.aski_tipi} />
         <FRow l="Seyir Mesafesi" val={c.inp.seyir_mesafesi ? `${c.inp.seyir_mesafesi} m` : ""} />
@@ -1068,7 +1071,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         {!c.isHid && <FRow l="Karşı Ağırlık Yeri ve Ağırlığı" val={[c.inp.karsi_agirlik_yeri, (c.inp.karsi_agirlik_agirligi || c.kap?.karsi_agirlik) ? `${c.inp.karsi_agirlik_agirligi || c.kap?.karsi_agirlik} kg` : ""].filter(Boolean).join(" · ")} />}
       </View>
 
-      <Text style={[st.sec, { marginTop: 12 }]}>ÖNEMLİ REVİZYON VE DEĞİŞİKLİKLER</Text>
+      <Text style={[st.secB, { marginTop: 12 }]}>ÖNEMLİ REVİZYON VE DEĞİŞİKLİKLER</Text>
       <View style={[st.tbl, { flexGrow: 1 }]}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
@@ -1088,7 +1091,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         ))}
       </View>
 
-      <Text style={[st.sec, { marginTop: 12 }]} break>YASAL VE PERİYODİK KONTROLLER</Text>
+      <Text style={[st.secB, { marginTop: 12 }]} break>YASAL VE PERİYODİK KONTROLLER</Text>
       <View style={[st.tbl, { flexGrow: 1 }]}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
@@ -1110,7 +1113,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         ))}
       </View>
 
-      <Text style={[st.sec, { marginTop: 12 }]}>BİLDİRİLMESİ GEREKEN ÖNEMLİ OLAYLAR (KURTARMA OPERASYONLARI, KAZALAR vb.)</Text>
+      <Text style={[st.secB, { marginTop: 12 }]}>BİLDİRİLMESİ GEREKEN ÖNEMLİ OLAYLAR (KURTARMA OPERASYONLARI, KAZALAR vb.)</Text>
       <View style={[st.tbl, { flexGrow: 1 }]}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
@@ -1134,21 +1137,23 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         NOT: Asansörün güvenliğini etkileyecek revizyon gerçekleştiren her asansör firması ile kontrolü
         gerçekleştiren her kuruluş, yaptığı işlemi bu deftere kaydetmekle yükümlüdür.
       </Text>
-      <Footer text={c.footerText} />
+      <Footer text={c.footerText} dark />
     </Page>
     );
   },
 
   egitim_tutanagi: (c) => (
     <Page key="egitim_tutanagi" size="A4" style={st.page}>
-      <DocHead firma={c.firma} title="ASANSÖRDE MAHSUR KALAN KİŞİLERİN KURTARILMASI EĞİTİM TUTANAĞI" />
+      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <Text style={st.docTitle}>{"ASANSÖRDE MAHSUR KALAN KİŞİLERİN KURTARILMASI\nEĞİTİM TUTANAĞI"}</Text>
+      <View style={st.rule} />
       <R l="Asansör Tipi" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
       <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
       <R l="Servise Veriliş Tarihi" val={c.servisTarihi} />
       <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
       <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
-      <Text style={st.sec}>EĞİTİM İÇERİĞİ</Text>
+      <Text style={st.secB}>EĞİTİM İÇERİĞİ</Text>
       <Text style={[st.p, { textAlign: "justify", lineHeight: 1.45, textIndent: 28 }]}>
         Aşağıda listede ismi bulunan kişilere , yetkili kişi tarafından , asansörde mahsur kalan kişilerin
         kurtarılması eğitimi 2 saatlik süreçte uygulamalı olarak verilmiştir. Kurtarma talimatları eğitim alan
@@ -1156,7 +1161,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         kullanım amacı dışında kullanılmayacağı eğitimi alan kişilere belirtilmiştir.
       </Text>
       <Text style={{ fontSize: 9, marginTop: 6, marginBottom: 2 }}>Eğitim Verilen Yer :</Text>
-      <Text style={[st.sec, { marginTop: 8 }]}>EĞİTİMİ ALANLAR</Text>
+      <Text style={[st.secB, { marginTop: 8 }]}>EĞİTİMİ ALANLAR</Text>
       <View style={st.tbl}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
@@ -1178,20 +1183,22 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         </View>
       </View>
       <Text style={{ marginTop: 14, color: "#6b7280" }}>Tarih : ...../...../.........</Text>
-      <Footer text={c.footerText} />
+      <Footer text={c.footerText} dark />
     </Page>
   ),
 
   teslim_tutanagi: (c) => (
     <Page key="teslim_tutanagi" size="A4" style={st.page}>
-      <DocHead firma={c.firma} title="ASANSÖR ve DOKÜMAN TESLİM TUTANAĞI" />
+      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <Text style={st.docTitle}>ASANSÖR ve DOKÜMAN TESLİM TUTANAĞI</Text>
+      <View style={st.rule} />
       <R l="Asansör Tipi" val={c.malinCinsi} />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
       <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
       <R l="Servise Veriliş Tarihi" val={c.servisTarihi} />
       <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
       <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
-      <Text style={st.sec}>ASANSÖR SAHİBİNE VERİLEN DOKÜMAN LİSTESİ</Text>
+      <Text style={st.secB}>ASANSÖR SAHİBİNE VERİLEN DOKÜMAN LİSTESİ</Text>
       {[
         "AB Uygunluk Beyanı", "Asansör Teknik Özellikleri", "Güvenlik Ekipmanları Listesi",
         "Asansör Projesi", "Güvenlik Ekipmanları CE ve Test Belgeleri",
@@ -1222,7 +1229,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <Text style={[st.tcellTall, { minHeight: 54, width: "34%" }]}> </Text>
         </View>
       </View>
-      <Footer text={c.footerText} />
+      <Footer text={c.footerText} dark />
     </Page>
   ),
 
