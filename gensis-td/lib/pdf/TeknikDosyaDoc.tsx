@@ -419,10 +419,10 @@ function LR({ l, val, w = 110, plain, dark }: { l: string; val?: any; w?: number
     </View>
   );
 }
-function Footer({ text }: { text: string }) {
-  // Tek satıra sığacak şekilde punto küçülür
+function Footer({ text, dark }: { text: string; dark?: boolean }) {
+  // Tek satıra sığacak şekilde punto küçülür; dark: metin + üst çizgi siyah
   return (
-    <Text style={[st.footer, { fontSize: fitFs(text, 100, 8, 5) }]} fixed numberOfLines={1}>
+    <Text style={[st.footer, { fontSize: fitFs(text, 100, 8, 5) }, dark ? { color: "#111827", borderTopColor: "#111827" } : null]} fixed numberOfLines={1}>
       {text || " "}
     </Text>
   );
@@ -896,8 +896,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       : isH
         ? "2014/33 AB EK XI (Modül H1)"
         : "2014/33 AB EK IV-B / EK X (Modül B+E)";
-    // Seçimle gelen yönetmelik (modDirektif) aynı kalır; sonraki standart yönetmelikler kod olarak
-    const direktifler = [modDirektif, "2006/42/AT", "2014/35/AB", "2014/30/AB"].join(", ");
+    // İlgili Direktifler: sabit (değişmez)
+    const direktifler = "2014/33/AB Asansör, 2006/42/AT Makina, 2014/35/AB LVD, 2014/30/AB EMC";
     const secHead = [st.sec, { marginBottom: 0, fontSize: 9.5 }];
     // Modül bloğu firmanın CE belgelerine göre: H1 varsa H1; yoksa B + E
     // Not: bu dosyadaki v() boş değerde "—" döndürür; bu yüzden ham alanlara bakılır.
@@ -924,8 +924,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <LR l="Montaj Adresi" val={c.d.montaj_adresi} w={secW} plain dark />
         <LR l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} w={secW} plain dark />
         <LR l="Yapı Sahibi" val={c.inp.yapi_sahibi} w={secW} plain dark />
-        <View style={{ height: 4 }} />
-        <LR l="Uygulanan Standartlar" val="2014/33/AB Asansör, 2006/42/AT Makina, 2014/35/AB LVD, 2014/30/AB EMC" w={secW} plain dark />
+        <View style={{ height: 8 }} />
+        <LR l="Uygulanan Standartlar" val="TS EN 81–20:2020, TS EN 81-50:2020, TS EN 81-70:2021, TS EN 81-28+AC:2022" w={secW} plain dark />
         {/* İlgili Direktifler: Uygulanan Standartlar gibi — etiket solda (siyah), içerik sağda (bold değil, fontu küçültülmez) */}
         <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
           <View style={{ width: secW, paddingRight: 6 }}><Text style={{ color: "#111827" }}>İlgili Direktifler</Text></View>
@@ -961,15 +961,15 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
             <LR l="MODÜL E Belge No" val={c.modulE.belge_no} w={secW} plain dark />
           </>
         )}
-        <Text style={[st.p, { marginTop: 6, marginBottom: 0 }]}>
+        <Text style={[st.p, { marginTop: 12, marginBottom: 0, textIndent: 24 }]}>
           {v(c.firma.unvan)} olarak, yukarıda bilgileri verilmiş olan ürünün yukarıdaki Avrupa Birliği direktifine,
           standartlara ve bunların gerektiği şartlara uygun olduğunu beyan ederiz.
         </Text>
-        <View style={{ height: 6 }} />
+        <View style={{ height: 12 }} />
         <R l="Yetkili Kişi" val={c.firma.yetkili} />
         <R l="İmzanın Yeri ve Tarihi" val={`${yer} — …../…../……`} />
         <R l="Kaşe / İmza" val="" />
-        <Footer text={c.footerText} />
+        <Footer text={c.footerText} dark />
       </Page>
     );
   },
