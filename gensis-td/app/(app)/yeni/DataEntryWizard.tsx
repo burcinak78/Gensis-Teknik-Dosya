@@ -110,6 +110,7 @@ const FIELD_LABELS: Record<string, string> = {
   makineMuhId: "Makine Mühendisi (Proje Müellifi)", elektrikMuhId: "Elektrik Mühendisi (Proje Müellifi)",
   binaAdi: "Bina Adı", montajAdresi: "Montaj Adresi", provinceId: "İl", districtId: "Belediye",
   pafta: "Pafta", ada: "Ada", parsel: "Parsel", yapiSahibi: "Yapı Sahibi", yapiSahibiAdresi: "Yapı Sahibi Adresi",
+  yapiRuhsati: "Yapı Ruhsatı (dosya yükleyin)",
   modulGOnaylanmisKurulus: "Onaylanmış Kuruluş (Mod G)",
   asansorSinifi: "Asansör Sınıfı", makineDairesi: "Makine Dairesi", beyanYuku: "Beyan Yükü", beyanHizi: "Beyan Hızı",
   baslangicKat: "Başlangıç Katı", katSayisi: "Kat Sayısı", katAdedi: "Kat Adedi", durakAdedi: "Durak Adedi",
@@ -333,13 +334,15 @@ export default function DataEntryWizard(props: Props) {
     ? { pistonOlculeri, pistonYeri, debi, uniteBilgisi, motorMarka, motorGucu }
     : { motorGucu, karsiAgirlikYeri };
 
+  // Yapı ruhsatı dosyası yüklü mü (staged veya kayıtlı) — zorunlu
+  const yapiRuhsatiVar = (pending["yapi_ruhsati"]?.length ?? 0) > 0 || existingFiles.some((f) => f.kind === "yapi_ruhsati");
   // zorunlu alanlar
   const requiredMap: Record<string, any> = {
     companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId, binaAdi, montajAdresi, provinceId, districtId,
     pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi, beyanYuku, beyanHizi, katAdedi,
     durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, asansorSeriNo,
     seyirMesafesi, asansorSinifi, makineDairesi, baslangicKat, katSayisi, kapiGenislik, kapiYukseklik,
-    kabinGenislik, kabinDerinlik, kabinAgirligi, ...driveReq,
+    kabinGenislik, kabinDerinlik, kabinAgirligi, yapiRuhsati: yapiRuhsatiVar ? "ok" : "", ...driveReq,
   };
   // Ekipman kartları: tampon iki ayrı seçim (kabin / ağırlık) — aynı marka listesi, farklı slot
   const equipCards = applicableCats.flatMap((c) =>
@@ -430,7 +433,7 @@ export default function DataEntryWizard(props: Props) {
   // adım bazlı zorunlu alanlar
   const stepFieldMap: Record<number, Record<string, any>> = {
     [S_FIRMA]: { companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId },
-    [S_RUHSAT]: { binaAdi, montajAdresi, provinceId, districtId, pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi },
+    [S_RUHSAT]: { binaAdi, montajAdresi, provinceId, districtId, pafta, ada, parsel, yapiSahibi, yapiSahibiAdresi, yapiRuhsati: yapiRuhsatiVar ? "ok" : "" },
     [S_BELGELER]: modulSecim === "G" ? { modulGOnaylanmisKurulus: modulG.nb_id } : {},
     [S_ASANSOR]: { asansorSinifi, makineDairesi, beyanYuku, beyanHizi, baslangicKat, katSayisi, katAdedi, durakAdedi, girisSayisi, imalYili, askiTipi, katKapisi, kapiGenislik, kapiYukseklik, kabinGenislik, kabinDerinlik, kabinAgirligi, asansorSeriNo, seyirMesafesi, ...driveReq },
   };
@@ -842,9 +845,12 @@ export default function DataEntryWizard(props: Props) {
 
           {step === 1 && (
             <Section title="Yapı ruhsatı bilgileri" desc="Tüm alanlar zorunludur.">
-              <FileZone label="Yapı Ruhsatı Ekle" accept="application/pdf,image/*"
-                staged={pending["yapi_ruhsati"] ?? []} existing={existingFiles.filter((f) => f.kind === "yapi_ruhsati")}
-                onAdd={(l) => addFiles("yapi_ruhsati", l)} onRemoveStaged={(i) => removeStaged("yapi_ruhsati", i)} onDelete={silExisting} />
+              <div className={showErrors && !yapiRuhsatiVar ? "rounded-xl border border-red-300 bg-red-50/40 p-2" : ""}>
+                <FileZone label="Yapı Ruhsatı Ekle *" accept="application/pdf,image/*"
+                  staged={pending["yapi_ruhsati"] ?? []} existing={existingFiles.filter((f) => f.kind === "yapi_ruhsati")}
+                  onAdd={(l) => addFiles("yapi_ruhsati", l)} onRemoveStaged={(i) => removeStaged("yapi_ruhsati", i)} onDelete={silExisting} />
+                {showErrors && !yapiRuhsatiVar && <p className="text-[11px] text-red-600 mt-1">Yapı ruhsatı dosyası zorunludur.</p>}
+              </div>
               <Field label="Bina Adı *"><input className={"inp" + ec(binaAdi)} value={binaAdi} onChange={(e) => setBinaAdi(e.target.value)} /></Field>
               <Field label="Montaj Adresi *"><input className={"inp" + ec(montajAdresi)} value={montajAdresi} onChange={(e) => setMontajAdresi(e.target.value)} /></Field>
               <div className="grid grid-cols-2 gap-4">

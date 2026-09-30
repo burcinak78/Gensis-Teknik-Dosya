@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TeknikDosyaDoc } from "@/lib/pdf/TeknikDosyaDoc";
 import { TEKNIK_DOSYA_BELGELERI } from "@/lib/pdf/belgeler";
+import { imzaToPngDataUri } from "@/lib/pdf/imzaUri";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -134,27 +135,24 @@ export async function GET(req: NextRequest) {
         if (d.engineer_id === prow?.elektrik_muhendis_id) attach.engElektrik.push(d.storage_path);
       }
     }
-    // Taahhütname imzası: kullanıcı "İmza ekle" seçtiyse imzayı data URI olarak doc'a geçir
-    const imzaDataUri = async (path?: string): Promise<string | null> => {
-      if (!path) return null;
-      try {
+    // Taahhütname imzası: kullanıcı "İmza ekle" seçtiyse imzayı temiz PNG data URI olarak doc'a geçir.
+    // NOT: TeknikDosyaDoc, müellif bilgisini ctx.muhendis üzerinden okur (buildCtx: muh = d.muhendis).
+    try {
+      const imzaDataUri = async (path?: string): Promise<string | null> => {
+        if (!path) return null;
         const { data: blob } = await admin.storage.from("documents").download(path);
         if (!blob) return null;
-        const bytes = new Uint8Array(await blob.arrayBuffer());
-        const ext = (path.split(".").pop() || "").toLowerCase();
-        const mime = ext === "png" ? "image/png" : "image/jpeg";
-        return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
-      } catch { return null; }
-    };
-    // NOT: TeknikDosyaDoc, müellif bilgisini ctx.muhendis üzerinden okur (buildCtx: muh = d.muhendis).
-    if (inp.imza_makine && imzaMakinePath) {
-      const uri = await imzaDataUri(imzaMakinePath);
-      if (uri) { (ctx as any).muhendis = (ctx as any).muhendis || {}; (ctx as any).muhendis.makine = (ctx as any).muhendis.makine || {}; (ctx as any).muhendis.makine.imza = uri; }
-    }
-    if (inp.imza_elektrik && imzaElektrikPath) {
-      const uri = await imzaDataUri(imzaElektrikPath);
-      if (uri) { (ctx as any).muhendis = (ctx as any).muhendis || {}; (ctx as any).muhendis.elektrik = (ctx as any).muhendis.elektrik || {}; (ctx as any).muhendis.elektrik.imza = uri; }
-    }
+        return imzaToPngDataUri(new Uint8Array(await blob.arrayBuffer()));
+      };
+      if (inp.imza_makine && imzaMakinePath) {
+        const uri = await imzaDataUri(imzaMakinePath);
+        if (uri) { (ctx as any).muhendis = (ctx as any).muhendis || {}; (ctx as any).muhendis.makine = (ctx as any).muhendis.makine || {}; (ctx as any).muhendis.makine.imza = uri; }
+      }
+      if (inp.imza_elektrik && imzaElektrikPath) {
+        const uri = await imzaDataUri(imzaElektrikPath);
+        if (uri) { (ctx as any).muhendis = (ctx as any).muhendis || {}; (ctx as any).muhendis.elektrik = (ctx as any).muhendis.elektrik || {}; (ctx as any).muhendis.elektrik.imza = uri; }
+      }
+    } catch { /* imza gömülemezse taahhütname imzasız üretilir */ }
 
     if (companyId) {
       const { data: cdocs } = await admin.from("company_documents")

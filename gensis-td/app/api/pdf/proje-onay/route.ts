@@ -4,6 +4,7 @@ import { Font, renderToBuffer } from "@react-pdf/renderer";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ProjeOnayDoc } from "@/lib/pdf/ProjeOnayDoc";
+import { imzaToPngDataUri } from "@/lib/pdf/imzaUri";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -92,10 +93,8 @@ export async function GET(req: NextRequest) {
         if (!ed?.storage_path) continue;
         const { data: blob } = await admin.storage.from("documents").download(ed.storage_path);
         if (!blob) continue;
-        const bytes = new Uint8Array(await blob.arrayBuffer());
-        const ext = (ed.storage_path.split(".").pop() || "").toLowerCase();
-        const mime = ext === "png" ? "image/png" : "image/jpeg";
-        (data.muh as any)[disc] = { ...(data.muh as any)[disc], imza: `data:${mime};base64,${Buffer.from(bytes).toString("base64")}` };
+        const uri = await imzaToPngDataUri(new Uint8Array(await blob.arrayBuffer()));
+        if (uri) (data.muh as any)[disc] = { ...(data.muh as any)[disc], imza: uri };
       }
     }
   } catch { /* imza gömülemezse taahhütname imzasız üretilir */ }

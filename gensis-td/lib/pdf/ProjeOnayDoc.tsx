@@ -35,8 +35,9 @@ const st = StyleSheet.create({
   // Taahhütname: bölüm grubu — satır arası çizgi yok, yalnız dış sınır + bölüm başlığı çizgileri
   tBox: { borderWidth: 0.8, borderColor: "#334155" },
   tRow: { flexDirection: "row" },
-  // Etiket içerik genişliğinde (sabit sütun yok, dikey çizgi yok) → değer hemen yanında, sola yanaşık
-  tLabel: { flexShrink: 0, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937" },
+  // Sabit etiket sütunu (en uzun etiket "Pafta / Ada / Parsel No"ya göre) — dikey çizgi yok,
+  // değerler tek sütunda hizalı ve mümkün olduğunca sola yanaşık
+  tLabel: { width: 108, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937" },
   tVal: { flex: 1, paddingVertical: 1.8, paddingLeft: 2, paddingRight: 4, fontSize: 7.3, color: "#111827" },
   tSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderTopWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#334155" },
   tOuter: { borderWidth: 0.8, borderColor: "#334155", padding: 10, marginTop: 12 },
