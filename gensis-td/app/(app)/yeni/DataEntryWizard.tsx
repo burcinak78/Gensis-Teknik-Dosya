@@ -393,9 +393,9 @@ export default function DataEntryWizard(props: Props) {
     const s = equip[card.key] || {};
     // Kabin Kapı Kilidi "Yok" ise geçerli (seçim beklenmez)
     if (card.code === "kabin_kilidi" && kabinYok) return false;
-    // Diğer ekipmanlarda marka/model boş (YOK seçili) ise geçerli — ekipman yok kabul edilir
-    if (card.code !== "kabin_kilidi" && !s.brandId && !s.modelId) return false;
-    if (!s.modelId) return true; // marka seçili ama model seçilmemiş (ya da kabin Var ama boş)
+    // Model seçilmemiş / YOK (marka seçili olsa bile) → ekipman yok kabul edilir, geçerli.
+    // Seri no yalnızca model seçildiğinde zorunludur.
+    if (!s.modelId) return false;
     const n = multiCountForCode(card.code);
     if (n > 0) {
       const list = s.seriList || [];
