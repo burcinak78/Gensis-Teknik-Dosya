@@ -236,13 +236,70 @@ export async function GET(req: NextRequest) {
     } catch { /* kılavuz alınamazsa atla */ }
   }
 
+  // Son Kontrol Formu: hazır PDF (public) — 1. sayfa başlık altına bilgi tablosu + sol üst firma kısa adı header
+  let robotoBoldBytes: Uint8Array | null = null;
+  async function addSonKontrol() {
+    try {
+      const res = await fetch(`${assetBase}/kilavuz/SON_KONTROL_FORMU.pdf`);
+      if (!res.ok) { await addDoc("son_kontrol_formu"); return; }
+      const doc = await PDFDocument.load(new Uint8Array(await res.arrayBuffer()), { ignoreEncryption: true });
+      doc.registerFontkit(fontkit);
+      if (!robotoBytes) { const fr = await fetch(`${assetBase}/fonts/Roboto-Regular.ttf`); if (fr.ok) robotoBytes = new Uint8Array(await fr.arrayBuffer()); }
+      if (!robotoBoldBytes) { const fb = await fetch(`${assetBase}/fonts/Roboto-Bold.ttf`); if (fb.ok) robotoBoldBytes = new Uint8Array(await fb.arrayBuffer()); }
+      const font = robotoBytes ? await doc.embedFont(robotoBytes) : null;
+      const fontB = robotoBoldBytes ? await doc.embedFont(robotoBoldBytes) : font;
+      if (font && fontB) {
+        const cf = (ctx as any)?.firma || {};
+        const ki = (ctx as any)?.input_data || {};
+        const kisaAd = String(cf.kisa_ad || cf.unvan || "").trim();
+        const musteriAdresi = String((ctx as any)?.montaj_adresi || ki.montaj_adresi || "").trim();
+        const adaPaftaParsel = [ki.ada, ki.pafta, ki.parsel].filter(Boolean).map((x: any) => String(x).trim()).join(" / ");
+        const seriNo = String(ki.asansor_seri_no || "").trim();
+        const black = rgb(0, 0, 0);
+        const pages = doc.getPages();
+        // Sol üst köşe: firma kısa adı (her sayfa)
+        for (const pg of pages) {
+          const { height } = pg.getSize();
+          if (kisaAd) pg.drawText(kisaAd, { x: 30, y: height - 16, size: 8, font: fontB, color: rgb(0.25, 0.25, 0.25) });
+        }
+        // Bilgi tablosu: yalnız 1. sayfa, başlık altındaki boşluğa
+        const p1 = pages[0];
+        const { width: PW, height: PH } = p1.getSize();
+        const rows: [string, string][] = [
+          ["Müşteri Adresi", musteriAdresi],
+          ["Ada / Pafta / Parsel", adaPaftaParsel],
+          ["Asansör Seri No", seriNo],
+        ];
+        const tblX = 18, tblW = PW - 36, labelW = 130, rowH = 12.5;
+        const yTop = PH - 85, tblH = rowH * rows.length;
+        p1.drawRectangle({ x: tblX, y: yTop - tblH, width: tblW, height: tblH, borderColor: black, borderWidth: 0.8 });
+        p1.drawLine({ start: { x: tblX + labelW, y: yTop - tblH }, end: { x: tblX + labelW, y: yTop }, thickness: 0.8, color: black });
+        rows.forEach((r, i) => {
+          const rTop = yTop - i * rowH;
+          if (i > 0) p1.drawLine({ start: { x: tblX, y: rTop }, end: { x: tblX + tblW, y: rTop }, thickness: 0.8, color: black });
+          const baseY = rTop - rowH + 3.7;
+          p1.drawText(r[0], { x: tblX + 4, y: baseY, size: 8, font: fontB, color: black });
+          let vs = 8; const maxVW = tblW - labelW - 8;
+          while (vs > 5.5 && font.widthOfTextAtSize(r[1], vs) > maxVW) vs -= 0.3;
+          p1.drawText(r[1], { x: tblX + labelW + 4, y: baseY, size: vs, font, color: black });
+        });
+      }
+      const copied = await finalDoc.copyPages(doc, doc.getPageIndices());
+      copied.forEach((p) => finalDoc.addPage(p));
+    } catch { await addDoc("son_kontrol_formu"); }
+  }
+
   for (const code of codes) {
     // Kullanma ve Bakım Kılavuzu: üretilmez; hazır PDF (firma footer'lı) eklenir
     if (code === "kullanma_bakim_klavuzu") { await addKilavuz(); continue; }
 
-    // Son Kontrol Formu: Modül G seçildiyse ve rapor yüklendiyse onun yerine Modül G raporu
-    if (code === "son_kontrol_formu" && attach.isG && (attach.pf["modul_g_rapor"]?.length)) {
-      for (const p of attach.pf["modul_g_rapor"]) await addFile("documents", p);
+    // Son Kontrol Formu: Modül G + rapor yüklüyse rapor; değilse hazır PDF (bilgi tablosu + header'lı)
+    if (code === "son_kontrol_formu") {
+      if (attach.isG && (attach.pf["modul_g_rapor"]?.length)) {
+        for (const p of attach.pf["modul_g_rapor"]) await addFile("documents", p);
+      } else {
+        await addSonKontrol();
+      }
       continue;
     }
 
