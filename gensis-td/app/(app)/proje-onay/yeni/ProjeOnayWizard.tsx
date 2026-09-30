@@ -63,9 +63,9 @@ export default function ProjeOnayWizard(props: Props) {
   const [beyanHizi, setBeyanHizi] = useState(init?.beyanHizi ?? "");
   const [durak, setDurak] = useState(init?.durak ?? "");
 
-  // İlgili İdare (dropdown + satır içi "Yeni" ekleme)
-  const [idareList, setIdareList] = useState<Idare[]>(props.ilgiliIdareler ?? []);
-  const [ilgiliIdareId, setIlgiliIdareId] = useState(init?.ilgiliIdareId ?? "");
+  // İlgili İdare = seçili ile ait ilçeler (belediye) + "+Yeni" ile eklenen ekstralar.
+  // Değer, districtId state'inde tutulur (ilçe id'si veya eklenen kaydın id'si).
+  const [extras, setExtras] = useState<Idare[]>([]);
   const [showAddIdare, setShowAddIdare] = useState(false);
   const [idareForm, setIdareForm] = useState({ name: "", address: "" });
   const [idareBusy, setIdareBusy] = useState(false);
@@ -77,8 +77,8 @@ export default function ProjeOnayWizard(props: Props) {
     setIdareBusy(false);
     if (!res.ok) { setIdareErr(res.error); return; }
     const yeni: Idare = { id: res.id, name: idareForm.name.trim(), address: idareForm.address.trim() || null };
-    setIdareList((a) => [...a, yeni].sort((x, y) => x.name.localeCompare(y.name, "tr")));
-    setIlgiliIdareId(yeni.id);
+    setExtras((a) => [...a, yeni].sort((x, y) => x.name.localeCompare(y.name, "tr")));
+    setDistrictId(yeni.id);
     setIdareForm({ name: "", address: "" }); setShowAddIdare(false);
   }
 
@@ -98,8 +98,12 @@ export default function ProjeOnayWizard(props: Props) {
   );
   const company = props.companies.find((c) => c.id === companyId) || null;
   const provinceName = props.provinces.find((p) => p.id === provinceId)?.name;
-  const districtName = districts.find((d) => d.id === districtId)?.name;
-  const idareAdi = idareList.find((x) => x.id === ilgiliIdareId)?.name ?? "";
+  // Seçili İlgili İdare adı: önce ilçe listesinden, yoksa eklenen ekstralardan
+  const selectedIdareName = districts.find((d) => d.id === districtId)?.name ?? extras.find((x) => x.id === districtId)?.name ?? "";
+  const districtName = selectedIdareName;
+  // Belgelerde kullanılacak tam ad: adında "beled" yoksa "Belediyesi" tamamla
+  const idareFull = (n: string) => { const t = (n || "").trim(); return t ? (/beled/i.test(t) ? t : `${t} Belediyesi`) : ""; };
+  const idareAdi = idareFull(selectedIdareName);
 
   const makineOptions = useMemo(
     () => props.engineers.filter((e) => e.discipline === "makine" && (e.company_id === props.gensisCompanyId || (!!companyId && e.company_id === companyId))),
@@ -112,7 +116,7 @@ export default function ProjeOnayWizard(props: Props) {
 
   const ec = (v: any) => (showErrors && empty(v) ? " !border-red-300 !bg-red-50" : "");
   const stepFields: Record<number, Record<string, any>> = {
-    0: { companyId, provinceId, ilgiliIdareId, yapiSahibi, montajAdresi, beyanYuku, beyanHizi, durak },
+    0: { companyId, provinceId, districtId, yapiSahibi, montajAdresi, beyanYuku, beyanHizi, durak },
     1: { makineMuhId, elektrikMuhId },
   };
   function stepMissing(i: number) {
@@ -147,7 +151,7 @@ export default function ProjeOnayWizard(props: Props) {
       dosya_no: dosyaNo || null,
       dilekce_tarihi: dilekceTarihi || null,
       province_id: provinceId === "" ? null : provinceId,
-      district_id: null,
+      district_id: districts.some((d) => d.id === districtId) ? districtId : null,
       asansor_adedi: asansorAdedi ? Number(asansorAdedi) : 1,
       yapi_sahibi: yapiSahibi || null,
       montaj_adresi: montajAdresi || null,
@@ -158,8 +162,8 @@ export default function ProjeOnayWizard(props: Props) {
       durak_sayisi: durak ? Number(durak) : null,
       makine_muhendis_id: makineMuhId || null,
       elektrik_muhendis_id: elektrikMuhId || null,
-      ilgili_idare_id: ilgiliIdareId || null,
-      input_data: { il: provinceName ?? "", belediye: "", ilgili_idare: idareAdi, beyan_hizi_txt: beyanHizi },
+      ilgili_idare_id: null,
+      input_data: { il: provinceName ?? "", belediye: districtName ?? "", ilgili_idare: idareAdi, beyan_hizi_txt: beyanHizi },
     };
     const res = isEdit ? await updateProjeOnay(init!.id, payload) : await saveProjeOnay(payload);
     setSaving(false);
@@ -235,11 +239,12 @@ export default function ProjeOnayWizard(props: Props) {
                   {props.provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </F>
-              <F label="İlgili İdare *" full>
+              <F label="İlgili İdare *">
                 <div className="flex gap-2">
-                  <select value={ilgiliIdareId} onChange={(e) => setIlgiliIdareId(e.target.value)} className={inp + ec(ilgiliIdareId)}>
-                    <option value="">Seçiniz…</option>
-                    {idareList.map((x) => <option key={x.id} value={x.id}>{idareLabel(x.name)}</option>)}
+                  <select value={districtId} onChange={(e) => setDistrictId(e.target.value)} disabled={provinceId === ""} className={inp + ec(districtId)}>
+                    <option value="">{provinceId === "" ? "Önce il seçin" : "Seçiniz…"}</option>
+                    {districts.map((d) => <option key={d.id} value={d.id}>{idareLabel(d.name)}</option>)}
+                    {extras.map((x) => <option key={x.id} value={x.id}>{idareLabel(x.name)}</option>)}
                   </select>
                   <button type="button" onClick={() => { setShowAddIdare((v) => !v); setIdareErr(null); }}
                     className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-3 hover:bg-brand-light whitespace-nowrap">
