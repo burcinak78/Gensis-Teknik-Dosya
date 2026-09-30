@@ -410,11 +410,12 @@ function CoverR({ l, val }: { l: string; val?: any }) {
   );
 }
 // Dar satır: değer, başlığın hemen yanında (Dilekçe / Firma Bilgileri)
-function LR({ l, val, w = 110 }: { l: string; val?: any; w?: number }) {
+function LR({ l, val, w = 110, plain, dark }: { l: string; val?: any; w?: number; plain?: boolean; dark?: boolean }) {
+  // plain: değer bold değil; dark: sol başlık siyah
   return (
     <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
-      <View style={{ width: w, paddingRight: 6 }}><Text style={{ color: "#6b7280" }}>{l}</Text></View>
-      <View style={{ flex: 1 }}><Text style={{ fontWeight: "bold", color: "#111827" }}>{v(val)}</Text></View>
+      <View style={{ width: w, paddingRight: 6 }}><Text style={{ color: dark ? "#111827" : "#6b7280" }}>{l}</Text></View>
+      <View style={{ flex: 1 }}><Text style={{ fontWeight: plain ? "normal" : "bold", color: "#111827" }}>{v(val)}</Text></View>
     </View>
   );
 }
@@ -906,58 +907,58 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <Page key="uygunluk_beyani" size="A4" style={[st.page, { fontSize: 9 }]}>
         <Text style={[st.formTitle, { fontSize: 16 }]}>AB UYGUNLUK BEYANI</Text>
         <View style={{ height: 18 }} />
-        <LR l="Montaj Firması" val={`${v(c.firma.unvan)}${c.firma.adres ? "\n" + v(c.firma.adres) : ""}`} w={secW} />
+        <LR l="Montaj Firması" val={`${v(c.firma.unvan)}${c.firma.adres ? "\n" + v(c.firma.adres) : ""}`} w={secW} plain dark />
         <Text style={[st.p, { marginTop: 5, marginBottom: 0, textIndent: 24 }]}>
           Aşağıda tanımı, modeli ve seri numarası verilen asansörün belirtilen standartlara ve direktiflere
           uygun olduğunu beyan ederiz.
         </Text>
         <View style={{ height: 6 }} />
-        <LR l="Asansörün Tipi" val={tip} w={secW} />
-        <LR l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg. - ${v(c.kisi)} Kişilik` : ""} w={secW} />
-        <LR l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} w={secW} />
-        <LR l="Askı Tipi" val={c.inp.aski_tipi} w={secW} />
-        <LR l="Kat Adedi / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} w={secW} />
-        <LR l="İmal Yılı" val={c.d.imal_yili} w={secW} />
-        <LR l="Asansör Seri No" val={c.inp.asansor_seri_no} w={secW} />
-        <LR l="Asansör Kimlik No" val={c.inp.asansor_kimlik_no} w={secW} />
-        <LR l="Montaj Adresi" val={c.d.montaj_adresi} w={secW} />
-        <LR l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} w={secW} />
-        <LR l="Yapı Sahibi" val={c.inp.yapi_sahibi} w={secW} />
+        <LR l="Asansörün Tipi" val={tip} w={secW} plain dark />
+        <LR l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg. - ${v(c.kisi)} Kişilik` : ""} w={secW} plain dark />
+        <LR l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} w={secW} plain dark />
+        <LR l="Askı Tipi" val={c.inp.aski_tipi} w={secW} plain dark />
+        <LR l="Kat Adedi / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} w={secW} plain dark />
+        <LR l="İmal Yılı" val={c.d.imal_yili} w={secW} plain dark />
+        <LR l="Asansör Seri No" val={c.inp.asansor_seri_no} w={secW} plain dark />
+        <LR l="Asansör Kimlik No" val={c.inp.asansor_kimlik_no} w={secW} plain dark />
+        <LR l="Montaj Adresi" val={c.d.montaj_adresi} w={secW} plain dark />
+        <LR l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} w={secW} plain dark />
+        <LR l="Yapı Sahibi" val={c.inp.yapi_sahibi} w={secW} plain dark />
         <View style={{ height: 4 }} />
-        <LR l="Uygulanan Standartlar" val="TS EN 81–20:2020, TS EN 81-50:2020, TS EN 81-70:2021, TS EN 81-28+AC:2022" w={secW} />
-        {/* İlgili Direktifler: Uygulanan Standartlar gibi — etiket solda, içerik sağda (içerik fontu küçültülmez) */}
+        <LR l="Uygulanan Standartlar" val="2014/33/AB Asansör, 2006/42/AT Makina, 2014/35/AB LVD, 2014/30/AB EMC" w={secW} plain dark />
+        {/* İlgili Direktifler: Uygulanan Standartlar gibi — etiket solda (siyah), içerik sağda (bold değil, fontu küçültülmez) */}
         <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
-          <View style={{ width: secW, paddingRight: 6 }}><Text style={{ color: "#6b7280" }}>İlgili Direktifler</Text></View>
-          <View style={{ flex: 1 }}><Text style={{ fontWeight: "bold", color: "#111827", fontSize: 10, textAlign: "justify" }}>{direktifler}</Text></View>
+          <View style={{ width: secW, paddingRight: 6 }}><Text style={{ color: "#111827" }}>İlgili Direktifler</Text></View>
+          <View style={{ flex: 1 }}><Text style={{ color: "#111827", fontSize: 10, textAlign: "justify" }}>{direktifler}</Text></View>
         </View>
         {isG ? (
           <>
             <Text style={secHead}>MODÜL G</Text>
-            <LR l="Onaylanmış Kuruluş" val={c.inp.modul_onaylanmis_kurulus} w={secW} />
-            <LR l="Ünvanı ve Adresi" val={c.inp.modul_nb_adres} w={secW} />
-            <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.modul_kurulus_no} w={secW} />
-            <LR l="MODÜL G Belge No" val={c.inp.modul_belge_no} w={secW} />
+            <LR l="Onaylanmış Kuruluş" val={c.inp.modul_onaylanmis_kurulus} w={secW} plain dark />
+            <LR l="Ünvanı ve Adresi" val={c.inp.modul_nb_adres} w={secW} plain dark />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.modul_kurulus_no} w={secW} plain dark />
+            <LR l="MODÜL G Belge No" val={c.inp.modul_belge_no} w={secW} plain dark />
           </>
         ) : hasH1 ? (
           <>
             <Text style={secHead}>MODÜL H1</Text>
-            <LR l="Onaylanmış Kuruluş" val={c.modulH1.onaylanmis_kurulus} w={secW} />
-            <LR l="Ünvanı ve Adresi" val={c.modulH1.nb_adres} w={secW} />
-            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulH1.kurulus_no} w={secW} />
-            <LR l="MODÜL H1 Belge No" val={c.modulH1.belge_no} w={secW} />
+            <LR l="Onaylanmış Kuruluş" val={c.modulH1.onaylanmis_kurulus} w={secW} plain dark />
+            <LR l="Ünvanı ve Adresi" val={c.modulH1.nb_adres} w={secW} plain dark />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulH1.kurulus_no} w={secW} plain dark />
+            <LR l="MODÜL H1 Belge No" val={c.modulH1.belge_no} w={secW} plain dark />
           </>
         ) : (
           <>
             <Text style={secHead}>MODÜL B</Text>
-            <LR l="Onaylanmış Kuruluş" val={c.modulB.onaylanmis_kurulus} w={secW} />
-            <LR l="Ünvanı ve Adresi" val={c.modulB.nb_adres} w={secW} />
-            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulB.kurulus_no} w={secW} />
-            <LR l="MODÜL B Belge No" val={c.modulB.belge_no} w={secW} />
+            <LR l="Onaylanmış Kuruluş" val={c.modulB.onaylanmis_kurulus} w={secW} plain dark />
+            <LR l="Ünvanı ve Adresi" val={c.modulB.nb_adres} w={secW} plain dark />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulB.kurulus_no} w={secW} plain dark />
+            <LR l="MODÜL B Belge No" val={c.modulB.belge_no} w={secW} plain dark />
             <Text style={secHead}>MODÜL E</Text>
-            <LR l="Onaylanmış Kuruluş" val={c.modulE.onaylanmis_kurulus} w={secW} />
-            <LR l="Ünvanı ve Adresi" val={c.modulE.nb_adres} w={secW} />
-            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulE.kurulus_no} w={secW} />
-            <LR l="MODÜL E Belge No" val={c.modulE.belge_no} w={secW} />
+            <LR l="Onaylanmış Kuruluş" val={c.modulE.onaylanmis_kurulus} w={secW} plain dark />
+            <LR l="Ünvanı ve Adresi" val={c.modulE.nb_adres} w={secW} plain dark />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulE.kurulus_no} w={secW} plain dark />
+            <LR l="MODÜL E Belge No" val={c.modulE.belge_no} w={secW} plain dark />
           </>
         )}
         <Text style={[st.p, { marginTop: 6, marginBottom: 0 }]}>
@@ -1006,22 +1007,22 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   motor_beyannamesi: (c) => (
     <Page key="motor_beyannamesi" size="A4" style={st.page}>
+      <Text style={{ textAlign: "right", fontSize: 9, color: "#111827", marginBottom: 2 }}>{c.tarih}</Text>
       <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 2 }}>MOTOR BEYANNAMESİ</Text>
       <View style={{ height: 48 }} />
       <Text style={{ textAlign: "center", color: "#6b7280", marginBottom: 16 }}>
-        {v(c.d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI RUHSAT VE DENETİM MÜDÜRLÜĞÜ
+        {v(c.d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI'NA
       </Text>
       <Text style={[st.p, { textIndent: 28 }]}>
         {v(c.d.montaj_adresi)} adresinde, {v(c.inp.pafta)} pafta {v(c.inp.ada)} ada {v(c.inp.parsel)} parsel
         sayılı yerde bulunan {c.isHid ? "hidrolik ünitesinin" : "elektrik motorunun"} fenni ve teknik şartlara uygun olarak kullanılacağını beyan ederiz.
       </Text>
-      <Text style={st.sec}>{c.isHid ? "Ünite / Piston Özellikleri" : "Motorun Özellikleri"}</Text>
+      <Text style={st.sec}>Motorun Özellikleri</Text>
       {c.isHid ? (
         <>
-          <R l="Ünite / Motor Seri No" val={c.inp.unite_bilgisi} />
-          <R l="Piston Ölçüleri" val={c.inp.piston_olculeri ? `${c.inp.piston_olculeri} mm` : undefined} />
-          <R l="Piston Yeri" val={c.inp.piston_yeri} />
-          <R l="Debi" val={c.inp.debi ? `${c.inp.debi} l/d` : undefined} />
+          <R l="Markası" val={c.inp.motor_marka} />
+          <R l="Seri No." val={c.inp.unite_bilgisi} />
+          <R l="Gücü" val={c.inp.motor_gucu ? `${c.inp.motor_gucu} kW` : undefined} />
         </>
       ) : (
         <>

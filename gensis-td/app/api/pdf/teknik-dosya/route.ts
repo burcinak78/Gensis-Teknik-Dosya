@@ -263,10 +263,10 @@ export async function GET(req: NextRequest) {
       for (const p of attach.engMakine) await addFile("documents", p);
     } else if (code === "muh_taahhut_elektrik") {
       for (const p of attach.engElektrik) await addFile("documents", p);
-    } else if (code === "motor_beyannamesi") {
-      for (const p of attach.motorCerts) await addFile("certificates", p);
     } else if (code === "teknik_komponent") {
+      // Teknik Komponent Listesi ekleri: diğer komponent sertifikaları + motor beyannamesi sertifikası
       for (const p of attach.otherCerts) await addFile("certificates", p);
+      for (const p of attach.motorCerts) await addFile("certificates", p);
     }
   }
 
