@@ -13,6 +13,8 @@ const TEAL = "#0d8b8b";
 const st = StyleSheet.create({
   page: { fontFamily: "Roboto", fontSize: 10, color: "#1f2937", padding: 42, paddingBottom: 60, lineHeight: 1.45 },
   topRow: { flexDirection: "row", justifyContent: "space-between", fontSize: 9, color: "#6b7280", marginBottom: 10 },
+  // Dilekçe sol üst köşe firma kısa adı (letterhead)
+  dilekceHdr: { position: "absolute", top: 26, left: 42, fontSize: 11, fontWeight: "bold", color: NAVY },
   firmaName: { fontSize: 13, fontWeight: "bold", color: NAVY },
   firmaSub: { fontSize: 9, color: "#6b7280", marginBottom: 14 },
   docTitle: { fontSize: 15, fontWeight: "bold", color: NAVY, textAlign: "center", marginTop: 4 },
@@ -505,6 +507,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   dilekce: (c) => (
     <Page key="dilekce" size="A4" style={st.page}>
+      {/* Sol üst köşe: firma kısa adı (letterhead) */}
+      <Text style={st.dilekceHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
       <View style={{ flexGrow: 1, justifyContent: "center" }}>
         <View style={st.topRow}><Text> </Text><Text>…./…./20…</Text></View>
         <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 4 }}>
@@ -531,8 +535,9 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
             <Text style={st.signLine}>Kaşe / İmza</Text>
           </View>
         </View>
+        {/* İçeriği ~2 cm yukarı almak için alt boşluk (ortalanmış blokta içerik yukarı kayar) */}
+        <View style={{ height: 113 }} />
       </View>
-      <Footer text={c.footerText} />
     </Page>
   ),
 
