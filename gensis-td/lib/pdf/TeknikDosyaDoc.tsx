@@ -543,7 +543,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         </View>
         <Text style={st.coverBig}>ASANSÖR TEKNİK DOSYASI</Text>
         <Text style={st.coverSub}>2014/33 AB ASANSÖR YÖNETMELİĞİ</Text>
-        <CoverR l="Dosya No" val={c.d.dosya_no} />
+        <CoverR l="Dosya No" val={c.d.td_no} />
         <View style={{ height: 20 }} />
         <CoverR l="Asansör Seri No" val={c.inp.asansor_seri_no} />
         <CoverR l="Bina Adı" val={c.d.bina_adi} />

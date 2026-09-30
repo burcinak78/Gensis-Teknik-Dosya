@@ -89,7 +89,7 @@ const empty = (x: any) => x === "" || x === null || x === undefined;
 
 // Eksik alan pop-up'ında gösterilecek okunur alan adları
 const FIELD_LABELS: Record<string, string> = {
-  companyId: "Montaj / Mimarlık Firması", dosyaNo: "Dosya No", dosyaTarihi: "Tarih",
+  companyId: "Montaj / Mimarlık Firması", dosyaNo: "Proje No", dosyaTarihi: "Tarih",
   makineMuhId: "Makine Mühendisi (Proje Müellifi)", elektrikMuhId: "Elektrik Mühendisi (Proje Müellifi)",
   binaAdi: "Bina Adı", montajAdresi: "Montaj Adresi", provinceId: "İl", districtId: "Belediye",
   pafta: "Pafta", ada: "Ada", parsel: "Parsel", yapiSahibi: "Yapı Sahibi", yapiSahibiAdresi: "Yapı Sahibi Adresi",
@@ -718,7 +718,7 @@ export default function DataEntryWizard(props: Props) {
                 </select>
               </Field>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Dosya No *"><input className={"inp" + ec(dosyaNo)} value={dosyaNo} onChange={(e) => setDosyaNo(e.target.value)} placeholder="TD-2026-0001" /></Field>
+                <Field label="Proje No *"><input className={"inp" + ec(dosyaNo)} value={dosyaNo} onChange={(e) => setDosyaNo(e.target.value)} placeholder="Proje No" /></Field>
                 <Field label="Tarih *"><input type="date" className={"inp" + ec(dosyaTarihi)} value={dosyaTarihi} onChange={(e) => setDosyaTarihi(e.target.value)} /></Field>
               </div>
               <div className="grid grid-cols-2 gap-4">

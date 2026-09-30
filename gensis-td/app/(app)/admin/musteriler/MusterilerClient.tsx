@@ -14,7 +14,7 @@ type Doc = { id: string; company_id: string; doc_type: string; original_name: st
 type NB = { id: string; identity_no: string | null; name: string };
 type Row = { uid: string; id?: string; belge_no: string; issue_date: string; valid_until: string; notified_body_id: string; file: File | null; original_name?: string | null; sub_type?: string };
 type BRow = Row & { sub_type: string; eki: Row[] };
-type DocsState = { imza_sirkuleri: Row; sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_tasarim: Row[]; ce_b: BRow[] };
+type DocsState = { logo: Row; imza_sirkuleri: Row; sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_tasarim: Row[]; ce_b: BRow[] };
 
 const BLANK: Record<string, string> = {
   short_name: "", legal_name: "", authorized_person: "", registered_brand: "",
@@ -44,7 +44,7 @@ const RANK: Record<string, number> = { red: 3, amber: 2, green: 1, slate: 0 };
 const uid = () => (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 const emptyRow = (): Row => ({ uid: uid(), belge_no: "", issue_date: "", valid_until: "", notified_body_id: "", file: null });
 const emptyBRow = (): BRow => ({ ...emptyRow(), sub_type: "", eki: [] });
-const emptyDocs = (): DocsState => ({ imza_sirkuleri: emptyRow(), sanayi_sicil: emptyRow(), tse_hyb: emptyRow(), ce_h1: emptyRow(), ce_e: emptyRow(), ce_tasarim: [], ce_b: [] });
+const emptyDocs = (): DocsState => ({ logo: emptyRow(), imza_sirkuleri: emptyRow(), sanayi_sicil: emptyRow(), tse_hyb: emptyRow(), ce_h1: emptyRow(), ce_e: emptyRow(), ce_tasarim: [], ce_b: [] });
 
 const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
 const fInp = "w-full text-xs px-2 py-1 border border-slate-200 rounded focus:outline-none focus:border-brand";
@@ -86,7 +86,12 @@ export default function MusterilerClient({
   const [ceModule, setCeModule] = useState("H1");
   const [docs, setDocs] = useState<DocsState>(emptyDocs());
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  const [logoDel, setLogoDel] = useState<string | null>(null);
   const [docKey, setDocKey] = useState(0);
+  function removeLogo() {
+    if (docs.logo.id) setLogoDel(docs.logo.id);
+    setDocs((s) => ({ ...s, logo: emptyRow() }));
+  }
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [showReq, setShowReq] = useState(false);
@@ -112,9 +117,9 @@ export default function MusterilerClient({
       ...rowFromDoc(d), sub_type: d.sub_type ?? "",
       eki: all.filter((x) => x.doc_type === "ce_b_eki" && x.parent_id === d.id).map(rowFromDoc),
     }));
-    return { imza_sirkuleri: one("imza_sirkuleri"), sanayi_sicil: one("sanayi_sicil"), tse_hyb: one("tse_hyb"), ce_h1: one("ce_h1"), ce_e: one("ce_e"), ce_tasarim: many("ce_tasarim"), ce_b: bList };
+    return { logo: one("logo"), imza_sirkuleri: one("imza_sirkuleri"), sanayi_sicil: one("sanayi_sicil"), tse_hyb: one("tse_hyb"), ce_h1: one("ce_h1"), ce_e: one("ce_e"), ce_tasarim: many("ce_tasarim"), ce_b: bList };
   }
-  const setSingle = (t: "imza_sirkuleri" | "sanayi_sicil" | "tse_hyb" | "ce_h1" | "ce_e", patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: { ...s[t], ...patch } }));
+  const setSingle = (t: "logo" | "imza_sirkuleri" | "sanayi_sicil" | "tse_hyb" | "ce_h1" | "ce_e", patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: { ...s[t], ...patch } }));
   const setTasarim = (i: number, patch: Partial<Row>) => setDocs((s) => ({ ...s, ce_tasarim: s.ce_tasarim.map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
   const addTasarim = () => setDocs((s) => ({ ...s, ce_tasarim: [...s.ce_tasarim, emptyRow()] }));
   const removeTasarim = (i: number) => setDocs((s) => { const r = s.ce_tasarim[i]; if (r?.id) setDeletedIds((d) => [...d, r.id!]); return { ...s, ce_tasarim: s.ce_tasarim.filter((_, j) => j !== i) }; });
@@ -202,6 +207,18 @@ export default function MusterilerClient({
     }
     if (!compId) { setBusy(false); return; }
 
+    // Logo (her kategoride, belge sisteminden bağımsız)
+    if (!isCustomer && logoDel) { await deleteCompanyDocument(logoDel); setLogoDel(null); }
+    if (docs.logo.file) {
+      const lf = new FormData();
+      lf.set("company_id", compId); lf.set("doc_type", "logo");
+      lf.set("belge_no", ""); lf.set("issue_date", ""); lf.set("valid_until", ""); lf.set("notified_body_id", "");
+      if (docs.logo.id) lf.set("doc_id", docs.logo.id);
+      lf.set("file", docs.logo.file);
+      await uploadCompanyDocument(lf);
+      setDocs((s) => ({ ...s, logo: { ...s.logo, file: null } }));
+    }
+
     // "Diğer" kategorisinde belge yönetimi yok
     if (category === "diger") {
       setBusy(false);
@@ -261,10 +278,27 @@ export default function MusterilerClient({
     else closeModal();
   }
 
+  // ---------- Logo hücresi (Kısa Ad'ın yanında) ----------
+  const logoCell = (docs.logo.id && docs.logo.original_name && !docs.logo.file) ? (
+    <div className={inp + " flex items-center gap-2"}>
+      <a href={`/api/belge/musteri?id=${docs.logo.id}`} target="_blank" rel="noreferrer" className="flex-1 truncate text-navy font-semibold hover:underline inline-flex items-center gap-1">
+        <span className="material-symbols-rounded text-[16px]">image</span>{docs.logo.original_name}
+      </a>
+      <button type="button" onClick={removeLogo} className="flex-none text-xs text-red-500 hover:underline">Sil</button>
+    </div>
+  ) : (
+    <label className={inp + " flex items-center gap-2 cursor-pointer text-slate-500"}>
+      <span className="material-symbols-rounded text-[18px] text-brand">upload</span>
+      <span className="truncate flex-1">{docs.logo.file ? docs.logo.file.name : "Logo Yükle"}</span>
+      <input type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => setSingle("logo", { file: e.target.files?.[0] ?? null })} />
+    </label>
+  );
+
   // ---------- Temel bilgi alanları ----------
   const temelBilgiler = category === "diger" ? (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <div className="md:col-span-2"><L>Kısa Ad *</L><input className={inp + reqCls("short_name")} value={form.short_name} onChange={(e) => set("short_name", e.target.value)} /></div>
+      <div><L>Kısa Ad *</L><input className={inp + reqCls("short_name")} value={form.short_name} onChange={(e) => set("short_name", e.target.value)} /></div>
+      <div><L>Logo (JPEG / PNG)</L>{logoCell}</div>
       <div className="md:col-span-2"><L>Ticari Ünvan *</L><input className={inp + reqCls("legal_name")} value={form.legal_name} onChange={(e) => set("legal_name", e.target.value)} /></div>
       <div><L>Yetkili Ad / Soyad *</L><input className={inp + reqCls("authorized_person")} value={form.authorized_person} onChange={(e) => set("authorized_person", e.target.value)} /></div>
       <div><L>Sektör / Meslek *</L><input className={inp + reqCls("sector")} value={form.sector} onChange={(e) => set("sector", e.target.value)} /></div>
@@ -280,7 +314,8 @@ export default function MusterilerClient({
     </div>
   ) : (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <div className="md:col-span-2"><L>Kısa Ad *</L><input className={inp + reqCls("short_name")} value={form.short_name} onChange={(e) => set("short_name", e.target.value)} /></div>
+      <div><L>Kısa Ad *</L><input className={inp + reqCls("short_name")} value={form.short_name} onChange={(e) => set("short_name", e.target.value)} /></div>
+      <div><L>Logo (JPEG / PNG)</L>{logoCell}</div>
       <div className="md:col-span-2"><L>Ticari Ünvan *</L><input className={inp + reqCls("legal_name")} value={form.legal_name} onChange={(e) => set("legal_name", e.target.value)} /></div>
       <div><L>Yetkili / Ünvanı *</L><input className={inp + reqCls("authorized_person")} value={form.authorized_person} onChange={(e) => set("authorized_person", e.target.value)} /></div>
       <div><L>Tescilli Marka *</L><input className={inp + reqCls("registered_brand")} value={form.registered_brand} onChange={(e) => set("registered_brand", e.target.value)} /></div>

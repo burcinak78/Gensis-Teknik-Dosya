@@ -25,7 +25,7 @@ export default async function PanelPage() {
     supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "delivered"),
     supabase.from("projects").select("*", { count: "exact", head: true }).gte("created_at", monthStart),
     supabase.from("projects")
-      .select("id, dosya_no, status, bina_adi, beyan_yuku_kg, kat_adedi, created_at, input_data, companies(short_name)")
+      .select("id, dosya_no, td_no, status, bina_adi, beyan_yuku_kg, kat_adedi, created_at, input_data, companies(short_name)")
       .order("created_at", { ascending: false }).limit(100),
   ]);
 

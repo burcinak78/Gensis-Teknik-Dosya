@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { deleteProject } from "../yeni/actions";
 
 type Proje = {
-  id: string; dosya_no: string; status: string; bina_adi: string | null;
+  id: string; dosya_no: string; td_no: string | null; status: string; bina_adi: string | null;
   beyan_yuku_kg: number | null; kat_adedi: number | null; created_at: string;
   ada_parsel: string; seri_no: string;
   companies: { short_name: string } | null;
@@ -20,9 +20,9 @@ const STATUS: Record<string, { t: string; bg: string; fg: string }> = {
   canceled: { t: "İptal", bg: "#fee2e2", fg: "#b91c1c" },
 };
 
-type ColKey = "ada_parsel" | "firma" | "bina_adi" | "seri_no" | "kapasite" | "created_at" | "status";
+type ColKey = "ada_parsel" | "td_no" | "firma" | "bina_adi" | "seri_no" | "kapasite" | "created_at" | "status";
 const coll = new Intl.Collator("tr", { numeric: true, sensitivity: "base" });
-const emptyF: Record<ColKey, string> = { ada_parsel: "", firma: "", bina_adi: "", seri_no: "", kapasite: "", created_at: "", status: "" };
+const emptyF: Record<ColKey, string> = { ada_parsel: "", td_no: "", firma: "", bina_adi: "", seri_no: "", kapasite: "", created_at: "", status: "" };
 
 export default function PanelTable({ projects }: { projects: Proje[] }) {
   const router = useRouter();
@@ -58,6 +58,7 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
   function disp(p: Proje, key: ColKey): string {
     switch (key) {
       case "ada_parsel": return p.ada_parsel ?? "";
+      case "td_no": return p.td_no ?? "";
       case "firma": return p.companies?.short_name ?? "";
       case "bina_adi": return p.bina_adi ?? "";
       case "seri_no": return p.seri_no ?? "";
@@ -137,6 +138,7 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
           <thead className="sticky top-0 z-10 bg-white">
             <tr className="text-left text-[12px] font-bold text-[#64748b] uppercase tracking-wide bg-white">
               <Th k="ada_parsel">Ada/Parsel</Th>
+              <Th k="td_no">TD No</Th>
               <Th k="firma">Firma Adı</Th>
               <Th k="bina_adi">Bina Adı</Th>
               <Th k="seri_no">As. Seri No</Th>
@@ -147,6 +149,7 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
             </tr>
             <tr className="border-b border-[#e5e9f0] bg-white">
               <td className="px-5 pb-3 align-top">{renderFilter("ada_parsel", "Ada/Parsel…")}</td>
+              <td className="px-5 pb-3 align-top">{renderFilter("td_no", "TD No…")}</td>
               <td className="px-5 pb-3 align-top">
                 <select value={colF.firma} onChange={(e) => setF("firma", e.target.value)} className={fInput + " cursor-pointer"}>
                   <option value="">Tümü</option>
@@ -169,7 +172,7 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-10 text-center text-slate-500">
+                <td colSpan={9} className="p-10 text-center text-slate-500">
                   {projects.length === 0 ? (
                     <>Kayıt yok. <Link href="/yeni" className="text-navy font-semibold">İlk dosyanı oluştur →</Link></>
                   ) : (
@@ -184,6 +187,7 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
                   <tr key={p.id} onClick={() => router.push(`/panel/${p.id}`)}
                     className="border-t border-[#e5e9f0] hover:bg-[#eef1f8] cursor-pointer">
                     <td className="px-5 py-3 font-bold text-navy">{p.ada_parsel || "—"}</td>
+                    <td className="px-5 py-3 font-semibold text-slate-700">{p.td_no || "—"}</td>
                     <td className="px-5 py-3 text-slate-600">{p.companies?.short_name ?? "—"}</td>
                     <td className="px-5 py-3 font-semibold text-slate-700">{p.bina_adi ?? "—"}</td>
                     <td className="px-5 py-3 text-slate-600">{p.seri_no || "—"}</td>

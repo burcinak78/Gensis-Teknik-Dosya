@@ -47,7 +47,21 @@ export async function saveDraftProject(payload: DraftPayload): Promise<SaveResul
   if (!user) return { ok: false, error: "Oturum bulunamadı." };
 
   if (!payload.company_id) return { ok: false, error: "Firma seçilmedi." };
-  if (!payload.dosya_no) return { ok: false, error: "Dosya no boş olamaz." };
+  if (!payload.dosya_no) return { ok: false, error: "Proje no boş olamaz." };
+
+  // TD No üret: TD-YY-0001, yıl bazlı artan (admin ile global max)
+  const admin = createAdminClient();
+  const yy = String(new Date().getFullYear()).slice(-2);
+  const tdPrefix = `TD-${yy}-`;
+  let tdSeq = 1;
+  try {
+    const { data: last } = await admin
+      .from("projects").select("td_no").ilike("td_no", `${tdPrefix}%`)
+      .order("td_no", { ascending: false }).limit(1);
+    const m = (last?.[0]?.td_no as string | undefined)?.match(/(\d+)\s*$/);
+    if (m) tdSeq = parseInt(m[1], 10) + 1;
+  } catch { /* td_no kolonu yoksa/erişim yoksa yok say */ }
+  const td_no = `${tdPrefix}${String(tdSeq).padStart(4, "0")}`;
 
   const { data: project, error } = await supabase
     .from("projects")
@@ -56,6 +70,7 @@ export async function saveDraftProject(payload: DraftPayload): Promise<SaveResul
       created_by: user.id,
       status: "draft",
       dosya_no: payload.dosya_no,
+      td_no,
       dosya_tarihi: payload.dosya_tarihi,
       makine_muhendis_id: payload.makine_muhendis_id,
       elektrik_muhendis_id: payload.elektrik_muhendis_id,

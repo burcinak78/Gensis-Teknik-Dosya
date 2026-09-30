@@ -68,7 +68,9 @@ export async function GET(req: NextRequest) {
   } = { isG: false, pf: {}, engMakine: [], engElektrik: [], coSanayi: [], coTse: [], coCe: [], motorCerts: [], otherCerts: [] };
   try {
     const { data: prow } = await admin.from("projects")
-      .select("makine_muhendis_id, elektrik_muhendis_id, company_id, input_data, bina_adi").eq("id", projectId).single();
+      .select("makine_muhendis_id, elektrik_muhendis_id, company_id, input_data, bina_adi, td_no").eq("id", projectId).single();
+    // Kapakta Dosya No karşısına TD No
+    if (prow?.td_no != null) (ctx as any).td_no = prow.td_no;
     const inp = (prow?.input_data ?? {}) as Record<string, any>;
     // Son Kontrol Formu bilgi tablosu için veriler (montaj adresi + input_data)
     (ctx as any).__sk = {
@@ -314,6 +316,8 @@ export async function GET(req: NextRequest) {
     if (code === "dilekce") {
       for (const p of attach.pf["yapi_ruhsati"] ?? []) await addFile("documents", p);
       for (const p of attach.pf["periyodik_kontrol"] ?? []) await addFile("documents", p);
+    } else if (code === "garanti") {
+      // Fatura, Garanti Belgesi'nin hemen arkasına
       for (const p of attach.pf["fatura"] ?? []) await addFile("documents", p);
     } else if (code === "firma_bilgileri") {
       for (const p of attach.coSanayi) await addFile("documents", p);
