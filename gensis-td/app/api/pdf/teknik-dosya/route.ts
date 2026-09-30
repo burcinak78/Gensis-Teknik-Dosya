@@ -173,6 +173,33 @@ export async function GET(req: NextRequest) {
     const { data: allCats } = await admin.from("equipment_categories").select("code, name, drive_type");
     if (allCats) (ctx as any).equipCats = allCats;
 
+    // Marka seçili ama model yok olan ekipmanlarda, RPC marka ismini doldurmamış olabilir.
+    // Burada marka'yı brand_id üzerinden tamamlıyoruz (yalnızca boşsa) — böylece Teknik Komponent
+    // ve Tescil tablolarında ilgili satırda marka görünür, model/seri boş kalır.
+    const { data: peqBrand } = await admin.from("project_equipment")
+      .select("slot, equipment_categories(code), equipment_brands(name)").eq("project_id", projectId);
+    if (peqBrand) {
+      const ek = ((ctx as any).ekipman = (ctx as any).ekipman || {});
+      const hasMarka = (...keys: string[]) => keys.some((k) => ek[k]?.marka);
+      const fill = (key: string, bname: string) => { ek[key] = { ...(ek[key] || {}), marka: bname }; };
+      for (const r of peqBrand as any[]) {
+        const code = r.equipment_categories?.code;
+        const bname = r.equipment_brands?.name;
+        if (!code || !bname) continue;
+        if (code === "tampon") {
+          // Doc okuma yolu: agırlık → tampon_agirlik; kabin → tampon_kabin || tampon.
+          // Yalnızca ilgili yolda marka boşsa doldur (RPC'nin dolu kaydını ezme).
+          if ((r.slot || "kabin") === "agirlik") {
+            if (!hasMarka("tampon_agirlik")) fill("tampon_agirlik", bname);
+          } else if (!hasMarka("tampon_kabin", "tampon")) {
+            fill("tampon_kabin", bname);
+          }
+        } else if (!ek[code]?.marka) {
+          fill(code, bname);
+        }
+      }
+    }
+
     const { data: peq } = await admin.from("project_equipment")
       .select("certificate_id, equipment_categories(code)").eq("project_id", projectId);
     const motorIds = new Set<string>(); const otherIds = new Set<string>();

@@ -93,7 +93,7 @@ export async function saveDraftProject(payload: DraftPayload): Promise<SaveResul
     return { ok: false, error: error?.message ?? "Proje kaydedilemedi." };
   }
 
-  const eq = payload.equipment.filter((e) => e.model_id);
+  const eq = payload.equipment.filter((e) => e.model_id || e.brand_id);
   if (eq.length > 0) {
     const { error: eqErr } = await supabase.from("project_equipment").insert(
       eq.map((e) => ({
@@ -152,7 +152,7 @@ export async function updateDraftProject(id: string, payload: DraftPayload): Pro
   const { error: delErr } = await supabase.from("project_equipment").delete().eq("project_id", id);
   if (delErr) return { ok: false, error: "Eski ekipman temizlenemedi: " + delErr.message };
 
-  const eq = payload.equipment.filter((e) => e.model_id);
+  const eq = payload.equipment.filter((e) => e.model_id || e.brand_id);
   if (eq.length > 0) {
     const { error: eqErr } = await supabase.from("project_equipment").insert(
       eq.map((e) => ({

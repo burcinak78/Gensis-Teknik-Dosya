@@ -547,17 +547,18 @@ export default function DataEntryWizard(props: Props) {
     const equipment = Object.entries(equip)
       .filter(([key, val]) => {
         const card = equipCards.find((c) => c.key === key);
-        if (!card || !val.modelId) return false;
+        if (!card || (!val.modelId && !val.brandId)) return false; // ne marka ne model → kaydetme
         if (card.code === "kabin_kilidi" && kabinYok) return false; // Kabin Kapı Kilidi "Yok" → kaydetme
         return true;
       })
       .map(([key, val]) => {
         const card = equipCards.find((c) => c.key === key)!;
-        const model = props.models.find((m) => m.id === val.modelId);
+        const model = val.modelId ? props.models.find((m) => m.id === val.modelId) : undefined;
         const n = multiCountForCode(card.code);
-        let seri_no = val.seriNo?.trim() || null;
+        // Seri no / sertifika yalnızca model seçiliyse. Marka seçili + model yok → sadece marka kaydedilir.
+        let seri_no = val.modelId ? (val.seriNo?.trim() || null) : null;
         let seri_list: string[] | null = null;
-        if (n > 0) {
+        if (val.modelId && n > 0) {
           seri_list = Array.from({ length: n }, (_, i) => (val.seriList?.[i] || "").trim());
           seri_no = seri_list.filter(Boolean).join("; ") || null;
         }
