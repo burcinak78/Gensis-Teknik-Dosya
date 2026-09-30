@@ -99,6 +99,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     katAdedi: s(project.kat_adedi),
     durakAdedi: s(project.durak_adedi),
     girisSayisi: s(inp.giris_sayisi),
+    kabinYok: inp.kabin_kilidi_yok === true,
     imalYili: s(project.imal_yili),
     askiTipi: inp.aski_tipi ?? "",
     katKapisi: inp.kat_kapisi ?? "",

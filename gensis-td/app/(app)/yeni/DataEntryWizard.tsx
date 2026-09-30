@@ -42,6 +42,7 @@ export type InitialData = {
   baslangicKat: string; araKatlar: { after: string; label: string }[];
   makineMuhId: string; elektrikMuhId: string;
   equip: EquipInit;
+  kabinYok?: boolean; // Kabin Kapı Kilidi = Yok (toggle) → Teknik Komponent'te kabin kapısı kilitleme satırı gelmez
   // Belgeler + Dosya İşlemleri (Faz 1 metadata)
   modulSecim?: string; modulBelgeIds?: string[];
   modulG?: { belge_no: string; verilis: string; gecerlilik: string; nb_id: string };
@@ -211,6 +212,8 @@ export default function DataEntryWizard(props: Props) {
   const [makineMuhId, setMakineMuhId] = useState(init?.makineMuhId ?? gMak?.id ?? "");
   const [elektrikMuhId, setElektrikMuhId] = useState(init?.elektrikMuhId ?? gElk?.id ?? "");
   const [equip, setEquip] = useState<Record<string, { brandId?: string; modelId?: string; seriNo?: string; seriList?: string[] }>>(init?.equip ?? {});
+  // Kabin Kapı Kilidi Var/Yok toggle (varsayılan: Var). Yok → kabin kapısı kilitleme satırı listeden çıkar.
+  const [kabinYok, setKabinYok] = useState<boolean>(init?.kabinYok ?? false);
 
   // Belgeler adımı (Faz 1 metadata)
   const [modulSecim, setModulSecim] = useState(init?.modulSecim ?? "");
@@ -387,8 +390,12 @@ export default function DataEntryWizard(props: Props) {
   }, [katListesi]);
   // ekipman: marka + model + seri no dolu değilse eksik sayılır (ara kat satırları hariç)
   const eqIncomplete = (card: { key: string; code: string }) => {
-    const s = equip[card.key];
-    if (!s?.modelId) return true;
+    const s = equip[card.key] || {};
+    // Kabin Kapı Kilidi "Yok" ise geçerli (seçim beklenmez)
+    if (card.code === "kabin_kilidi" && kabinYok) return false;
+    // Diğer ekipmanlarda marka/model boş (YOK seçili) ise geçerli — ekipman yok kabul edilir
+    if (card.code !== "kabin_kilidi" && !s.brandId && !s.modelId) return false;
+    if (!s.modelId) return true; // marka seçili ama model seçilmemiş (ya da kabin Var ama boş)
     const n = multiCountForCode(card.code);
     if (n > 0) {
       const list = s.seriList || [];
@@ -462,11 +469,22 @@ export default function DataEntryWizard(props: Props) {
     }
   }
 
-  function pickBrand(catId: string, brandId: string) {
-    setEquip((e) => ({ ...e, [catId]: { brandId, modelId: undefined } }));
+  const YOK = "__YOK__";
+  // Marka dropdown: YOK → marka+model temizlenir (ekipman yok); marka → model sıfırlanır
+  function selectBrand(catId: string, value: string) {
+    setEquip((e) =>
+      value === YOK
+        ? { ...e, [catId]: { ...e[catId], brandId: undefined, modelId: undefined } }
+        : { ...e, [catId]: { ...e[catId], brandId: value, modelId: undefined } }
+    );
   }
-  function pickModel(catId: string, modelId: string) {
-    setEquip((e) => ({ ...e, [catId]: { ...e[catId], modelId } }));
+  // Model dropdown: YOK → sadece model temizlenir
+  function selectModel(catId: string, value: string) {
+    setEquip((e) =>
+      value === YOK
+        ? { ...e, [catId]: { ...e[catId], modelId: undefined } }
+        : { ...e, [catId]: { ...e[catId], modelId: value } }
+    );
   }
   function setSeriNo(catId: string, v: string) {
     setEquip((e) => ({ ...e, [catId]: { ...e[catId], seriNo: v } }));
@@ -527,7 +545,12 @@ export default function DataEntryWizard(props: Props) {
     setSaving(true);
     setError(null);
     const equipment = Object.entries(equip)
-      .filter(([key, val]) => val.modelId && equipCards.some((c) => c.key === key))
+      .filter(([key, val]) => {
+        const card = equipCards.find((c) => c.key === key);
+        if (!card || !val.modelId) return false;
+        if (card.code === "kabin_kilidi" && kabinYok) return false; // Kabin Kapı Kilidi "Yok" → kaydetme
+        return true;
+      })
       .map(([key, val]) => {
         const card = equipCards.find((c) => c.key === key)!;
         const model = props.models.find((m) => m.id === val.modelId);
@@ -580,6 +603,7 @@ export default function DataEntryWizard(props: Props) {
         pafta, ada, parsel, yapi_sahibi: yapiSahibi, yapi_sahibi_adresi: yapiSahibiAdresi,
         asansor_seri_no: asansorSeriNo, asansor_kimlik_no: asansorKimlikNo,
         seyir_mesafesi: seyirMesafesi, motor_gucu: motorGucu, giris_sayisi: girisSayisi,
+        kabin_kilidi_yok: kabinYok,
         asansor_tipi: asansorTipi,
         piston_olculeri: pistonOlculeri, piston_yeri: pistonYeri, debi: debi, unite_bilgisi: uniteBilgisi,
         asansor_sinifi: asansorSinifi,
@@ -1121,7 +1145,7 @@ export default function DataEntryWizard(props: Props) {
           )}
 
           {step === S_EKIPMAN && (
-            <Section title="Kritik ekipmanlar" desc="Tümü zorunludur. Önce marka, sonra model seçin.">
+            <Section title="Kritik ekipmanlar" desc="Marka ve modeli açılır listeden seçin. İlgili ekipman yoksa 'YOK' seçin.">
               <div className="space-y-4">
                 {equipCards.map((cat) => {
                   const catBrands = props.brands.filter((b) => b.category_id === cat.catId);
@@ -1133,40 +1157,52 @@ export default function DataEntryWizard(props: Props) {
                   const eksik = showErrors && eqIncomplete(cat);
                   const multiCfg = MULTI_SERI[cat.code];
                   const multiN = multiCountForCode(cat.code);
+                  const kabinKilidi = cat.code === "kabin_kilidi";
+                  const gizli = kabinKilidi && kabinYok; // Kabin Kapı Kilidi "Yok" → seçim alanları gizli
                   return (
                     <div key={cat.key} className={`bg-white border rounded-xl p-4 ${eksik ? "border-red-400 bg-red-50/40" : "border-slate-200"}`}>
-                      <div className="font-bold mb-2">{cat.label} <span className="text-red-500">*</span></div>
-                      <div className="text-xs font-semibold text-slate-500 mb-1">Marka</div>
-                      <div className="flex flex-wrap gap-2 mb-1">
-                        {catBrands.map((b) => (
-                          <button key={b.id} onClick={() => pickBrand(cat.key, b.id)}
-                            className={`px-3 py-2 rounded-lg text-sm font-semibold border ${sel.brandId === b.id ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
-                            style={sel.brandId === b.id ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)", boxShadow: "0 4px 12px rgba(30,42,91,.22)" } : undefined}>
-                            {b.name}
-                          </button>
-                        ))}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="font-bold">{cat.label}{!gizli && <span className="text-red-500"> *</span>}</div>
+                        {kabinKilidi && (
+                          <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-semibold shrink-0">
+                            <button type="button" onClick={() => setKabinYok(false)}
+                              className={`px-4 py-1.5 ${!kabinYok ? "text-white" : "bg-white text-slate-600 hover:text-brand"}`}
+                              style={!kabinYok ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)" } : undefined}>Var</button>
+                            <button type="button" onClick={() => setKabinYok(true)}
+                              className={`px-4 py-1.5 border-l border-slate-200 ${kabinYok ? "bg-slate-700 text-white" : "bg-white text-slate-600 hover:text-slate-800"}`}>Yok</button>
+                          </div>
+                        )}
                       </div>
-                      {sel.brandId && (
-                        <div className="mt-3 rounded-xl border-2 border-brand/30 bg-brand-light p-3">
-                          <div className="text-xs font-bold text-brand mb-2 uppercase tracking-wide">Model seçin</div>
-                          <div className="flex flex-wrap gap-2">
-                            {catModels.map((m) => (
-                              <button key={m.id} onClick={() => pickModel(cat.key, m.id)}
-                                className={`px-3 py-2 rounded-lg text-sm font-semibold border ${sel.modelId === m.id ? "border-transparent text-white" : "bg-white border-brand/40 text-brand hover:bg-white"}`}
-                                style={sel.modelId === m.id ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)", boxShadow: "0 4px 12px rgba(30,42,91,.22)" } : undefined}>
-                                {m.name}
-                              </button>
-                            ))}
+                      {gizli ? (
+                        <div className="text-xs text-slate-500 italic">Bu ekipman &quot;Yok&quot; olarak işaretlendi; Teknik Komponent Listesinde gösterilmez.</div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <div className="text-xs font-semibold text-slate-500 mb-1">Marka</div>
+                            <select value={sel.brandId ?? YOK} onChange={(e) => selectBrand(cat.key, e.target.value)}
+                              className={"inp" + (showErrors && eksik && !sel.brandId ? " !border-red-300 !bg-red-50" : "")}>
+                              <option value={YOK}>YOK</option>
+                              {catBrands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold text-slate-500 mb-1">Model</div>
+                            <select value={sel.modelId ?? YOK} onChange={(e) => selectModel(cat.key, e.target.value)}
+                              disabled={!sel.brandId}
+                              className={"inp disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed" + (showErrors && eksik && sel.brandId && !sel.modelId ? " !border-red-300 !bg-red-50" : "")}>
+                              <option value={YOK}>YOK</option>
+                              {catModels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                            </select>
                           </div>
                         </div>
                       )}
-                      {cert && (
+                      {!gizli && cert && (
                         <div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-3 text-xs">
                           <div className="flex justify-between"><span className="text-slate-500">Sertifika No</span><span className="font-semibold">{cert.cert_no}</span></div>
                           {nb && <div className="flex justify-between mt-1"><span className="text-slate-500">Onaylanmış Kuruluş</span><span className="font-semibold">{nb.identity_no} · {nb.name}</span></div>}
                         </div>
                       )}
-                      {sel.modelId && multiCfg && multiN > 0 && (
+                      {!gizli && sel.modelId && multiCfg && multiN > 0 && (
                         <div className="mt-3">
                           <label className="block text-xs font-semibold text-slate-700 mb-1">
                             Seri No — her {multiCfg.label.toLocaleLowerCase("tr")} için ayrı ({multiN} adet) *
@@ -1212,12 +1248,12 @@ export default function DataEntryWizard(props: Props) {
                           </div>
                         </div>
                       )}
-                      {sel.modelId && multiCfg && multiN === 0 && (
+                      {!gizli && sel.modelId && multiCfg && multiN === 0 && (
                         <div className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                           Seri no kutuları için önce Asansör adımında {multiCfg.count === "durak" ? "durak" : "giriş"} sayısını girin.
                         </div>
                       )}
-                      {sel.modelId && !multiCfg && (
+                      {!gizli && sel.modelId && !multiCfg && (
                         <div className="mt-3">
                           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Ekipman Seri No *</label>
                           <input

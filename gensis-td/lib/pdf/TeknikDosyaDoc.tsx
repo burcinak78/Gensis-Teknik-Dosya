@@ -358,7 +358,9 @@ function teknikKomponentPage(c: any) {
 
         {/* Kilitleme tertibatları — seri no kat/giriş bazında satır satır */}
         <KBlok ad="Durak Kapısı Kilitleme Tertibatı" e={kk} alt={katlar} />
-        <KBlok ad="Kabin Kapısı Kilitleme Tertibatı" e={kbk} alt={girisler} />
+        {c.inp.kabin_kilidi_yok !== true && (
+          <KBlok ad="Kabin Kapısı Kilitleme Tertibatı" e={kbk} alt={girisler} />
+        )}
 
         {satirlar.map(([ad, e], i) => (
           <View style={st.kRow} key={i}>
