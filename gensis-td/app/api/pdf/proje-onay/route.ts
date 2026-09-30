@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import React from "react";
 import { Font, renderToBuffer } from "@react-pdf/renderer";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ProjeOnayDoc } from "@/lib/pdf/ProjeOnayDoc";
 
 export const runtime = "nodejs";
@@ -58,6 +59,7 @@ export async function GET(req: NextRequest) {
     ilgili_idare: inp.ilgili_idare || "",
     tarih: frmtTarih(r.dilekce_tarihi),
     adet: r.asansor_adedi ?? 1,
+    asansor_tipi: r.asansor_tipi ?? inp.asansor_tipi ?? null,
     yapi_sahibi: r.yapi_sahibi,
     yapi_sahibi_adresi: inp.yapi_sahibi_adresi || "",
     montaj_adresi: r.montaj_adresi,
@@ -72,6 +74,31 @@ export async function GET(req: NextRequest) {
     },
     projeTuru: "ASANSÖR",
   };
+
+  // Taahhütname imzası: "İmza ekle" seçili müellif için imzayı (engineer_documents doc_type=imza) göm
+  try {
+    const admin = createAdminClient();
+    const engPairs: [string | null | undefined, "makine" | "elektrik", boolean][] = [
+      [r.makine_muhendis_id, "makine", !!inp.imza_makine],
+      [r.elektrik_muhendis_id, "elektrik", !!inp.imza_elektrik],
+    ];
+    const wantIds = engPairs.filter(([id, , want]) => id && want).map(([id]) => id) as string[];
+    if (wantIds.length) {
+      const { data: edocs } = await admin.from("engineer_documents")
+        .select("engineer_id, storage_path").eq("doc_type", "imza").in("engineer_id", wantIds);
+      for (const [id, disc, want] of engPairs) {
+        if (!id || !want) continue;
+        const ed = (edocs ?? []).find((d: any) => d.engineer_id === id);
+        if (!ed?.storage_path) continue;
+        const { data: blob } = await admin.storage.from("documents").download(ed.storage_path);
+        if (!blob) continue;
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        const ext = (ed.storage_path.split(".").pop() || "").toLowerCase();
+        const mime = ext === "png" ? "image/png" : "image/jpeg";
+        (data.muh as any)[disc] = { ...(data.muh as any)[disc], imza: `data:${mime};base64,${Buffer.from(bytes).toString("base64")}` };
+      }
+    }
+  } catch { /* imza gömülemezse taahhütname imzasız üretilir */ }
 
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
   const host = req.headers.get("host");

@@ -32,7 +32,7 @@ export type InitialData = {
   binaAdi: string; montajAdresi: string;
   provinceId: number | ""; districtId: string; districts: District[];
   beyanYuku: number | ""; beyanHizi: string; katAdedi: string; durakAdedi: string;
-  girisSayisi: string; imalYili: string; askiTipi: string; katKapisi: string;
+  girisSayisi: string; asansorSayisi?: string; imalYili: string; askiTipi: string; katKapisi: string;
   pafta: string; ada: string; parsel: string; yapiSahibi: string; yapiSahibiAdresi: string;
   asansorSeriNo: string; asansorKimlikNo: string; seyirMesafesi: string; motorGucu: string;
   asansorTipi: string; pistonOlculeri: string; pistonYeri: string; debi: string; uniteBilgisi: string;
@@ -43,6 +43,7 @@ export type InitialData = {
   makineMuhId: string; elektrikMuhId: string;
   equip: EquipInit;
   kabinYok?: boolean; // Kabin Kapı Kilidi = Yok (toggle) → Teknik Komponent'te kabin kapısı kilitleme satırı gelmez
+  imzaMakine?: boolean; imzaElektrik?: boolean; // Taahhütnameye müellif imzası eklensin mi
   // Belgeler + Dosya İşlemleri (Faz 1 metadata)
   modulSecim?: string; modulBelgeIds?: string[];
   modulG?: { belge_no: string; verilis: string; gecerlilik: string; nb_id: string };
@@ -71,6 +72,7 @@ const MODUL_SECENEKLERI: { v: string; t: string }[] = [
 // Asansör imal yılı listesi (gelecek yıldan 25 yıl geriye)
 const IMAL_YILLARI = (() => { const y = new Date().getFullYear(); return Array.from({ length: 27 }, (_, i) => y + 1 - i); })();
 const RANGE_3 = [1, 2, 3];
+const RANGE_10 = Array.from({ length: 10 }, (_, i) => i + 1);
 // Binlik ayraçlı sayı biçimi (ör. 25000 → "25.000")
 const formatThousands = (s: string) => { const d = String(s ?? "").replace(/\D/g, ""); return d ? Number(d).toLocaleString("tr-TR") : ""; };
 const COMPANY_DOC_ETIKET: Record<string, string> = {
@@ -173,6 +175,7 @@ export default function DataEntryWizard(props: Props) {
   const [katAdedi, setKatAdedi] = useState(init?.katAdedi ?? "");
   const [durakAdedi, setDurakAdedi] = useState(init?.durakAdedi ?? "");
   const [girisSayisi, setGirisSayisi] = useState(init?.girisSayisi ?? "");
+  const [asansorSayisi, setAsansorSayisi] = useState(init?.asansorSayisi ?? "1");
   const [imalYili, setImalYili] = useState(init?.imalYili ?? "");
   const [askiTipi, setAskiTipi] = useState(init?.askiTipi ?? "");
   const [katKapisi, setKatKapisi] = useState(init?.katKapisi ?? "");
@@ -214,6 +217,9 @@ export default function DataEntryWizard(props: Props) {
   const [equip, setEquip] = useState<Record<string, { brandId?: string; modelId?: string; seriNo?: string; seriList?: string[] }>>(init?.equip ?? {});
   // Kabin Kapı Kilidi Var/Yok toggle (varsayılan: Var). Yok → kabin kapısı kilitleme satırı listeden çıkar.
   const [kabinYok, setKabinYok] = useState<boolean>(init?.kabinYok ?? false);
+  // Taahhütnameye müellif imzası eklensin mi (imza yüklüyse)
+  const [imzaMakine, setImzaMakine] = useState<boolean>(init?.imzaMakine ?? false);
+  const [imzaElektrik, setImzaElektrik] = useState<boolean>(init?.imzaElektrik ?? false);
 
   // Belgeler adımı (Faz 1 metadata)
   const [modulSecim, setModulSecim] = useState(init?.modulSecim ?? "");
@@ -604,7 +610,9 @@ export default function DataEntryWizard(props: Props) {
         pafta, ada, parsel, yapi_sahibi: yapiSahibi, yapi_sahibi_adresi: yapiSahibiAdresi,
         asansor_seri_no: asansorSeriNo, asansor_kimlik_no: asansorKimlikNo,
         seyir_mesafesi: seyirMesafesi, motor_gucu: motorGucu, giris_sayisi: girisSayisi,
+        asansor_sayisi: asansorSayisi ? Number(asansorSayisi) : 1,
         kabin_kilidi_yok: kabinYok,
+        imza_makine: imzaMakine, imza_elektrik: imzaElektrik,
         asansor_tipi: asansorTipi,
         piston_olculeri: pistonOlculeri, piston_yeri: pistonYeri, debi: debi, unite_bilgisi: uniteBilgisi,
         asansor_sinifi: asansorSinifi,
@@ -809,14 +817,14 @@ export default function DataEntryWizard(props: Props) {
                     <option value="">Seçiniz…</option>
                     {makineOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name}{m.chamber_reg_no ? ` · ${m.chamber_reg_no}` : ""}</option>)}
                   </select>
-                  {makineMuhId && <MuhImza engineerId={makineMuhId} imzaDocId={props.engineers.find((e) => e.id === makineMuhId)?.imzaDocId} />}
+                  {makineMuhId && <MuhImza engineerId={makineMuhId} imzaDocId={props.engineers.find((e) => e.id === makineMuhId)?.imzaDocId} checked={imzaMakine} onToggle={setImzaMakine} />}
                 </Field>
                 <Field label="Elektrik Mühendisi (Proje Müellifi) *">
                   <select className={"inp" + ec(elektrikMuhId)} value={elektrikMuhId} onChange={(e) => setElektrikMuhId(e.target.value)}>
                     <option value="">Seçiniz…</option>
                     {elektrikOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name}{m.chamber_reg_no ? ` · ${m.chamber_reg_no}` : ""}</option>)}
                   </select>
-                  {elektrikMuhId && <MuhImza engineerId={elektrikMuhId} imzaDocId={props.engineers.find((e) => e.id === elektrikMuhId)?.imzaDocId} />}
+                  {elektrikMuhId && <MuhImza engineerId={elektrikMuhId} imzaDocId={props.engineers.find((e) => e.id === elektrikMuhId)?.imzaDocId} checked={imzaElektrik} onToggle={setImzaElektrik} />}
                 </Field>
               </div>
               <p className="text-xs text-slate-400">Varsayılan olarak Gensis'e atanmış mühendisler gelir; gerekirse firmaya bağlı diğer mühendisleri seçebilirsiniz.</p>
@@ -1085,6 +1093,11 @@ export default function DataEntryWizard(props: Props) {
                   <select className={"inp" + ec(girisSayisi)} value={girisSayisi} onChange={(e) => setGirisSayisi(e.target.value)}>
                     <option value="">Seçiniz…</option>
                     {RANGE_3.map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </Field>
+                <Field label="Asansör Sayısı *">
+                  <select className="inp" value={asansorSayisi} onChange={(e) => setAsansorSayisi(e.target.value)}>
+                    {RANGE_10.map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </Field>
                 <Field label="Askı Tipi *">
@@ -1426,7 +1439,7 @@ function Field({ label, children, full }: { label: string; children: React.React
   return (<div className={full ? "col-span-2" : undefined}><label className="block text-xs font-semibold text-slate-700 mb-1.5">{label}</label>{children}</div>);
 }
 // Seçili mühendisin imzası: yüklüyse otomatik göster, yoksa jpeg/png yüklemeye izin ver
-function MuhImza({ engineerId, imzaDocId }: { engineerId: string; imzaDocId?: string | null }) {
+function MuhImza({ engineerId, imzaDocId, checked, onToggle }: { engineerId: string; imzaDocId?: string | null; checked?: boolean; onToggle?: (v: boolean) => void }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -1444,9 +1457,17 @@ function MuhImza({ engineerId, imzaDocId }: { engineerId: string; imzaDocId?: st
   return (
     <div className="mt-1.5">
       {imzaDocId ? (
-        <div className="flex items-center gap-2">
-          <img src={`/api/belge/muhendis?id=${imzaDocId}`} alt="İmza" className="h-10 max-w-[140px] object-contain border border-slate-100 rounded bg-white p-0.5" />
-          <span className="text-[11px] text-green-600 font-semibold inline-flex items-center gap-0.5"><span className="material-symbols-rounded text-[14px]">check_circle</span>İmza yüklü</span>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <img src={`/api/belge/muhendis?id=${imzaDocId}`} alt="İmza" className="h-10 max-w-[140px] object-contain border border-slate-100 rounded bg-white p-0.5" />
+            <span className="text-[11px] text-green-600 font-semibold inline-flex items-center gap-0.5"><span className="material-symbols-rounded text-[14px]">check_circle</span>İmza yüklü</span>
+          </div>
+          {onToggle && (
+            <label className="text-[11px] text-slate-600 inline-flex items-center gap-1.5 cursor-pointer select-none">
+              <input type="checkbox" checked={!!checked} onChange={(e) => onToggle(e.target.checked)} className="accent-brand" />
+              Taahhütnameye imza ekle
+            </label>
+          )}
         </div>
       ) : (
         <label className="text-[11px] text-slate-500 inline-flex items-center gap-1.5 cursor-pointer hover:text-brand">

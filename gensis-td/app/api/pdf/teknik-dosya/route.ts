@@ -118,14 +118,42 @@ export async function GET(req: NextRequest) {
       (attach.pf[f.kind] ||= []).push(f.storage_path);
     }
 
+    let imzaMakinePath: string | undefined, imzaElektrikPath: string | undefined;
     if (engIds.length) {
       const { data: edocs } = await admin.from("engineer_documents")
-        .select("engineer_id, storage_path").in("engineer_id", engIds);
+        .select("engineer_id, storage_path, doc_type").in("engineer_id", engIds);
       for (const d of edocs ?? []) {
         if (!d.storage_path) continue;
+        // İmza (doc_type=imza) ayrı sayfa olarak eklenmez; Taahhütname'ye gömülür (seçiliyse).
+        if (d.doc_type === "imza") {
+          if (d.engineer_id === prow?.makine_muhendis_id) imzaMakinePath = d.storage_path;
+          if (d.engineer_id === prow?.elektrik_muhendis_id) imzaElektrikPath = d.storage_path;
+          continue;
+        }
         if (d.engineer_id === prow?.makine_muhendis_id) attach.engMakine.push(d.storage_path);
         if (d.engineer_id === prow?.elektrik_muhendis_id) attach.engElektrik.push(d.storage_path);
       }
+    }
+    // Taahhütname imzası: kullanıcı "İmza ekle" seçtiyse imzayı data URI olarak doc'a geçir
+    const imzaDataUri = async (path?: string): Promise<string | null> => {
+      if (!path) return null;
+      try {
+        const { data: blob } = await admin.storage.from("documents").download(path);
+        if (!blob) return null;
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        const ext = (path.split(".").pop() || "").toLowerCase();
+        const mime = ext === "png" ? "image/png" : "image/jpeg";
+        return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+      } catch { return null; }
+    };
+    // NOT: TeknikDosyaDoc, müellif bilgisini ctx.muhendis üzerinden okur (buildCtx: muh = d.muhendis).
+    if (inp.imza_makine && imzaMakinePath) {
+      const uri = await imzaDataUri(imzaMakinePath);
+      if (uri) { (ctx as any).muhendis = (ctx as any).muhendis || {}; (ctx as any).muhendis.makine = (ctx as any).muhendis.makine || {}; (ctx as any).muhendis.makine.imza = uri; }
+    }
+    if (inp.imza_elektrik && imzaElektrikPath) {
+      const uri = await imzaDataUri(imzaElektrikPath);
+      if (uri) { (ctx as any).muhendis = (ctx as any).muhendis || {}; (ctx as any).muhendis.elektrik = (ctx as any).muhendis.elektrik || {}; (ctx as any).muhendis.elektrik.imza = uri; }
     }
 
     if (companyId) {

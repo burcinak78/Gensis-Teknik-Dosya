@@ -49,6 +49,8 @@ export default async function DuzenleProjeOnayPage({ params }: { params: { id: s
     makineMuhId: s(row.makine_muhendis_id),
     elektrikMuhId: s(row.elektrik_muhendis_id),
     ilgiliIdareId: s(row.ilgili_idare_id),
+    imzaMakine: inp.imza_makine === true,
+    imzaElektrik: inp.imza_elektrik === true,
   };
 
   const list = companies.data ?? [];

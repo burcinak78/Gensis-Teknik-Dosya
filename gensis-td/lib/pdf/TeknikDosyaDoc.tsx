@@ -77,8 +77,9 @@ const st = StyleSheet.create({
   // Taahhütname: bölüm grubu — satır arası çizgi yok, yalnız dış sınır + bölüm başlığı çizgileri
   tBox: { borderWidth: 0.8, borderColor: "#000000" },
   tRow: { flexDirection: "row" },
-  tLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#000000", borderRightWidth: 0.8, borderColor: "#000000" },
-  tVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#000000" },
+  // Etiket içerik genişliğinde (sabit sütun yok, dikey çizgi yok) → değer hemen yanında, sola yanaşık
+  tLabel: { flexShrink: 0, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#000000" },
+  tVal: { flex: 1, paddingVertical: 1.8, paddingLeft: 2, paddingRight: 4, fontSize: 7.3, color: "#000000" },
   tSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#000000", backgroundColor: "#e5e9f0", textAlign: "center", borderTopWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#000000" },
   tOuter: { borderWidth: 0.8, borderColor: "#000000", padding: 10, marginTop: 12 },
   // Genel tablo (Marka/Tip/Model.. ve Seyir Defteri tabloları)
@@ -141,6 +142,9 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
   const unvan = disc === "makine" ? "MAKİNA MÜHENDİSİ" : "ELEKTRİK MÜHENDİSİ";
   const unvanKisa = disc === "makine" ? "Mak.Müh." : "Elk.Müh.";
   const unvanTam = disc === "makine" ? "Makine Mühendisi" : "Elektrik Mühendisi";
+  // Projenin Türü: tahrik türü + asansör adedi → "HİDROLİK/ELEKTRİKLİ ASANSÖR / N ADET"
+  const adet = Number(c.inp?.asansor_sayisi) || 1;
+  const projeTuru = `${c.isHid ? "HİDROLİK" : "ELEKTRİKLİ"} ASANSÖR / ${adet} ADET`;
   return (
     <Page key={"muh_taahhut_" + disc} size="A4" style={st.page}>
       <Text style={st.formTitle}>TAAHHÜTNAME</Text>
@@ -157,7 +161,7 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
         <TRow l="Yapı Adresi" val={c.d.montaj_adresi} />
         <TRow l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
         <TRow l="Yapı Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
-        <TRow l="Projenin Türü" val={c.projeTuru} />
+        <TRow l="Projenin Türü" val={projeTuru} />
       </View>
       <View style={st.tOuter}>
         <Text style={{ fontSize: 8.6, textAlign: "justify", lineHeight: 1.5 }}>
@@ -165,10 +169,15 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
         </Text>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 22 }}>
           <Text style={{ fontSize: 9 }}>Tarih : …./…./20…</Text>
-          <View style={{ alignItems: "flex-end" }}>
+          <View style={{ alignItems: "flex-end", position: "relative", height: 70 }}>
+            {m?.imza && (
+              <View style={{ position: "absolute", top: 0, bottom: 0, right: 0, left: 0, alignItems: "flex-end", justifyContent: "center" }}>
+                <Image src={m.imza} style={{ width: 130, height: 44, objectFit: "contain" }} />
+              </View>
+            )}
             <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 8 }}>Proje Müellifi</Text>
-            <Text style={{ fontSize: 9, marginBottom: 7 }}>{v(m?.ad) || "Ad Soyad"}</Text>
-            <Text style={{ fontSize: 9, marginBottom: 7 }}>{unvanTam}</Text>
+            <Text style={{ fontSize: 9, marginBottom: 7 }}>Ad Soyad</Text>
+            <Text style={{ fontSize: 9, marginBottom: 7 }}>İsim Ünvanı</Text>
             <Text style={{ fontSize: 9 }}>İmza</Text>
           </View>
         </View>
@@ -382,7 +391,7 @@ function teknikKomponentPage(c: any) {
 const CAT_LABEL: Record<string, string> = {
   hiz_regulatoru: "Hız Regülatörü", tampon: "Tampon", tampon_kabin: "Kabin Tamponu",
   tampon_agirlik: "Ağırlık Tamponu", kapi_kilidi: "Kapı Kilidi", kabin_kilidi: "Kabin Kapı Kilidi",
-  fren_blogu: "Fren Bloğu", kumanda: "Kumanda Panosu", motor: "Makine Motoru",
+  fren_blogu: "Fren Bloğu", kumanda: "Kumanda Panosu", motor: "Makine/Motor",
 };
 
 function BsMadde({ no, baslik, children }: { no: number | string; baslik: string; children: any }) {
@@ -575,7 +584,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         </Text>
         <Text style={{ textAlign: "center", color: "#000000", marginBottom: 18 }}>{v(c.d.il)}</Text>
         <Text style={{ textAlign: "justify", marginBottom: 14, textIndent: 28 }}>
-          Aşağıda özellikleri verilmiş olan ve firmamız tarafından montajı yapılan 1 adet asansör için
+          Aşağıda özellikleri verilmiş olan ve firmamız tarafından montajı yapılan {Number(c.inp?.asansor_sayisi) || 1} adet asansör için
           tescil belgesinin tarafımıza verilmesini arz ederiz.
         </Text>
         <LR l="Yapı Sahibi" val={c.inp.yapi_sahibi} />

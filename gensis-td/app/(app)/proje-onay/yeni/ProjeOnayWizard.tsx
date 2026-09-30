@@ -22,6 +22,7 @@ export type OnayInitial = {
   beyanYuku: number | ""; beyanHizi: string; durak: string;
   makineMuhId: string; elektrikMuhId: string;
   ilgiliIdareId: string;
+  imzaMakine?: boolean; imzaElektrik?: boolean;
 };
 
 type Props = {
@@ -86,6 +87,8 @@ export default function ProjeOnayWizard(props: Props) {
   const gElk = props.engineers.find((e) => e.discipline === "elektrik" && e.company_id === props.gensisCompanyId);
   const [makineMuhId, setMakineMuhId] = useState(init?.makineMuhId ?? gMak?.id ?? "");
   const [elektrikMuhId, setElektrikMuhId] = useState(init?.elektrikMuhId ?? gElk?.id ?? "");
+  const [imzaMakine, setImzaMakine] = useState<boolean>(init?.imzaMakine ?? false);
+  const [imzaElektrik, setImzaElektrik] = useState<boolean>(init?.imzaElektrik ?? false);
 
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -163,7 +166,7 @@ export default function ProjeOnayWizard(props: Props) {
       makine_muhendis_id: makineMuhId || null,
       elektrik_muhendis_id: elektrikMuhId || null,
       ilgili_idare_id: null,
-      input_data: { il: provinceName ?? "", belediye: districtName ?? "", ilgili_idare: idareAdi, beyan_hizi_txt: beyanHizi },
+      input_data: { il: provinceName ?? "", belediye: districtName ?? "", ilgili_idare: idareAdi, beyan_hizi_txt: beyanHizi, imza_makine: imzaMakine, imza_elektrik: imzaElektrik },
     };
     const res = isEdit ? await updateProjeOnay(init!.id, payload) : await saveProjeOnay(payload);
     setSaving(false);
@@ -301,14 +304,14 @@ export default function ProjeOnayWizard(props: Props) {
                   <option value="">Seçiniz…</option>
                   {makineOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name}{m.chamber_reg_no ? ` · ${m.chamber_reg_no}` : ""}</option>)}
                 </select>
-                {makineMuhId && <MuhImza engineerId={makineMuhId} imzaDocId={props.engineers.find((e) => e.id === makineMuhId)?.imzaDocId} />}
+                {makineMuhId && <MuhImza engineerId={makineMuhId} imzaDocId={props.engineers.find((e) => e.id === makineMuhId)?.imzaDocId} checked={imzaMakine} onToggle={setImzaMakine} />}
               </F>
               <F label="Elektrik Mühendisi *">
                 <select value={elektrikMuhId} onChange={(e) => setElektrikMuhId(e.target.value)} className={inp + ec(elektrikMuhId)}>
                   <option value="">Seçiniz…</option>
                   {elektrikOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name}{m.chamber_reg_no ? ` · ${m.chamber_reg_no}` : ""}</option>)}
                 </select>
-                {elektrikMuhId && <MuhImza engineerId={elektrikMuhId} imzaDocId={props.engineers.find((e) => e.id === elektrikMuhId)?.imzaDocId} />}
+                {elektrikMuhId && <MuhImza engineerId={elektrikMuhId} imzaDocId={props.engineers.find((e) => e.id === elektrikMuhId)?.imzaDocId} checked={imzaElektrik} onToggle={setImzaElektrik} />}
               </F>
             </div>
             <p className="mt-4 text-xs text-slate-500">Seçilen mühendisler için Makine ve Elektrik Mühendis Taahhütnameleri belgeler adımında ayrı ayrı üretilir.</p>
@@ -342,7 +345,7 @@ export default function ProjeOnayWizard(props: Props) {
 }
 
 // Seçili mühendisin imzası: yüklüyse otomatik göster, yoksa jpeg/png yüklemeye izin ver
-function MuhImza({ engineerId, imzaDocId }: { engineerId: string; imzaDocId?: string | null }) {
+function MuhImza({ engineerId, imzaDocId, checked, onToggle }: { engineerId: string; imzaDocId?: string | null; checked?: boolean; onToggle?: (v: boolean) => void }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -360,9 +363,17 @@ function MuhImza({ engineerId, imzaDocId }: { engineerId: string; imzaDocId?: st
   return (
     <div className="mt-1.5">
       {imzaDocId ? (
-        <div className="flex items-center gap-2">
-          <img src={`/api/belge/muhendis?id=${imzaDocId}`} alt="İmza" className="h-10 max-w-[140px] object-contain border border-slate-100 rounded bg-white p-0.5" />
-          <span className="text-[11px] text-green-600 font-semibold inline-flex items-center gap-0.5"><span className="material-symbols-rounded text-[14px]">check_circle</span>İmza yüklü</span>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <img src={`/api/belge/muhendis?id=${imzaDocId}`} alt="İmza" className="h-10 max-w-[140px] object-contain border border-slate-100 rounded bg-white p-0.5" />
+            <span className="text-[11px] text-green-600 font-semibold inline-flex items-center gap-0.5"><span className="material-symbols-rounded text-[14px]">check_circle</span>İmza yüklü</span>
+          </div>
+          {onToggle && (
+            <label className="text-[11px] text-slate-600 inline-flex items-center gap-1.5 cursor-pointer select-none">
+              <input type="checkbox" checked={!!checked} onChange={(e) => onToggle(e.target.checked)} className="accent-brand" />
+              Taahhütnameye imza ekle
+            </label>
+          )}
         </div>
       ) : (
         <label className="text-[11px] text-slate-500 inline-flex items-center gap-1.5 cursor-pointer hover:text-brand">

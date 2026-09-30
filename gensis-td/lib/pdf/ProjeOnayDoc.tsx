@@ -1,5 +1,5 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 
 // Proje Onay Dosyası belgeleri: Dilekçe + Makine/Elektrik Mühendis Taahhütnamesi.
 // Tek belge veya toplu (birleşik) PDF üretebilir. Font 'Roboto' route'ta register edilir.
@@ -35,8 +35,9 @@ const st = StyleSheet.create({
   // Taahhütname: bölüm grubu — satır arası çizgi yok, yalnız dış sınır + bölüm başlığı çizgileri
   tBox: { borderWidth: 0.8, borderColor: "#334155" },
   tRow: { flexDirection: "row" },
-  tLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#334155" },
-  tVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#111827" },
+  // Etiket içerik genişliğinde (sabit sütun yok, dikey çizgi yok) → değer hemen yanında, sola yanaşık
+  tLabel: { flexShrink: 0, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937" },
+  tVal: { flex: 1, paddingVertical: 1.8, paddingLeft: 2, paddingRight: 4, fontSize: 7.3, color: "#111827" },
   tSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderTopWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#334155" },
   tOuter: { borderWidth: 0.8, borderColor: "#334155", padding: 10, marginTop: 12 },
   footer: { position: "absolute", bottom: 24, left: 48, right: 48, fontSize: 8, color: "#9ca3af", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#e2e8f0", paddingTop: 6 },
@@ -141,6 +142,10 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
   const unvan = disc === "makine" ? "MAKİNA MÜHENDİSİ" : "ELEKTRİK MÜHENDİSİ";
   const unvanTam = disc === "makine" ? "Makine Mühendisi" : "Elektrik Mühendisi";
   const fname = v(d.firma?.unvan || d.firma?.kisa_ad || d.firma_adi);
+  // Projenin Türü: tahrik türü biliniyorsa önek + asansör adedi
+  const adet = Number(d.adet) || 1;
+  const tipOnek = d.asansor_tipi === "hidrolik" ? "HİDROLİK ASANSÖR" : d.asansor_tipi === "elektrik" ? "ELEKTRİKLİ ASANSÖR" : "ASANSÖR";
+  const projeTuru = `${tipOnek} / ${adet} ADET`;
   return (
     <Page key={"muh_taahhut_" + disc} size="A4" style={st.formPage}>
       <Text style={st.formTitle}>TAAHHÜTNAME</Text>
@@ -157,7 +162,7 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
         <TRow l="Yapı Adresi" val={d.montaj_adresi} />
         <TRow l="Yapı Sahibi" val={d.yapi_sahibi} />
         <TRow l="Yapı Sahibinin Adresi" val={d.yapi_sahibi_adresi} />
-        <TRow l="Projenin Türü" val={d.projeTuru || "ASANSÖR"} />
+        <TRow l="Projenin Türü" val={projeTuru} />
       </View>
       <View style={st.tOuter}>
         <Text style={{ fontSize: 8.6, textAlign: "justify", lineHeight: 1.5 }}>
@@ -165,10 +170,15 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
         </Text>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 22 }}>
           <Text style={{ fontSize: 9 }}>Tarih : …./…./20…</Text>
-          <View style={{ alignItems: "flex-end" }}>
+          <View style={{ alignItems: "flex-end", position: "relative", height: 70 }}>
+            {m?.imza && (
+              <View style={{ position: "absolute", top: 0, bottom: 0, right: 0, left: 0, alignItems: "flex-end", justifyContent: "center" }}>
+                <Image src={m.imza} style={{ width: 130, height: 44, objectFit: "contain" }} />
+              </View>
+            )}
             <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 8 }}>Proje Müellifi</Text>
-            <Text style={{ fontSize: 9, marginBottom: 7 }}>{v(m?.ad) || "Ad Soyad"}</Text>
-            <Text style={{ fontSize: 9, marginBottom: 7 }}>{unvanTam}</Text>
+            <Text style={{ fontSize: 9, marginBottom: 7 }}>Ad Soyad</Text>
+            <Text style={{ fontSize: 9, marginBottom: 7 }}>İsim Ünvanı</Text>
             <Text style={{ fontSize: 9 }}>İmza</Text>
           </View>
         </View>
