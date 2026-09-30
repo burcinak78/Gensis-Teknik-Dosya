@@ -11,8 +11,8 @@ const st = StyleSheet.create({
   page: { fontFamily: "Roboto", fontSize: 11, color: "#111827", paddingTop: 48, paddingHorizontal: 56, paddingBottom: 56, lineHeight: 1.6 },
   firma: { fontSize: 15, fontWeight: "bold", color: NAVY },
   tarih: { textAlign: "right", marginTop: 6, marginBottom: 26 },
-  belediye: { fontWeight: "bold", marginTop: 2 },
-  il: { fontWeight: "bold", marginBottom: 20 },
+  belediye: { fontWeight: "bold", marginTop: 2, textAlign: "center" },
+  il: { fontWeight: "bold", marginBottom: 20, textAlign: "center" },
   arz: { textAlign: "justify", marginBottom: 22 },
   row: { flexDirection: "row", paddingVertical: 3 },
   label: { width: 130, color: "#374151" },
@@ -23,14 +23,15 @@ const st = StyleSheet.create({
   imzaLine: { alignSelf: "flex-end", width: 200, borderTopWidth: 0.6, borderTopColor: "#9ca3af", marginTop: 46, paddingTop: 4, fontSize: 9, color: "#6b7280", textAlign: "center" },
 
   // Taahhütname (resmi kutulu form)
-  formPage: { fontFamily: "Roboto", fontSize: 9, color: "#1f2937", paddingTop: 42, paddingHorizontal: 48, paddingBottom: 56, lineHeight: 1.45 },
-  formTitle: { textAlign: "center", fontWeight: "bold", fontSize: 13, color: "#0f172a", marginBottom: 1 },
-  formSub: { textAlign: "center", fontSize: 9, color: "#475569", marginBottom: 10 },
+  // Taahhütname: Asansör Teknik Dosya (ATD) taahhutPage formatıyla aynı
+  formPage: { fontFamily: "Roboto", fontSize: 10, color: "#1f2937", paddingTop: 42, paddingHorizontal: 42, paddingBottom: 60, lineHeight: 1.45 },
+  formTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#0f172a", marginBottom: 1 },
+  formSub: { textAlign: "center", fontSize: 8.5, color: "#475569", marginBottom: 6 },
   fBox: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderRightWidth: 0.8, borderColor: "#334155" },
   fRow: { flexDirection: "row", borderBottomWidth: 0.8, borderColor: "#334155" },
-  fLabel: { width: "42%", paddingVertical: 2.6, paddingHorizontal: 5, fontSize: 8.4, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#334155" },
-  fVal: { flex: 1, paddingVertical: 2.6, paddingHorizontal: 5, fontSize: 8.4, color: "#111827" },
-  fSection: { paddingVertical: 2.6, paddingHorizontal: 5, fontSize: 8.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#334155" },
+  fLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#334155" },
+  fVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#111827" },
+  fSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#334155" },
   footer: { position: "absolute", bottom: 24, left: 48, right: 48, fontSize: 8, color: "#9ca3af", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#e2e8f0", paddingTop: 6 },
 });
 
@@ -72,31 +73,36 @@ function SigRow({ l, val }: { l: string; val?: any }) {
 
 function DilekcePage({ d }: { d: any }) {
   const firmaAdi = v(d.firma_adi) || v(d.firma?.unvan) || "—";
-  const belediye = (v(d.belediye) || "…………").toLocaleUpperCase("tr");
+  // Başlık: seçilmiş İlgili İdare + BAŞKANLIĞI'NA (BELEDİYESİ eklenmez)
+  const idare = (v(d.ilgili_idare) || v(d.belediye) || "…………").toLocaleUpperCase("tr");
   const il = (v(d.il) || "…………").toLocaleUpperCase("tr");
-  const tarih = v(d.tarih) || "…..../…..…/ " + new Date().getFullYear();
+  const tarih = "…..../…..…/20…"; // otomatik gelmez
   const adet = v(d.adet) || "1";
   const kapasite = [d.beyan_yuku_kg ? `${d.beyan_yuku_kg} Kg.` : "", d.kisi_sayisi ? `${d.kisi_sayisi} Kişi` : ""].filter(Boolean).join(" , ");
   return (
     <Page key="dilekce" size="A4" style={st.page}>
+      {/* Sol üst firma adı yerinde kalır */}
       <Text style={st.firma}>{firmaAdi}</Text>
-      <Text style={st.tarih}>{tarih}</Text>
-      <Text style={st.belediye}>{belediye} BELEDİYE BAŞKANLIĞI'NA,</Text>
-      <Text style={st.il}>{il}</Text>
-      <Text style={st.arz}>
-        Aşağıda özellikleri verilmiş olan {adet} adet asansör için proje onayının tarafımıza verilmesini arz ederiz.
-      </Text>
-      <Prow l="Yapı Sahibi" val={d.yapi_sahibi} />
-      <Prow l="Montaj Adresi" val={d.montaj_adresi} />
-      <Prow l="Pafta" val={d.pafta} />
-      <Prow l="Ada" val={d.ada} />
-      <Prow l="Parsel" val={d.parsel} />
-      <Prow l="Beyan Yükü" val={kapasite} />
-      <Prow l="Beyan Hızı" val={d.beyan_hizi ? `${d.beyan_hizi} m/s` : ""} />
-      <Prow l="Durak Sayısı" val={d.durak_sayisi} />
-      <Text style={st.saygi}>Saygılarımızla,</Text>
-      <Text style={st.imzaFirma}>{firmaAdi}</Text>
-      <Text style={st.imzaLine}>Kaşe / İmza</Text>
+      {/* Tarihten itibaren içerik sayfa yüksekliğine göre ortalanır */}
+      <View style={{ flexGrow: 1, justifyContent: "center" }}>
+        <Text style={st.tarih}>{tarih}</Text>
+        <Text style={st.belediye}>{idare} BAŞKANLIĞI'NA,</Text>
+        <Text style={st.il}>{il}</Text>
+        <Text style={st.arz}>
+          Aşağıda özellikleri verilmiş olan {adet} adet asansör için proje onayının tarafımıza verilmesini arz ederiz.
+        </Text>
+        <Prow l="Yapı Sahibi" val={d.yapi_sahibi} />
+        <Prow l="Montaj Adresi" val={d.montaj_adresi} />
+        <Prow l="Pafta" val={d.pafta} />
+        <Prow l="Ada" val={d.ada} />
+        <Prow l="Parsel" val={d.parsel} />
+        <Prow l="Beyan Yükü" val={kapasite} />
+        <Prow l="Beyan Hızı" val={d.beyan_hizi ? `${d.beyan_hizi} m/s` : ""} />
+        <Prow l="Durak Sayısı" val={d.durak_sayisi} />
+        <Text style={st.saygi}>Saygılarımızla,</Text>
+        <Text style={st.imzaFirma}>{firmaAdi}</Text>
+        <Text style={st.imzaLine}>Kaşe / İmza</Text>
+      </View>
       <FooterBar d={d} />
     </Page>
   );
@@ -138,13 +144,11 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
       <Text style={{ fontSize: 8.6, marginTop: 10, textAlign: "justify", lineHeight: 1.5 }}>
         Yukarıdaki bilgilere sahip projenin müellifliğini üstlenmemde 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında süreli veya süresiz olarak mesleki faaliyet haklarımda herhangi bir kısıtlılık bulunmadığını, Yukarıdaki bilgilere sahp yapıya ilişkin hazırlanacak tüm projelerde, 3194 sayılı Kanun ve deprem, yangın,enerji verimliliği,asansör gibi ilgili tüm mevzuat hükümlerini eksiksiz uygulayacağımı taahhüt ederim.
       </Text>
-      <Text style={{ fontSize: 9.5, marginTop: 14 }}>Tarih : …./…./20…</Text>
-      <View style={{ marginTop: 10, alignSelf: "flex-end", width: "58%" }}>
-        <Text style={{ fontSize: 9.5, fontWeight: "bold", textAlign: "center", marginBottom: 8 }}>Proje Müellifi</Text>
-        <SigRow l="Adı-Soyadı" val={v(m?.ad)} />
-        <SigRow l="Ünvanı" val={unvanTam} />
-        <SigRow l="Oda Sicil No" val={v(m?.oda_sicil)} />
-        <SigRow l="İmza" val="" />
+      <View style={{ marginTop: 34, alignItems: "flex-end" }}>
+        <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 8 }}>Proje Müellifi</Text>
+        <Text style={{ fontSize: 9, marginBottom: 7 }}>{v(m?.ad) || "Ad Soyad"}</Text>
+        <Text style={{ fontSize: 9, marginBottom: 7 }}>{unvanTam}</Text>
+        <Text style={{ fontSize: 9 }}>İmza</Text>
       </View>
       <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
         Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.

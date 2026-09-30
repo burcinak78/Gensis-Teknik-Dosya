@@ -34,6 +34,11 @@ type Props = {
 const STEPS = ["Dilekçe Bilgileri", "Proje Müellifi", "Önizleme"];
 const RANGE_100 = Array.from({ length: 100 }, (_, i) => i + 1);
 const empty = (x: any) => x === "" || x === null || x === undefined;
+// Dropdown etiketi: büyük harf; adında "beled" yoksa sonuna BELEDİYESİ ekle
+const idareLabel = (name: string) => {
+  const up = (name || "").toLocaleUpperCase("tr");
+  return up.includes("BELED") ? up : up + " BELEDİYESİ";
+};
 
 export default function ProjeOnayWizard(props: Props) {
   const router = useRouter();
@@ -107,7 +112,7 @@ export default function ProjeOnayWizard(props: Props) {
 
   const ec = (v: any) => (showErrors && empty(v) ? " !border-red-300 !bg-red-50" : "");
   const stepFields: Record<number, Record<string, any>> = {
-    0: { companyId, provinceId, districtId, ilgiliIdareId, yapiSahibi, montajAdresi, beyanYuku, beyanHizi, durak },
+    0: { companyId, provinceId, ilgiliIdareId, yapiSahibi, montajAdresi, beyanYuku, beyanHizi, durak },
     1: { makineMuhId, elektrikMuhId },
   };
   function stepMissing(i: number) {
@@ -142,7 +147,7 @@ export default function ProjeOnayWizard(props: Props) {
       dosya_no: dosyaNo || null,
       dilekce_tarihi: dilekceTarihi || null,
       province_id: provinceId === "" ? null : provinceId,
-      district_id: districtId || null,
+      district_id: null,
       asansor_adedi: asansorAdedi ? Number(asansorAdedi) : 1,
       yapi_sahibi: yapiSahibi || null,
       montaj_adresi: montajAdresi || null,
@@ -154,7 +159,7 @@ export default function ProjeOnayWizard(props: Props) {
       makine_muhendis_id: makineMuhId || null,
       elektrik_muhendis_id: elektrikMuhId || null,
       ilgili_idare_id: ilgiliIdareId || null,
-      input_data: { il: provinceName ?? "", belediye: districtName ?? "", ilgili_idare: idareAdi, beyan_hizi_txt: beyanHizi },
+      input_data: { il: provinceName ?? "", belediye: "", ilgili_idare: idareAdi, beyan_hizi_txt: beyanHizi },
     };
     const res = isEdit ? await updateProjeOnay(init!.id, payload) : await saveProjeOnay(payload);
     setSaving(false);
@@ -230,17 +235,11 @@ export default function ProjeOnayWizard(props: Props) {
                   {props.provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </F>
-              <F label="İlçe *">
-                <select value={districtId} onChange={(e) => setDistrictId(e.target.value)} disabled={districts.length === 0} className={inp + ec(districtId)}>
-                  <option value="">{provinceId === "" ? "Önce il seçin" : "Seçiniz…"}</option>
-                  {districts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </F>
               <F label="İlgili İdare *" full>
                 <div className="flex gap-2">
                   <select value={ilgiliIdareId} onChange={(e) => setIlgiliIdareId(e.target.value)} className={inp + ec(ilgiliIdareId)}>
                     <option value="">Seçiniz…</option>
-                    {idareList.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                    {idareList.map((x) => <option key={x.id} value={x.id}>{idareLabel(x.name)}</option>)}
                   </select>
                   <button type="button" onClick={() => { setShowAddIdare((v) => !v); setIdareErr(null); }}
                     className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-3 hover:bg-brand-light whitespace-nowrap">
@@ -321,7 +320,7 @@ export default function ProjeOnayWizard(props: Props) {
               <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{totalMissing} zorunlu alan eksik.</div>
             )}
             <Summ k="Firma" v={company?.short_name} />
-            <Summ k="İlçe / İl" v={[districtName, provinceName].filter(Boolean).join(" / ")} />
+            <Summ k="İl" v={provinceName} />
             <Summ k="İlgili İdare" v={idareAdi} />
             <Summ k="Yapı Sahibi" v={yapiSahibi} />
             <Summ k="Montaj Adresi" v={montajAdresi} />
