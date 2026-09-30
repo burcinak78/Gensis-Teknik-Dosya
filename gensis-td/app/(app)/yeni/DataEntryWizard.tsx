@@ -844,7 +844,10 @@ export default function DataEntryWizard(props: Props) {
                             <label key={d.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer ${checked ? "border-brand bg-brand-light" : "border-slate-200 hover:bg-slate-50"}`}>
                               <input type="checkbox" checked={checked}
                                 onChange={() => setModulBelgeIds((s) => s.includes(d.id) ? s.filter((x) => x !== d.id) : [...s, d.id])} />
-                              <span className="text-sm text-slate-800 flex-1">{COMPANY_DOC_ETIKET[d.doc_type] ?? d.doc_type}</span>
+                              <span className="flex-1 min-w-0">
+                                <span className="text-sm text-slate-800">{COMPANY_DOC_ETIKET[d.doc_type] ?? d.doc_type}</span>
+                                {d.original_name && <span className="ml-2 text-xs text-slate-400">({d.original_name})</span>}
+                              </span>
                               {d.original_name && (
                                 <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setBelgeModal(d.id); }}
                                   className="flex-none text-xs font-semibold text-brand hover:underline inline-flex items-center gap-1">
