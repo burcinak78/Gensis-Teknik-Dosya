@@ -7,35 +7,35 @@ import { SON_KONTROL_NO } from "./son_kontrol_no";
 // Birleşik Teknik Dosya — belgeleri tek PDF'te birleştirir VEYA tek belge üretir (only).
 // Veri = project_render_context (jsonb). Font 'Roboto' route'ta register edilir.
 
-const NAVY = "#1e2a5b";
-const TEAL = "#0d8b8b";
+const NAVY = "#000000";
+const TEAL = "#000000";
 
 const st = StyleSheet.create({
-  page: { fontFamily: "Roboto", fontSize: 10, color: "#1f2937", padding: 42, paddingBottom: 60, lineHeight: 1.45 },
-  topRow: { flexDirection: "row", justifyContent: "space-between", fontSize: 9, color: "#6b7280", marginBottom: 10 },
+  page: { fontFamily: "Roboto", fontSize: 10, color: "#000000", padding: 42, paddingBottom: 60, lineHeight: 1.45 },
+  topRow: { flexDirection: "row", justifyContent: "space-between", fontSize: 9, color: "#000000", marginBottom: 10 },
   // Dilekçe sol üst köşe firma kısa adı (letterhead)
   dilekceHdr: { position: "absolute", top: 26, left: 42, fontSize: 11, fontWeight: "bold", color: NAVY },
   firmaName: { fontSize: 13, fontWeight: "bold", color: NAVY },
-  firmaSub: { fontSize: 9, color: "#6b7280", marginBottom: 14 },
+  firmaSub: { fontSize: 9, color: "#000000", marginBottom: 14 },
   docTitle: { fontSize: 15, fontWeight: "bold", color: NAVY, textAlign: "center", marginTop: 4 },
   rule: { borderBottomWidth: 2, borderBottomColor: "#000000", width: 110, alignSelf: "center", marginTop: 4, marginBottom: 16 },
-  sec: { fontSize: 10.5, fontWeight: "bold", color: TEAL, marginTop: 12, marginBottom: 6, borderBottomWidth: 0.5, borderBottomColor: "#e2e8f0", paddingBottom: 3 },
+  sec: { fontSize: 10.5, fontWeight: "bold", color: TEAL, marginTop: 12, marginBottom: 6, borderBottomWidth: 0.5, borderBottomColor: "#000000", paddingBottom: 3 },
   // Siyah başlık varyantı (Seyir Defteri / Eğitim & Teslim Tutanağı)
-  secB: { fontSize: 10.5, fontWeight: "bold", color: "#111827", marginTop: 12, marginBottom: 6, borderBottomWidth: 0.6, borderBottomColor: "#000000", paddingBottom: 3 },
+  secB: { fontSize: 10.5, fontWeight: "bold", color: "#000000", marginTop: 12, marginBottom: 6, borderBottomWidth: 0.6, borderBottomColor: "#000000", paddingBottom: 3 },
   row: { flexDirection: "row", paddingVertical: 2.2 },
-  lbl: { width: "42%", paddingLeft: 2, paddingRight: 4, color: "#6b7280" },
-  val: { width: "58%", fontWeight: "bold", color: "#111827" },
+  lbl: { width: "42%", paddingLeft: 2, paddingRight: 4, color: "#000000" },
+  val: { width: "58%", fontWeight: "bold", color: "#000000" },
   p: { textAlign: "justify", marginBottom: 8 },
-  eqRow: { flexDirection: "row", paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: "#f1f5f9" },
-  eqA: { width: "30%", color: "#6b7280" },
+  eqRow: { flexDirection: "row", paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: "#000000" },
+  eqA: { width: "30%", color: "#000000" },
   eqB: { width: "40%", fontWeight: "bold" },
   eqC: { width: "30%", fontSize: 9 },
   signWrap: { flexDirection: "row", justifyContent: "space-between", marginTop: 36 },
   signBox: { width: "45%" },
-  signLine: { borderTopWidth: 0.5, borderTopColor: "#9ca3af", marginTop: 34, paddingTop: 4, fontSize: 9, color: "#6b7280" },
+  signLine: { borderTopWidth: 0.5, borderTopColor: "#000000", marginTop: 34, paddingTop: 4, fontSize: 9, color: "#000000" },
   listRow: { flexDirection: "row", paddingVertical: 2 },
-  listNo: { width: 22, color: "#111827", fontWeight: "bold" },
-  footer: { position: "absolute", bottom: 24, left: 42, right: 42, fontSize: 8, color: "#9ca3af", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#e2e8f0", paddingTop: 6 },
+  listNo: { width: 22, color: "#000000", fontWeight: "bold" },
+  footer: { position: "absolute", bottom: 24, left: 42, right: 42, fontSize: 8, color: "#000000", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#000000", paddingTop: 6 },
   // Yeni footer: iki satır, sola dayalı, siyah metin + siyah üst çizgi
   footerBox: { position: "absolute", bottom: 20, left: 42, right: 42, borderTopWidth: 0.8, borderTopColor: "#000000", paddingTop: 5 },
   footerUnvan: { fontSize: 8, fontWeight: "bold", color: "#000000", textAlign: "left" },
@@ -45,63 +45,63 @@ const st = StyleSheet.create({
   coverSub: { fontSize: 13, color: TEAL, marginBottom: 40, textAlign: "center" },
   // Kapak bilgi satırı: satır aralığı 2 kat (2.2 → 4.4), etiket siyah
   coverRow: { flexDirection: "row", paddingVertical: 4.4 },
-  coverLbl: { width: "42%", paddingLeft: 2, paddingRight: 4, color: "#111827" },
-  coverVal: { width: "58%", fontWeight: "bold", color: "#111827" },
+  coverLbl: { width: "42%", paddingLeft: 2, paddingRight: 4, color: "#000000" },
+  coverVal: { width: "58%", fontWeight: "bold", color: "#000000" },
   klvItem: { flexDirection: "row", paddingVertical: 2, fontSize: 9.5 },
   klvNo: { width: 22, color: TEAL },
   klvText: { flex: 1, textAlign: "justify" },
   skHead: { flexDirection: "row", backgroundColor: "#f1f5f9", paddingVertical: 3, paddingHorizontal: 2, fontSize: 7.6, fontWeight: "bold", color: NAVY },
-  skRow: { flexDirection: "row", paddingVertical: 2.5, paddingHorizontal: 2, borderBottomWidth: 0.5, borderBottomColor: "#f1f5f9", fontSize: 8.5 },
-  skNo: { width: 92, paddingRight: 4, fontSize: 6.6, color: "#334155" },
+  skRow: { flexDirection: "row", paddingVertical: 2.5, paddingHorizontal: 2, borderBottomWidth: 0.5, borderBottomColor: "#000000", fontSize: 8.5 },
+  skNo: { width: 92, paddingRight: 4, fontSize: 6.6, color: "#000000" },
   skItem: { flex: 1, paddingRight: 4 },
   skBox: { width: 40, alignItems: "center" },
-  skFirmaHdr: { position: "absolute", top: 14, left: 30, fontSize: 8, fontWeight: "bold", color: "#94a3b8" },
-  skSquare: { width: 11, height: 11, borderWidth: 0.8, borderColor: "#9ca3af", borderRadius: 2 },
+  skFirmaHdr: { position: "absolute", top: 14, left: 30, fontSize: 8, fontWeight: "bold", color: "#000000" },
+  skSquare: { width: 11, height: 11, borderWidth: 0.8, borderColor: "#000000", borderRadius: 2 },
 
   // Resmi form (EK-1 / EK-3 / Taahhütname) — kutulu, keskin köşeli, koyu kenarlık
   // Resmi form için daraltılmış sayfa (tek sayfaya sığması için)
-  pageForm: { fontFamily: "Roboto", fontSize: 8, color: "#1f2937", paddingTop: 24, paddingHorizontal: 32, paddingBottom: 18, lineHeight: 1.25 },
-  formTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#0f172a", marginBottom: 1 },
-  formSub: { textAlign: "center", fontSize: 8.5, color: "#475569", marginBottom: 6 },
+  pageForm: { fontFamily: "Roboto", fontSize: 8, color: "#000000", paddingTop: 24, paddingHorizontal: 32, paddingBottom: 18, lineHeight: 1.25 },
+  formTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#000000", marginBottom: 1 },
+  formSub: { textAlign: "center", fontSize: 8.5, color: "#000000", marginBottom: 6 },
   fBox: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderRightWidth: 0.8, borderColor: "#000000" },
   fRow: { flexDirection: "row", borderBottomWidth: 0.8, borderColor: "#000000" },
-  fLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#000000" },
-  fVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#111827" },
-  fSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#334155" },
-  fColHead: { flexDirection: "row", backgroundColor: "#f1f5f9", borderBottomWidth: 0.8, borderColor: "#334155" },
-  fc1: { width: "26%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155" },
-  fc2: { width: "11%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
-  fc3: { width: "11%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
+  fLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#000000", borderRightWidth: 0.8, borderColor: "#000000" },
+  fVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#000000" },
+  fSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#000000", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#000000" },
+  fColHead: { flexDirection: "row", backgroundColor: "#f1f5f9", borderBottomWidth: 0.8, borderColor: "#000000" },
+  fc1: { width: "26%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#000000" },
+  fc2: { width: "11%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#000000", textAlign: "center" },
+  fc3: { width: "11%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#000000", textAlign: "center" },
   fc4: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", textAlign: "left" },
   // Taahhütname: bölüm grubu — satır arası çizgi yok, yalnız dış sınır + bölüm başlığı çizgileri
-  tBox: { borderWidth: 0.8, borderColor: "#334155" },
+  tBox: { borderWidth: 0.8, borderColor: "#000000" },
   tRow: { flexDirection: "row" },
-  tLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#334155" },
-  tVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#111827" },
-  tSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderTopWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#334155" },
-  tOuter: { borderWidth: 0.8, borderColor: "#334155", padding: 10, marginTop: 12 },
+  tLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#000000", borderRightWidth: 0.8, borderColor: "#000000" },
+  tVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#000000" },
+  tSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#000000", backgroundColor: "#e5e9f0", textAlign: "center", borderTopWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#000000" },
+  tOuter: { borderWidth: 0.8, borderColor: "#000000", padding: 10, marginTop: 12 },
   // Genel tablo (Marka/Tip/Model.. ve Seyir Defteri tabloları)
   tbl: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderColor: "#000000", marginTop: 4 },
   trow: { flexDirection: "row" },
-  thcell: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 7.4, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", borderRightWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#000000" },
-  tcell: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, color: "#111827", borderRightWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#000000" },
+  thcell: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 7.4, fontWeight: "bold", color: "#000000", backgroundColor: "#e5e9f0", borderRightWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#000000" },
+  tcell: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, color: "#000000", borderRightWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#000000" },
   tcellTall: { paddingVertical: 3, paddingHorizontal: 4, fontSize: 8, minHeight: 20, borderRightWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#000000" },
-  ckbox: { width: 11, height: 11, borderWidth: 0.9, borderColor: "#334155", borderRadius: 2, marginRight: 8 },
+  ckbox: { width: 11, height: 11, borderWidth: 0.9, borderColor: "#000000", borderRadius: 2, marginRight: 8 },
 
   // Teknik & Komponent Listesi (Excel birebir, tek sayfa)
-  kPage: { fontFamily: "Roboto", fontSize: 8, color: "#111827", paddingTop: 26, paddingHorizontal: 30, paddingBottom: 30, lineHeight: 1.2 },
-  kTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#0f172a", marginBottom: 20 },
+  kPage: { fontFamily: "Roboto", fontSize: 8, color: "#000000", paddingTop: 26, paddingHorizontal: 30, paddingBottom: 30, lineHeight: 1.2 },
+  kTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#000000", marginBottom: 20 },
   kInfoRow: { flexDirection: "row", paddingVertical: 1 },
-  kLbl: { width: "26%", fontSize: 10, fontWeight: "bold", color: "#1f2937" },
+  kLbl: { width: "26%", fontSize: 10, fontWeight: "bold", color: "#000000" },
   kSep: { width: "3%", fontSize: 10 },
-  kVal: { flex: 1, fontSize: 10, color: "#111827" },
-  kSub: { width: "26%", fontSize: 10, color: "#1f2937", paddingLeft: 10 },
-  kTbl: { borderTopWidth: 0.9, borderLeftWidth: 0.9, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#334155", marginTop: 10 },
+  kVal: { flex: 1, fontSize: 10, color: "#000000" },
+  kSub: { width: "26%", fontSize: 10, color: "#000000", paddingLeft: 10 },
+  kTbl: { borderTopWidth: 0.9, borderLeftWidth: 0.9, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#000000", marginTop: 10 },
   kRow: { flexDirection: "row" },
-  kH: { fontSize: 6, fontWeight: "bold", backgroundColor: "#e5e9f0", color: "#0f172a", paddingVertical: 3, paddingHorizontal: 2, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#334155", textAlign: "center" },
-  kC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#334155" },
-  kCol: { borderRightWidth: 0.9, borderColor: "#334155" },
-  kSubC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, minHeight: 12, borderBottomWidth: 0.9, borderColor: "#334155" },
+  kH: { fontSize: 6, fontWeight: "bold", backgroundColor: "#e5e9f0", color: "#000000", paddingVertical: 3, paddingHorizontal: 2, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#000000", textAlign: "center" },
+  kC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#000000" },
+  kCol: { borderRightWidth: 0.9, borderColor: "#000000" },
+  kSubC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, minHeight: 12, borderBottomWidth: 0.9, borderColor: "#000000" },
 });
 
 // Teknik & Komponent tablosu kolon genişlikleri (Excel ile aynı sıra)
@@ -171,7 +171,7 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
             <Text style={{ fontSize: 9 }}>İmza</Text>
           </View>
         </View>
-        <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
+        <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#000000", lineHeight: 1.45 }}>
           Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
         </Text>
       </View>
@@ -213,7 +213,7 @@ function KBlok({ ad, e, alt }: { ad: string; e: any; alt: { ad: string; seri: st
   const son = alt.length - 1;
   const kurulus = [e?.kurulus_no, e?.onaylanmis_kurulus].filter(Boolean).join(" ");
   return (
-    <View style={[st.kRow, { borderBottomWidth: 0.9, borderColor: "#334155" }]}>
+    <View style={[st.kRow, { borderBottomWidth: 0.9, borderColor: "#000000" }]}>
       <View style={[st.kCol, { width: KW.ad, justifyContent: "center", paddingHorizontal: 2 }]}>
         <Text style={{ fontSize: fitFs(ad, 26) }}>{ad}</Text>
       </View>
@@ -297,6 +297,7 @@ function teknikKomponentPage(c: any) {
 
   return (
     <Page key="teknik_komponent" size="A4" style={st.kPage}>
+      <Text style={st.skFirmaHdr} fixed>{vb(c.firma?.kisa_ad || c.firma?.unvan)}</Text>
       <Text style={st.kTitle}>ASANSÖR TEKNİK ÖZELLİKLERİ &amp; GÜVENLİK EKİPMANLARI LİSTESİ</Text>
 
       <KInfo l="ASANSÖR SERİ NO" val={c.inp.asansor_seri_no} />
@@ -384,7 +385,7 @@ const CAT_LABEL: Record<string, string> = {
 function BsMadde({ no, baslik, children }: { no: number | string; baslik: string; children: any }) {
   return (
     <View style={{ marginTop: 7 }}>
-      <Text style={{ fontWeight: "bold", color: "#1e2a5b", fontSize: 9 }}>{`MADDE ${no} – ${baslik}`}</Text>
+      <Text style={{ fontWeight: "bold", color: "#000000", fontSize: 9 }}>{`MADDE ${no} – ${baslik}`}</Text>
       {typeof children === "string"
         ? <Text style={{ textAlign: "justify", fontSize: 8.6, lineHeight: 1.35, marginTop: 2 }}>{children}</Text>
         : children}
@@ -420,7 +421,7 @@ function LR({ l, val, w = 110, plain, dark }: { l: string; val?: any; w?: number
   return (
     <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
       <View style={{ width: w, paddingRight: 6 }}><Text style={{ color: dark ? "#111827" : "#6b7280" }}>{l}</Text></View>
-      <View style={{ flex: 1 }}><Text style={{ fontWeight: plain ? "normal" : "bold", color: "#111827" }}>{v(val)}</Text></View>
+      <View style={{ flex: 1 }}><Text style={{ fontWeight: plain ? "normal" : "bold", color: "#000000" }}>{v(val)}</Text></View>
     </View>
   );
 }
@@ -549,7 +550,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <CoverR l="Bina Adresi" val={c.d.montaj_adresi} />
         <CoverR l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
         <View style={{ height: 40 }} />
-        <Text style={{ fontSize: 9, color: "#111827" }}>{c.tarih}</Text>
+        <Text style={{ fontSize: 9, color: "#000000" }}>{c.tarih}</Text>
       </View>
       <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
@@ -564,7 +565,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 4 }}>
           {v(c.d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI'NA
         </Text>
-        <Text style={{ textAlign: "center", color: "#6b7280", marginBottom: 18 }}>{v(c.d.il)}</Text>
+        <Text style={{ textAlign: "center", color: "#000000", marginBottom: 18 }}>{v(c.d.il)}</Text>
         <Text style={{ textAlign: "justify", marginBottom: 14, textIndent: 28 }}>
           Aşağıda özellikleri verilmiş olan ve firmamız tarafından montajı yapılan 1 adet asansör için
           tescil belgesinin tarafımıza verilmesini arz ederiz.
@@ -594,8 +595,10 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   firma_bilgileri: (c) => (
     <Page key="firma_bilgileri" size="A4" style={st.page}>
+      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
       <View style={{ flexGrow: 1, justifyContent: "center" }}>
-        <DocHead firma={c.firma} title="FİRMA BİLGİLERİ" />
+        <Text style={st.docTitle}>FİRMA BİLGİLERİ</Text>
+        <View style={st.rule} />
         <LR l="Ticari Ünvan" val={c.firma.unvan} w={150} />
         <LR l="Tescilli Marka" val={c.firma.tescilli_marka} w={150} />
         <LR l="Yetkili / Ünvanı" val={c.firma.yetkili} w={150} />
@@ -706,8 +709,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <Text style={{ fontSize: 7.3, marginTop: 6, textAlign: "justify" }}>
           {v(c.d.montaj_adresi)} adresinde monte edilen ve {c.servisTarihi} Tarihinde piyasaya arz edilmiş olan asansörün tescili, 06.04.2019 tarihli ve 30737 sayılı Resmî Gazete’de yayımlanan Asansör İşletme ve Bakım Yönetmeliğine göre yapılmıştır.
         </Text>
-        <View style={{ marginTop: 8, alignSelf: "flex-end", borderWidth: 1, borderColor: "#9aa4b2", width: 240 }}>
-          <Text style={{ fontSize: 7.3, textAlign: "center", padding: 4, borderBottomWidth: 1, borderColor: "#9aa4b2", fontWeight: "bold" }}>İLGİLİ İDARE ADINA İMZA YETKİLİSİNİN</Text>
+        <View style={{ marginTop: 8, alignSelf: "flex-end", borderWidth: 1, borderColor: "#000000", width: 240 }}>
+          <Text style={{ fontSize: 7.3, textAlign: "center", padding: 4, borderBottomWidth: 1, borderColor: "#000000", fontWeight: "bold" }}>İLGİLİ İDARE ADINA İMZA YETKİLİSİNİN</Text>
           <Text style={{ fontSize: 7.3, textAlign: "center", paddingTop: 4, height: 46 }}>İMZA VE MÜHÜR</Text>
         </View>
       </Page>
@@ -752,21 +755,22 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   bakim_sozlesmesi: (c) => (
     <Page key="bakim_sozlesmesi" size="A4" style={st.page} wrap>
+      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
       <Text style={[st.formTitle, { marginBottom: 4 }]}>ASANSÖR BAKIM SÖZLEŞMESİ</Text>
 
       <BsMadde no={1} baslik="AKİTLER">
         <View style={{ flexDirection: "row", marginTop: 3 }}>
-          <View style={{ flex: 1, borderWidth: 0.6, borderColor: "#94a3b8", padding: 5, marginRight: 8 }}>
+          <View style={{ flex: 1, borderWidth: 0.6, borderColor: "#000000", padding: 5, marginRight: 8 }}>
             <Text style={{ fontWeight: "bold", fontSize: 8.6 }}>Bakım Yapan (1)</Text>
             <Text style={{ fontSize: 8.4, marginTop: 2 }}>Ünvanı : {v(c.firma.unvan)}</Text>
             <Text style={{ fontSize: 8.4 }}>Adresi : {v(c.firma.adres)}</Text>
-            <Text style={{ fontSize: 7.6, color: "#64748b", marginTop: 3 }}>1) İşbu sözleşmede (YÜKLENİCİ) kelimesi ile ifade edilmiştir.</Text>
+            <Text style={{ fontSize: 7.6, color: "#000000", marginTop: 3 }}>1) İşbu sözleşmede (YÜKLENİCİ) kelimesi ile ifade edilmiştir.</Text>
           </View>
-          <View style={{ flex: 1, borderWidth: 0.6, borderColor: "#94a3b8", padding: 5 }}>
+          <View style={{ flex: 1, borderWidth: 0.6, borderColor: "#000000", padding: 5 }}>
             <Text style={{ fontWeight: "bold", fontSize: 8.6 }}>Müşteri (2)</Text>
             <Text style={{ fontSize: 8.4, marginTop: 2 }}>Ünvanı :</Text>
             <Text style={{ fontSize: 8.4 }}>Adresi :</Text>
-            <Text style={{ fontSize: 7.6, color: "#64748b", marginTop: 3 }}>2) İş bu sözleşmede (MÜŞTERİ) kelimesi ile ifade edilmiştir.</Text>
+            <Text style={{ fontSize: 7.6, color: "#000000", marginTop: 3 }}>2) İş bu sözleşmede (MÜŞTERİ) kelimesi ile ifade edilmiştir.</Text>
           </View>
         </View>
       </BsMadde>
@@ -780,10 +784,10 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       </BsMadde>
 
       <View style={{ marginTop: 6 }}>
-        <Text style={{ fontWeight: "bold", color: "#1e2a5b", fontSize: 9 }}>BAKIMI GERÇEKLEŞTİRECEK OLAN PERSONELİN BİLGİLERİ</Text>
+        <Text style={{ fontWeight: "bold", color: "#000000", fontSize: 9 }}>BAKIMI GERÇEKLEŞTİRECEK OLAN PERSONELİN BİLGİLERİ</Text>
         <View style={{ flexDirection: "row", marginTop: 3 }}>
           {[0, 1].map((k) => (
-            <View key={k} style={{ flex: 1, borderWidth: 0.6, borderColor: "#94a3b8", padding: 4, marginRight: k === 0 ? 8 : 0 }}>
+            <View key={k} style={{ flex: 1, borderWidth: 0.6, borderColor: "#000000", padding: 4, marginRight: k === 0 ? 8 : 0 }}>
               <Text style={{ fontSize: 8.4 }}>Ad, Soyad : </Text>
               <Text style={{ fontSize: 8.4, marginTop: 2 }}>İletişim No : </Text>
               <Text style={{ fontSize: 8.4, marginTop: 2 }}>MYK Belge No : </Text>
@@ -871,7 +875,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <BsMadde no={16} baslik="ÖZEL ŞARTLAR">
         <View>
           <Text style={bsP}>VARSA AŞAĞIDA ASANSÖR ÜZERİNDEKİ KUMANDA VEYA CİHAZLARDA ŞİFRELEME YAPILDI İSE ŞİFRE VEYA KODLARI BELİRTİNİZ</Text>
-          <View style={{ borderWidth: 0.6, borderColor: "#94a3b8", height: 40, marginTop: 4 }} />
+          <View style={{ borderWidth: 0.6, borderColor: "#000000", height: 40, marginTop: 4 }} />
         </View>
       </BsMadde>
 
@@ -914,6 +918,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     const hasH1 = hasVal(c.modulH1);
     return (
       <Page key="uygunluk_beyani" size="A4" style={[st.page, { fontSize: 9 }]}>
+        <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
         <Text style={[st.formTitle, { fontSize: 16 }]}>AB UYGUNLUK BEYANI</Text>
         <View style={{ height: 18 }} />
         <LR l="Montaj Firması" val={`${v(c.firma.unvan)}${c.firma.adres ? "\n" + v(c.firma.adres) : ""}`} w={secW} plain dark />
@@ -937,8 +942,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <LR l="Uygulanan Standartlar" val="TS EN 81–20:2020, TS EN 81-50:2020, TS EN 81-70:2021, TS EN 81-28+AC:2022" w={secW} plain dark />
         {/* İlgili Direktifler: Uygulanan Standartlar gibi — etiket solda (siyah), içerik sağda (bold değil, fontu küçültülmez) */}
         <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
-          <View style={{ width: secW, paddingRight: 6 }}><Text style={{ color: "#111827" }}>İlgili Direktifler</Text></View>
-          <View style={{ flex: 1 }}><Text style={{ color: "#111827", fontSize: 10, textAlign: "justify" }}>{direktifler}</Text></View>
+          <View style={{ width: secW, paddingRight: 6 }}><Text style={{ color: "#000000" }}>İlgili Direktifler</Text></View>
+          <View style={{ flex: 1 }}><Text style={{ color: "#000000", fontSize: 10, textAlign: "justify" }}>{direktifler}</Text></View>
         </View>
         {isG ? (
           <>
@@ -985,7 +990,9 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   yazili_beyanname: (c) => (
     <Page key="yazili_beyanname" size="A4" style={st.page}>
-      <DocHead firma={c.firma} title="BEYANNAME" />
+      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <Text style={st.docTitle}>BEYANNAME</Text>
+      <View style={st.rule} />
       <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
       <R l="Asansörün Tipi" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} />
       <R l="Yapım Yılı" val={c.d.imal_yili} />
@@ -1016,10 +1023,11 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
 
   motor_beyannamesi: (c) => (
     <Page key="motor_beyannamesi" size="A4" style={st.page}>
-      <Text style={{ textAlign: "right", fontSize: 9, color: "#111827", marginBottom: 2 }}>{c.tarih}</Text>
+      <Text style={st.skFirmaHdr} fixed>{v(c.firma.kisa_ad || c.firma.unvan)}</Text>
+      <Text style={{ textAlign: "right", fontSize: 9, color: "#000000", marginBottom: 2 }}>{c.tarih}</Text>
       <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 2 }}>MOTOR BEYANNAMESİ</Text>
       <View style={{ height: 48 }} />
-      <Text style={{ textAlign: "center", color: "#6b7280", marginBottom: 16 }}>
+      <Text style={{ textAlign: "center", color: "#000000", marginBottom: 16 }}>
         {v(c.d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI'NA
       </Text>
       <Text style={[st.p, { textIndent: 28 }]}>
@@ -1140,7 +1148,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         ))}
       </View>
 
-      <Text style={{ fontSize: 7.4, marginTop: 12, color: "#475569", textAlign: "justify" }}>
+      <Text style={{ fontSize: 7.4, marginTop: 12, color: "#000000", textAlign: "justify" }}>
         NOT: Asansörün güvenliğini etkileyecek revizyon gerçekleştiren her asansör firması ile kontrolü
         gerçekleştiren her kuruluş, yaptığı işlemi bu deftere kaydetmekle yükümlüdür.
       </Text>
@@ -1189,7 +1197,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <FRow l="İmza" val="" tall={30} />
         </View>
       </View>
-      <Text style={{ marginTop: 14, color: "#6b7280" }}>Tarih : ...../...../.........</Text>
+      <Text style={{ marginTop: 14, color: "#000000" }}>Tarih : ...../...../.........</Text>
       <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
   ),
