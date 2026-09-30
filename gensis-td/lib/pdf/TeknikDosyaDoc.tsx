@@ -420,7 +420,7 @@ function LR({ l, val, w = 110, plain, dark }: { l: string; val?: any; w?: number
   // plain: değer bold değil; dark: sol başlık siyah
   return (
     <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
-      <View style={{ width: w, paddingRight: 6 }}><Text style={{ color: dark ? "#111827" : "#6b7280" }}>{l}</Text></View>
+      <View style={{ width: w, paddingRight: 6 }}><Text style={{ color: "#000000" }}>{l}</Text></View>
       <View style={{ flex: 1 }}><Text style={{ fontWeight: plain ? "normal" : "bold", color: "#000000" }}>{v(val)}</Text></View>
     </View>
   );
@@ -579,13 +579,6 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <LR l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : undefined} />
         <LR l="Durak Sayısı" val={c.d.durak_adedi} />
         <Text style={{ marginTop: 20 }}>Saygılarımızla,</Text>
-        <View style={st.signWrap}>
-          <View />
-          <View style={st.signBox}>
-            <Text style={{ fontWeight: "bold" }}>{c.fname}</Text>
-            <Text style={st.signLine}>Kaşe / İmza</Text>
-          </View>
-        </View>
         {/* İçeriği ~2 cm yukarı almak için alt boşluk (ortalanmış blokta içerik yukarı kayar) */}
         <View style={{ height: 113 }} />
       </View>
