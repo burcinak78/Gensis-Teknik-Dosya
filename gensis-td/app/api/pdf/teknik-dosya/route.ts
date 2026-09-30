@@ -70,6 +70,12 @@ export async function GET(req: NextRequest) {
     const { data: prow } = await admin.from("projects")
       .select("makine_muhendis_id, elektrik_muhendis_id, company_id, input_data, bina_adi").eq("id", projectId).single();
     const inp = (prow?.input_data ?? {}) as Record<string, any>;
+    // Son Kontrol Formu bilgi tablosu için veriler (montaj adresi + input_data)
+    (ctx as any).__sk = {
+      montaj_adresi: (ctx as any).montaj_adresi || inp.montaj_adresi || null,
+      ada: inp.ada ?? null, pafta: inp.pafta ?? null, parsel: inp.parsel ?? null,
+      asansor_seri_no: inp.asansor_seri_no ?? null,
+    };
     // Kapakta Bina Adı — render context'te yoksa projects tablosundan tamamla
     if (prow?.bina_adi && !(ctx as any).bina_adi) (ctx as any).bina_adi = prow.bina_adi;
     attach.isG = inp.modul_secim === "G";
@@ -253,11 +259,11 @@ export async function GET(req: NextRequest) {
       const fontB = robotoBoldBytes ? await doc.embedFont(robotoBoldBytes) : font;
       if (font && fontB) {
         const cf = (ctx as any)?.firma || {};
-        const ki = (ctx as any)?.input_data || {};
+        const sk = (ctx as any)?.__sk || {};
         const kisaAd = String(cf.kisa_ad || cf.unvan || "").trim();
-        const musteriAdresi = String((ctx as any)?.montaj_adresi || ki.montaj_adresi || "").trim();
-        const adaPaftaParsel = [ki.ada, ki.pafta, ki.parsel].filter(Boolean).map((x: any) => String(x).trim()).join(" / ");
-        const seriNo = String(ki.asansor_seri_no || "").trim();
+        const montajAdresi = String(sk.montaj_adresi || "").trim();
+        const adaPaftaParsel = [sk.ada, sk.pafta, sk.parsel].filter(Boolean).map((x: any) => String(x).trim()).join(" / ");
+        const seriNo = String(sk.asansor_seri_no || "").trim();
         const black = rgb(0, 0, 0);
         const pages = doc.getPages();
         // Sol üst köşe: firma kısa adı (her sayfa)
@@ -265,26 +271,22 @@ export async function GET(req: NextRequest) {
           const { height } = pg.getSize();
           if (kisaAd) pg.drawText(kisaAd, { x: 30, y: height - 16, size: 8, font: fontB, color: rgb(0.25, 0.25, 0.25) });
         }
-        // Bilgi tablosu: yalnız 1. sayfa, başlık altındaki boşluğa
+        // Bilgi: yalnız 1. sayfa, başlık altındaki boşluğa — çizgisiz (etiket : değer)
         const p1 = pages[0];
         const { width: PW, height: PH } = p1.getSize();
         const rows: [string, string][] = [
-          ["Müşteri Adresi", musteriAdresi],
+          ["Montaj Adresi", montajAdresi],
           ["Ada / Pafta / Parsel", adaPaftaParsel],
           ["Asansör Seri No", seriNo],
         ];
-        const tblX = 18, tblW = PW - 36, labelW = 130, rowH = 12.5;
-        const yTop = PH - 85, tblH = rowH * rows.length;
-        p1.drawRectangle({ x: tblX, y: yTop - tblH, width: tblW, height: tblH, borderColor: black, borderWidth: 0.8 });
-        p1.drawLine({ start: { x: tblX + labelW, y: yTop - tblH }, end: { x: tblX + labelW, y: yTop }, thickness: 0.8, color: black });
+        const tblX = 18, labelW = 130, rowH = 12.5, yTop = PH - 85;
+        const maxVW = PW - 18 - (tblX + labelW) - 2;
         rows.forEach((r, i) => {
-          const rTop = yTop - i * rowH;
-          if (i > 0) p1.drawLine({ start: { x: tblX, y: rTop }, end: { x: tblX + tblW, y: rTop }, thickness: 0.8, color: black });
-          const baseY = rTop - rowH + 3.7;
-          p1.drawText(r[0], { x: tblX + 4, y: baseY, size: 8, font: fontB, color: black });
-          let vs = 8; const maxVW = tblW - labelW - 8;
+          const baseY = yTop - i * rowH - rowH + 3.7;
+          p1.drawText(r[0], { x: tblX, y: baseY, size: 8, font: fontB, color: black });
+          let vs = 8;
           while (vs > 5.5 && font.widthOfTextAtSize(r[1], vs) > maxVW) vs -= 0.3;
-          p1.drawText(r[1], { x: tblX + labelW + 4, y: baseY, size: vs, font, color: black });
+          p1.drawText(r[1], { x: tblX + labelW, y: baseY, size: vs, font, color: black });
         });
       }
       const copied = await finalDoc.copyPages(doc, doc.getPageIndices());
