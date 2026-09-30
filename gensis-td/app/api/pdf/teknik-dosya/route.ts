@@ -200,33 +200,37 @@ export async function GET(req: NextRequest) {
     );
     await addPdfBytes(new Uint8Array(buf));
   }
-  // Hazır kılavuz PDF'i getir, her sayfasının footer'ına firma adını yaz, ekle
+  // Hazır kılavuz PDF'i getir, her sayfasının footer'ını (2 satır, sola dayalı, siyah) yaz, ekle
   let robotoBytes: Uint8Array | null = null;
+  let robotoBoldBytes: Uint8Array | null = null;
   async function addKilavuz() {
     try {
       const res = await fetch(`${assetBase}/kilavuz/${kilavuzFile}`);
       if (!res.ok) return;
       const doc = await PDFDocument.load(new Uint8Array(await res.arrayBuffer()), { ignoreEncryption: true });
-      // Footer: Ticari Ünvan · Adres · Telefon · E-posta (tek satır, sayfa genişliğine göre punto küçülür)
+      // Footer: 1. satır Ticari Ünvan (kalın), 2. satır Adres · Telefon · E-posta — sola dayalı, siyah
       const cf = (ctx as any)?.firma || {};
-      const kilavuzFooter = [cf.unvan || cf.kisa_ad, cf.adres, cf.telefon, cf.email]
-        .filter(Boolean).map((x: any) => String(x).trim()).join(" · ");
-      if (kilavuzFooter) {
+      const fUnvan = String(cf.unvan || cf.kisa_ad || "").trim();
+      const fAlt = [cf.adres, cf.telefon, cf.email].filter(Boolean).map((x: any) => String(x).trim()).join(" · ");
+      if (fUnvan || fAlt) {
         try {
-          if (!robotoBytes) {
-            const fr = await fetch(`${assetBase}/fonts/Roboto-Regular.ttf`);
-            if (fr.ok) robotoBytes = new Uint8Array(await fr.arrayBuffer());
-          }
+          if (!robotoBytes) { const fr = await fetch(`${assetBase}/fonts/Roboto-Regular.ttf`); if (fr.ok) robotoBytes = new Uint8Array(await fr.arrayBuffer()); }
+          if (!robotoBoldBytes) { const fb = await fetch(`${assetBase}/fonts/Roboto-Bold.ttf`); if (fb.ok) robotoBoldBytes = new Uint8Array(await fb.arrayBuffer()); }
           if (robotoBytes) {
             doc.registerFontkit(fontkit);
             const font = await doc.embedFont(robotoBytes);
+            const fontB = robotoBoldBytes ? await doc.embedFont(robotoBoldBytes) : font;
+            const black = rgb(0, 0, 0);
             for (const pg of doc.getPages()) {
               const { width } = pg.getSize();
-              const maxW = width - 40;
-              let size = 8;
-              while (size > 4.5 && font.widthOfTextAtSize(kilavuzFooter, size) > maxW) size -= 0.3;
-              const tw = font.widthOfTextAtSize(kilavuzFooter, size);
-              pg.drawText(kilavuzFooter, { x: Math.max(20, (width - tw) / 2), y: 16, size, font, color: rgb(0.42, 0.45, 0.5) });
+              const left = 42, right = width - 42, maxW = right - left;
+              pg.drawLine({ start: { x: left, y: 32 }, end: { x: right, y: 32 }, thickness: 0.8, color: black });
+              if (fUnvan) pg.drawText(fUnvan, { x: left, y: 22, size: 8, font: fontB, color: black });
+              if (fAlt) {
+                let asz = 7.5;
+                while (asz > 5 && font.widthOfTextAtSize(fAlt, asz) > maxW) asz -= 0.3;
+                pg.drawText(fAlt, { x: left, y: 13, size: asz, font, color: black });
+              }
             }
           }
         } catch { /* footer eklenemezse kılavuz yine eklenir */ }
@@ -237,7 +241,6 @@ export async function GET(req: NextRequest) {
   }
 
   // Son Kontrol Formu: hazır PDF (public) — 1. sayfa başlık altına bilgi tablosu + sol üst firma kısa adı header
-  let robotoBoldBytes: Uint8Array | null = null;
   async function addSonKontrol() {
     try {
       const res = await fetch(`${assetBase}/kilavuz/SON_KONTROL_FORMU.pdf`);

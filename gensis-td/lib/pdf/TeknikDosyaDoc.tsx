@@ -36,6 +36,10 @@ const st = StyleSheet.create({
   listRow: { flexDirection: "row", paddingVertical: 2 },
   listNo: { width: 22, color: "#111827", fontWeight: "bold" },
   footer: { position: "absolute", bottom: 24, left: 42, right: 42, fontSize: 8, color: "#9ca3af", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#e2e8f0", paddingTop: 6 },
+  // Yeni footer: iki satır, sola dayalı, siyah metin + siyah üst çizgi
+  footerBox: { position: "absolute", bottom: 20, left: 42, right: 42, borderTopWidth: 0.8, borderTopColor: "#000000", paddingTop: 5 },
+  footerUnvan: { fontSize: 8, fontWeight: "bold", color: "#000000", textAlign: "left" },
+  footerAlt: { fontSize: 7.5, color: "#000000", textAlign: "left", marginTop: 1 },
   coverWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   coverBig: { fontSize: 26, fontWeight: "bold", color: NAVY, marginBottom: 14, lineHeight: 1.1, textAlign: "center" },
   coverSub: { fontSize: 13, color: TEAL, marginBottom: 40, textAlign: "center" },
@@ -171,7 +175,6 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
           Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
         </Text>
       </View>
-      <Footer text={c.footerText} />
     </Page>
   );
 }
@@ -367,7 +370,7 @@ function teknikKomponentPage(c: any) {
         ))}
       </View>
 
-      <Footer text={c.footerText} />
+      <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
   );
 }
@@ -421,12 +424,13 @@ function LR({ l, val, w = 110, plain, dark }: { l: string; val?: any; w?: number
     </View>
   );
 }
-function Footer({ text, dark }: { text: string; dark?: boolean }) {
-  // Tek satıra sığacak şekilde punto küçülür; dark: metin + üst çizgi siyah
+function Footer({ unvan, alt }: { unvan?: string; alt?: string }) {
+  // 1. satır: ticari ünvan (kalın), 2. satır: adres · telefon · e-posta — sola dayalı, siyah
   return (
-    <Text style={[st.footer, { fontSize: fitFs(text, 100, 8, 5) }, dark ? { color: "#111827", borderTopColor: "#111827" } : null]} fixed numberOfLines={1}>
-      {text || " "}
-    </Text>
+    <View style={st.footerBox} fixed>
+      <Text style={st.footerUnvan} numberOfLines={1}>{unvan || " "}</Text>
+      {!!alt && <Text style={[st.footerAlt, { fontSize: fitFs(alt, 96, 7.5, 5) }]} numberOfLines={1}>{alt}</Text>}
+    </View>
   );
 }
 function DocHead({ firma, title }: { firma: any; title: string }) {
@@ -515,7 +519,10 @@ function buildCtx(data: any) {
   const assetBase = d.__assetBase || "";
   // Tüm evrak footer'ı: Ticari Ünvan · Adres · Telefon · E-posta (tek satır)
   const footerText = [firma.unvan || firma.kisa_ad, firma.adres, firma.telefon, firma.email].filter(Boolean).map((x: any) => String(x).trim()).join(" · ");
-  return { d, firma, modul, modulE, modulH1, modulB, muh, kap, inp, ekipman, equipCats, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi, assetBase, footerText };
+  // Yeni footer: 1. satır ticari ünvan, 2. satır adres · telefon · e-posta (sola dayalı, siyah)
+  const footerUnvan = String(firma.unvan || firma.kisa_ad || "").trim();
+  const footerAlt = [firma.adres, firma.telefon, firma.email].filter(Boolean).map((x: any) => String(x).trim()).join(" · ");
+  return { d, firma, modul, modulE, modulH1, modulB, muh, kap, inp, ekipman, equipCats, bugun, tarih, fname, kisi, adaParsel, eqEntries, isHid, aski, tahrikTuru, projeTuru, asansorTuru, garantiSinif, pkTarihi, servisTarihi, garantiBitis, malinCinsi, faturaNo, faturaTarihi, assetBase, footerText, footerUnvan, footerAlt };
 }
 
 // CE işareti — kapak için (resmi CE markası görseli)
@@ -544,7 +551,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <View style={{ height: 40 }} />
         <Text style={{ fontSize: 9, color: "#111827" }}>{c.tarih}</Text>
       </View>
-      <Footer text={c.footerText} />
+      <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
   ),
 
@@ -581,6 +588,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         {/* İçeriği ~2 cm yukarı almak için alt boşluk (ortalanmış blokta içerik yukarı kayar) */}
         <View style={{ height: 113 }} />
       </View>
+      <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
   ),
 
@@ -599,7 +607,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <LR l="Sanayi Sicil No" val={c.firma.sanayi_sicil_no} w={150} />
         <LR l="CE İşaretlemesi Sorumlusu" val={c.firma.yetkili} w={150} />
       </View>
-      <Footer text={c.footerText} />
+      <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
   ),
 
@@ -739,7 +747,6 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FRow l="FİRMA YETKİLİSİNİN İMZASI" val="" tall={52} />
         <FRow l="FİRMA KAŞESİ" val="" tall={78} />
       </View>
-      <Footer text={c.footerText} />
     </Page>
   ),
 
@@ -879,7 +886,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <View style={{ flex: 1, alignItems: "center" }}><Text style={{ fontSize: 9, fontWeight: "bold" }}>YÜKLENİCİ (İsim, Kaşe, İmza)</Text></View>
         <View style={{ flex: 1, alignItems: "center" }}><Text style={{ fontSize: 9, fontWeight: "bold" }}>MÜŞTERİ (İsim, Kaşe, İmza)</Text></View>
       </View>
-      <Footer text={c.footerText} />
+      <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
   ),
 
@@ -971,7 +978,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <R l="Yetkili Kişi" val={c.firma.yetkili} />
         <R l="İmzanın Yeri ve Tarihi" val={`${yer} — …../…../……`} />
         <R l="Kaşe / İmza" val="" />
-        <Footer text={c.footerText} dark />
+        <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
       </Page>
     );
   },
@@ -1001,7 +1008,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <Text style={{ fontSize: 9, fontWeight: "bold", marginBottom: 6 }}>FİRMA YETKİLİ ADI / SOYADI</Text>
         <Text style={{ fontSize: 9 }}>{v(c.firma.yetkili)}</Text>
       </View>
-      <Footer text={c.footerText} />
+      <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
   ),
 
@@ -1035,7 +1042,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         </>
       )}
       <Text style={{ marginTop: 16, textAlign: "right" }}>SAYGILARIMIZLA</Text>
-      <Footer text={c.footerText} />
+      <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
   ),
 
@@ -1137,7 +1144,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         NOT: Asansörün güvenliğini etkileyecek revizyon gerçekleştiren her asansör firması ile kontrolü
         gerçekleştiren her kuruluş, yaptığı işlemi bu deftere kaydetmekle yükümlüdür.
       </Text>
-      <Footer text={c.footerText} dark />
+      <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
     );
   },
@@ -1183,7 +1190,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         </View>
       </View>
       <Text style={{ marginTop: 14, color: "#6b7280" }}>Tarih : ...../...../.........</Text>
-      <Footer text={c.footerText} dark />
+      <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
   ),
 
@@ -1229,7 +1236,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <Text style={[st.tcellTall, { minHeight: 54, width: "34%" }]}> </Text>
         </View>
       </View>
-      <Footer text={c.footerText} dark />
+      <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
   ),
 
@@ -1273,7 +1280,6 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           </View>
         </View>
       </View>
-      <Footer text={c.footerText} />
     </Page>
   ),
 };
@@ -1293,7 +1299,7 @@ function EkBelgelerPage(c: Ctx) {
           </View>
         )
       )}
-      <Footer text={c.footerText} />
+      <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
   );
 }
