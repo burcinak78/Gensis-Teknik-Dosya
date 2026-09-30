@@ -35,6 +35,10 @@ const st = StyleSheet.create({
   coverWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   coverBig: { fontSize: 26, fontWeight: "bold", color: NAVY, marginBottom: 14, lineHeight: 1.1, textAlign: "center" },
   coverSub: { fontSize: 13, color: TEAL, marginBottom: 40, textAlign: "center" },
+  // Kapak bilgi satırı: satır aralığı 2 kat (2.2 → 4.4), etiket siyah
+  coverRow: { flexDirection: "row", paddingVertical: 4.4 },
+  coverLbl: { width: "42%", paddingLeft: 2, paddingRight: 4, color: "#111827" },
+  coverVal: { width: "58%", fontWeight: "bold", color: "#111827" },
   klvItem: { flexDirection: "row", paddingVertical: 2, fontSize: 9.5 },
   klvNo: { width: 22, color: TEAL },
   klvText: { flex: 1, textAlign: "justify" },
@@ -358,6 +362,15 @@ function R({ l, val }: { l: string; val?: any }) {
     </View>
   );
 }
+// Kapak bilgi satırı: 2 kat satır aralığı, siyah etiket
+function CoverR({ l, val }: { l: string; val?: any }) {
+  return (
+    <View style={st.coverRow}>
+      <View style={st.coverLbl}><Text>{l}</Text></View>
+      <View style={st.coverVal}><Text style={{ fontWeight: "bold" }}>{v(val)}</Text></View>
+    </View>
+  );
+}
 // Dar satır: değer, başlığın hemen yanında (Dilekçe / Firma Bilgileri)
 function LR({ l, val, w = 110 }: { l: string; val?: any; w?: number }) {
   return (
@@ -477,14 +490,14 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         </View>
         <Text style={st.coverBig}>ASANSÖR TEKNİK DOSYASI</Text>
         <Text style={st.coverSub}>2014/33 AB ASANSÖR YÖNETMELİĞİ</Text>
-        <R l="Dosya No" val={c.d.dosya_no} />
-        <View style={{ height: 10 }} />
-        <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
-        <R l="Bina Adı" val={c.d.bina_adi} />
-        <R l="Bina Adresi" val={c.d.montaj_adresi} />
-        <R l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
+        <CoverR l="Dosya No" val={c.d.dosya_no} />
         <View style={{ height: 20 }} />
-        <Text style={{ fontSize: 9, color: "#6b7280" }}>{c.tarih}</Text>
+        <CoverR l="Asansör Seri No" val={c.inp.asansor_seri_no} />
+        <CoverR l="Bina Adı" val={c.d.bina_adi} />
+        <CoverR l="Bina Adresi" val={c.d.montaj_adresi} />
+        <CoverR l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
+        <View style={{ height: 40 }} />
+        <Text style={{ fontSize: 9, color: "#111827" }}>{c.tarih}</Text>
       </View>
       <Footer text={c.footerText} />
     </Page>
