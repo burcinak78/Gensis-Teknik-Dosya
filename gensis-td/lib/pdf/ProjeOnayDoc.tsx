@@ -32,6 +32,13 @@ const st = StyleSheet.create({
   fLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#334155" },
   fVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#111827" },
   fSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#334155" },
+  // Taahhütname: bölüm grubu — satır arası çizgi yok, yalnız dış sınır + bölüm başlığı çizgileri
+  tBox: { borderWidth: 0.8, borderColor: "#334155" },
+  tRow: { flexDirection: "row" },
+  tLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#334155" },
+  tVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#111827" },
+  tSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderTopWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#334155" },
+  tOuter: { borderWidth: 0.8, borderColor: "#334155", padding: 10, marginTop: 12 },
   footer: { position: "absolute", bottom: 24, left: 48, right: 48, fontSize: 8, color: "#9ca3af", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#e2e8f0", paddingTop: 6 },
 });
 
@@ -47,6 +54,18 @@ function FRow({ l, val }: { l: string; val?: any }) {
 }
 function FSection({ children }: { children: any }) {
   return <Text style={st.fSection}>{children}</Text>;
+}
+// Taahhütname bölüm satırı (satır arası çizgisiz) ve bölüm başlığı
+function TRow({ l, val }: { l: string; val?: any }) {
+  return (
+    <View style={st.tRow}>
+      <Text style={st.tLabel}>{l}</Text>
+      <Text style={st.tVal}>{v(val)}</Text>
+    </View>
+  );
+}
+function TSection({ children }: { children: any }) {
+  return <Text style={st.tSection}>{children}</Text>;
 }
 // Footer: Ticari Ünvan · Adres · Telefon · E-posta — tek satır, sığacak şekilde punto küçülür
 const fitFsPO = (s: any, base = 8, min = 5) => {
@@ -125,34 +144,38 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
   return (
     <Page key={"muh_taahhut_" + disc} size="A4" style={st.formPage}>
       <Text style={st.formTitle}>TAAHHÜTNAME</Text>
-      <Text style={st.formSub}>{unvan}</Text>
-      <View style={st.fBox}>
-        <FSection>PROJE MÜELLİFİ</FSection>
-        <FRow l="Oda Sicil No" val={m?.oda_sicil} />
-        <FRow l="Unvanı" val={unvan} />
-        <FRow l="Adresi" val={m?.adres} />
-        <FRow l="Telefonu" val={m?.telefon} />
-        <FSection>MÜELLİFLİĞİ ÜSTLENİLEN PROJE</FSection>
-        <FRow l="İl / İlçe" val={[d.il, d.belediye].filter(Boolean).join(" / ")} />
-        <FRow l="İlgili İdare" val={v(d.ilgili_idare) || (d.belediye ? `${v(d.belediye)} Belediyesi` : "")} />
-        <FRow l="Pafta / Ada / Parsel No" val={[d.pafta, d.ada, d.parsel].filter(Boolean).join(" / ")} />
-        <FRow l="Yapı Adresi" val={d.montaj_adresi} />
-        <FRow l="Yapı Sahibi" val={d.yapi_sahibi} />
-        <FRow l="Yapı Sahibinin Adresi" val={d.yapi_sahibi_adresi} />
-        <FRow l="Projenin Türü" val={d.projeTuru || "ASANSÖR"} />
+      <View style={st.tBox}>
+        <TSection>PROJE MÜELLİFİ</TSection>
+        <TRow l="Oda Sicil No" val={m?.oda_sicil} />
+        <TRow l="Unvanı" val={unvan} />
+        <TRow l="Adresi" val={m?.adres} />
+        <TRow l="Telefonu" val={m?.telefon} />
+        <TSection>MÜELLİFLİĞİ ÜSTLENİLEN PROJE</TSection>
+        <TRow l="İl / İlçe" val={[d.il, d.belediye].filter(Boolean).join(" / ")} />
+        <TRow l="İlgili İdare" val={v(d.ilgili_idare) || (d.belediye ? `${v(d.belediye)} Belediyesi` : "")} />
+        <TRow l="Pafta / Ada / Parsel No" val={[d.pafta, d.ada, d.parsel].filter(Boolean).join(" / ")} />
+        <TRow l="Yapı Adresi" val={d.montaj_adresi} />
+        <TRow l="Yapı Sahibi" val={d.yapi_sahibi} />
+        <TRow l="Yapı Sahibinin Adresi" val={d.yapi_sahibi_adresi} />
+        <TRow l="Projenin Türü" val={d.projeTuru || "ASANSÖR"} />
       </View>
-      <Text style={{ fontSize: 8.6, marginTop: 10, textAlign: "justify", lineHeight: 1.5 }}>
-        Yukarıdaki bilgilere sahip projenin müellifliğini üstlenmemde 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında süreli veya süresiz olarak mesleki faaliyet haklarımda herhangi bir kısıtlılık bulunmadığını, Yukarıdaki bilgilere sahp yapıya ilişkin hazırlanacak tüm projelerde, 3194 sayılı Kanun ve deprem, yangın,enerji verimliliği,asansör gibi ilgili tüm mevzuat hükümlerini eksiksiz uygulayacağımı taahhüt ederim.
-      </Text>
-      <View style={{ marginTop: 34, alignItems: "flex-end" }}>
-        <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 8 }}>Proje Müellifi</Text>
-        <Text style={{ fontSize: 9, marginBottom: 7 }}>{v(m?.ad) || "Ad Soyad"}</Text>
-        <Text style={{ fontSize: 9, marginBottom: 7 }}>{unvanTam}</Text>
-        <Text style={{ fontSize: 9 }}>İmza</Text>
+      <View style={st.tOuter}>
+        <Text style={{ fontSize: 8.6, textAlign: "justify", lineHeight: 1.5 }}>
+          Yukarıdaki bilgilere sahip projenin müellifliğini üstlenmemde 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında süreli veya süresiz olarak mesleki faaliyet haklarımda herhangi bir kısıtlılık bulunmadığını, Yukarıdaki bilgilere sahp yapıya ilişkin hazırlanacak tüm projelerde, 3194 sayılı Kanun ve deprem, yangın,enerji verimliliği,asansör gibi ilgili tüm mevzuat hükümlerini eksiksiz uygulayacağımı taahhüt ederim.
+        </Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 22 }}>
+          <Text style={{ fontSize: 9 }}>Tarih : …./…./20…</Text>
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 8 }}>Proje Müellifi</Text>
+            <Text style={{ fontSize: 9, marginBottom: 7 }}>{v(m?.ad) || "Ad Soyad"}</Text>
+            <Text style={{ fontSize: 9, marginBottom: 7 }}>{unvanTam}</Text>
+            <Text style={{ fontSize: 9 }}>İmza</Text>
+          </View>
+        </View>
+        <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
+          Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
+        </Text>
       </View>
-      <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
-        Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
-      </Text>
       <FooterBar d={d} />
     </Page>
   );

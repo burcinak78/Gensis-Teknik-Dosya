@@ -67,6 +67,13 @@ const st = StyleSheet.create({
   fc2: { width: "11%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
   fc3: { width: "11%", paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", borderRightWidth: 0.8, borderColor: "#334155", textAlign: "center" },
   fc4: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 3, fontSize: 6.9, fontWeight: "bold", textAlign: "left" },
+  // Taahhütname: bölüm grubu — satır arası çizgi yok, yalnız dış sınır + bölüm başlığı çizgileri
+  tBox: { borderWidth: 0.8, borderColor: "#334155" },
+  tRow: { flexDirection: "row" },
+  tLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#1f2937", borderRightWidth: 0.8, borderColor: "#334155" },
+  tVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#111827" },
+  tSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderTopWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#334155" },
+  tOuter: { borderWidth: 0.8, borderColor: "#334155", padding: 10, marginTop: 12 },
   // Genel tablo (Marka/Tip/Model.. ve Seyir Defteri tabloları)
   tbl: { borderTopWidth: 0.6, borderLeftWidth: 0.6, borderColor: "#94a3b8", marginTop: 4 },
   trow: { flexDirection: "row" },
@@ -108,43 +115,60 @@ function FRow({ l, val, tall, max }: { l: string; val?: any; tall?: number; max?
 function FSection({ children }: { children: any }) {
   return <Text style={st.fSection}>{children}</Text>;
 }
+// Taahhütname bölüm satırı (satır arası çizgisiz) ve bölüm başlığı
+function TRow({ l, val }: { l: string; val?: any }) {
+  return (
+    <View style={st.tRow}>
+      <Text style={st.tLabel}>{l}</Text>
+      <Text style={st.tVal}>{v(val)}</Text>
+    </View>
+  );
+}
+function TSection({ children }: { children: any }) {
+  return <Text style={st.tSection}>{children}</Text>;
+}
 
 // Mühendis Taahhütnamesi — Makine / Elektrik için ayrı sayfa (aynı düzen)
 function taahhutPage(c: any, disc: "makine" | "elektrik") {
   const m = disc === "makine" ? c.muh?.makine : c.muh?.elektrik;
   const unvan = disc === "makine" ? "MAKİNA MÜHENDİSİ" : "ELEKTRİK MÜHENDİSİ";
   const unvanKisa = disc === "makine" ? "Mak.Müh." : "Elk.Müh.";
+  const unvanTam = disc === "makine" ? "Makine Mühendisi" : "Elektrik Mühendisi";
   return (
     <Page key={"muh_taahhut_" + disc} size="A4" style={st.page}>
       <Text style={st.formTitle}>TAAHHÜTNAME</Text>
-      <Text style={st.formSub}>{unvan}</Text>
-      <View style={st.fBox}>
-        <FSection>PROJE MÜELLİFİ</FSection>
-        <FRow l="Oda Sicil No" val={m?.oda_sicil} />
-        <FRow l="Unvanı" val={unvan} />
-        <FRow l="Adresi" val={m?.adres} />
-        <FRow l="Telefonu" val={m?.telefon} />
-        <FSection>MÜELLİFLİĞİ ÜSTLENİLEN PROJE</FSection>
-        <FRow l="İl / İlçe" val={[c.d.il, c.d.belediye].filter(Boolean).join(" / ")} />
-        <FRow l="İlgili İdare" val={c.d.belediye ? `${v(c.d.belediye)} Belediyesi` : ""} />
-        <FRow l="Pafta / Ada / Parsel No" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
-        <FRow l="Yapı Adresi" val={c.d.montaj_adresi} />
-        <FRow l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
-        <FRow l="Yapı Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
-        <FRow l="Projenin Türü" val={c.projeTuru} />
+      <View style={st.tBox}>
+        <TSection>PROJE MÜELLİFİ</TSection>
+        <TRow l="Oda Sicil No" val={m?.oda_sicil} />
+        <TRow l="Unvanı" val={unvan} />
+        <TRow l="Adresi" val={m?.adres} />
+        <TRow l="Telefonu" val={m?.telefon} />
+        <TSection>MÜELLİFLİĞİ ÜSTLENİLEN PROJE</TSection>
+        <TRow l="İl / İlçe" val={[c.d.il, c.d.belediye].filter(Boolean).join(" / ")} />
+        <TRow l="İlgili İdare" val={c.d.belediye ? `${v(c.d.belediye)} Belediyesi` : ""} />
+        <TRow l="Pafta / Ada / Parsel No" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
+        <TRow l="Yapı Adresi" val={c.d.montaj_adresi} />
+        <TRow l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
+        <TRow l="Yapı Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
+        <TRow l="Projenin Türü" val={c.projeTuru} />
       </View>
-      <Text style={{ fontSize: 8.6, marginTop: 10, textAlign: "justify", lineHeight: 1.5 }}>
-        Yukarıdaki bilgilere sahip projenin müellifliğini üstlenmemde 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında süreli veya süresiz olarak mesleki faaliyet haklarımda herhangi bir kısıtlılık bulunmadığını, Yukarıdaki bilgilere sahip yapıya ilişkin hazırlanacak tüm projelerde, 3194 sayılı Kanun ve deprem, yangın,enerji verimliliği,asansör gibi ilgili tüm mevzuat hükümlerini eksiksiz uygulayacağımı taahhüt ederim.
-      </Text>
-      <View style={{ marginTop: 34, alignItems: "flex-end" }}>
-        <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 8 }}>Proje Müellifi</Text>
-        <Text style={{ fontSize: 9, marginBottom: 7 }}>Ad Soyad</Text>
-        <Text style={{ fontSize: 9, marginBottom: 7 }}>İsim Ünvan</Text>
-        <Text style={{ fontSize: 9 }}>İmza</Text>
+      <View style={st.tOuter}>
+        <Text style={{ fontSize: 8.6, textAlign: "justify", lineHeight: 1.5 }}>
+          Yukarıdaki bilgilere sahip projenin müellifliğini üstlenmemde 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu, 3194 sayılı İmar Kanunu ve ilgili mevzuat kapsamında süreli veya süresiz olarak mesleki faaliyet haklarımda herhangi bir kısıtlılık bulunmadığını, Yukarıdaki bilgilere sahip yapıya ilişkin hazırlanacak tüm projelerde, 3194 sayılı Kanun ve deprem, yangın,enerji verimliliği,asansör gibi ilgili tüm mevzuat hükümlerini eksiksiz uygulayacağımı taahhüt ederim.
+        </Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 22 }}>
+          <Text style={{ fontSize: 9 }}>Tarih : …./…./20…</Text>
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 8 }}>Proje Müellifi</Text>
+            <Text style={{ fontSize: 9, marginBottom: 7 }}>{v(m?.ad) || "Ad Soyad"}</Text>
+            <Text style={{ fontSize: 9, marginBottom: 7 }}>{unvanTam}</Text>
+            <Text style={{ fontSize: 9 }}>İmza</Text>
+          </View>
+        </View>
+        <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
+          Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
+        </Text>
       </View>
-      <Text style={{ fontSize: 7.6, marginTop: 16, textAlign: "justify", color: "#475569", lineHeight: 1.45 }}>
-        Gerçeğe aykırı beyanda bulunduğu tespit edilenlerin işlemleri iptal edilecek ve bu kişiler hakkında 5237 sayılı Türk Ceza Kanununun ilgili hükümleri gereği Cumhuriyet Savcılığına suç duyurusunda bulunulacak, ayrıca 6235 sayılı Türk Mühendis ve Mimar Odaları Birliği Kanunu ve ilgili mevzuatı uyarınca işlem yapılmak üzere ilgili Meslek Odasına bilgi verilecektir.
-      </Text>
       <Footer text={c.footerText} />
     </Page>
   );
@@ -675,8 +699,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FSection>ASANSÖR MONTE EDENİN / İMALATÇININ / İTHALATÇININ / DAĞITICININ</FSection>
         <FRow l="ÜNVANI" val={c.firma.unvan} />
         <FRow l="ADRESİ" val={c.firma.adres} />
-        <FRow l="TELEFON VE FAKS NUMARASI, DİĞER İLETİŞİM BİLGİLERİ" val={c.firma.telefon} />
-        <FRow l="E-POSTA" val={c.firma.email} />
+        <FRow l="TELEFON VE FAKS NUMARASI, DİĞER İLETİŞİM BİLGİLERİ" val={[c.firma.telefon, c.firma.email].filter(Boolean).join(" / ")} />
         <FSection>FATURANIN</FSection>
         <FRow l="TARİHİ" val={c.faturaTarihi} />
         <FRow l="SAYISI" val={c.faturaNo} />
@@ -685,7 +708,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FRow l="MARKASI" val={c.firma.tescilli_marka} />
         <FRow l="MODELİ" val={c.inp.asansor_sinifi ? String(c.inp.asansor_sinifi).split(":")[0].trim() : c.garantiSinif} />
         <FRow l="SERİ NUMARASI" val={c.inp.asansor_seri_no} />
-        <FRow l="TESLİM TARİHİ" val={`…../…../${new Date().getFullYear()}`} />
+        <FRow l="TESLİM TARİHİ" val="…./…./20…" />
         <FRow l="TESLİM ADRESİ" val={c.d.montaj_adresi} />
         <FRow l="ADA VE PARSEL NO" val={c.adaParsel} />
         <FRow l="AZAMİ TAMİR SÜRESİ" val="15 GÜN" />
@@ -693,8 +716,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FSection>YETKİLİ SERVİSİN VEYA SERVİSLERİN</FSection>
         <FRow l="ÜNVANI" val={c.firma.unvan} />
         <FRow l="ADRESİ" val={c.firma.adres} />
-        <FRow l="TELEFON VE FAKS NUMARASI, DİĞER İLETİŞİM BİLGİLERİ" val={c.firma.telefon} />
-        <FRow l="E-POSTA" val={c.firma.email} />
+        <FRow l="TELEFON VE FAKS NUMARASI, DİĞER İLETİŞİM BİLGİLERİ" val={[c.firma.telefon, c.firma.email].filter(Boolean).join(" / ")} />
         <FSection>ONAY</FSection>
         <FRow l="FİRMA YETKİLİSİNİN ADI VE SOYADI" val={c.firma.yetkili} />
         <FRow l="FİRMA YETKİLİSİNİN İMZASI" val="" tall={52} />

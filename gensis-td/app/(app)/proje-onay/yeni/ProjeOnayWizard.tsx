@@ -98,12 +98,12 @@ export default function ProjeOnayWizard(props: Props) {
   );
   const company = props.companies.find((c) => c.id === companyId) || null;
   const provinceName = props.provinces.find((p) => p.id === provinceId)?.name;
-  // Seçili İlgili İdare adı: önce ilçe listesinden, yoksa eklenen ekstralardan
-  const selectedIdareName = districts.find((d) => d.id === districtId)?.name ?? extras.find((x) => x.id === districtId)?.name ?? "";
+  // Seçili İlgili İdare: ilçe (belediye) → "<ad> Belediyesi"; +Yeni ile eklenen → yazıldığı gibi (ek yok)
+  const selDistrict = districts.find((d) => d.id === districtId);
+  const selExtra = extras.find((x) => x.id === districtId);
+  const selectedIdareName = selDistrict?.name ?? selExtra?.name ?? "";
   const districtName = selectedIdareName;
-  // Belgelerde kullanılacak tam ad: adında "beled" yoksa "Belediyesi" tamamla
-  const idareFull = (n: string) => { const t = (n || "").trim(); return t ? (/beled/i.test(t) ? t : `${t} Belediyesi`) : ""; };
-  const idareAdi = idareFull(selectedIdareName);
+  const idareAdi = selDistrict ? `${selDistrict.name} Belediyesi` : (selExtra?.name ?? "");
 
   const makineOptions = useMemo(
     () => props.engineers.filter((e) => e.discipline === "makine" && (e.company_id === props.gensisCompanyId || (!!companyId && e.company_id === companyId))),
@@ -244,7 +244,7 @@ export default function ProjeOnayWizard(props: Props) {
                   <select value={districtId} onChange={(e) => setDistrictId(e.target.value)} disabled={provinceId === ""} className={inp + ec(districtId)}>
                     <option value="">{provinceId === "" ? "Önce il seçin" : "Seçiniz…"}</option>
                     {districts.map((d) => <option key={d.id} value={d.id}>{idareLabel(d.name)}</option>)}
-                    {extras.map((x) => <option key={x.id} value={x.id}>{idareLabel(x.name)}</option>)}
+                    {extras.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
                   </select>
                   <button type="button" onClick={() => { setShowAddIdare((v) => !v); setIdareErr(null); }}
                     className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-3 hover:bg-brand-light whitespace-nowrap">
@@ -254,10 +254,7 @@ export default function ProjeOnayWizard(props: Props) {
                 {showAddIdare && (
                   <div className="mt-2 bg-brand-light/40 border border-brand/15 rounded-lg p-3 space-y-2">
                     <p className="text-xs font-bold text-slate-600">Yeni İlgili İdare</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <input className={inp + " col-span-1"} placeholder="Adı *" value={idareForm.name} onChange={(e) => setIdareForm((s) => ({ ...s, name: e.target.value }))} />
-                      <input className={inp + " col-span-2"} placeholder="Adres (opsiyonel)" value={idareForm.address} onChange={(e) => setIdareForm((s) => ({ ...s, address: e.target.value }))} />
-                    </div>
+                    <input className={inp} placeholder="Adı *" value={idareForm.name} onChange={(e) => setIdareForm((s) => ({ ...s, name: e.target.value }))} />
                     {idareErr && <div className="text-xs text-red-600">{idareErr}</div>}
                     <div className="flex justify-end">
                       <button type="button" onClick={addIdare} disabled={idareBusy}
