@@ -27,6 +27,7 @@ type EditData = {
   teslim_tipi?: string | null;
   hard_copy_adedi?: number | null;
   tamamlananDocs?: Doc[];
+  kilitli?: boolean; // muhasebe teslim edildi → fiyat/fatura/teslim/tamamlanma kilitli
 };
 
 const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
@@ -63,6 +64,7 @@ export default function YeniProjeForm({
   const router = useRouter();
   const supabase = createClient();
   const isEdit = !!edit;
+  const kilitli = !!edit?.kilitli; // muhasebe teslim edildi → fiyat/fatura/teslim/tamamlanma kilitli
   const [companies, setCompanies] = useState<Company[]>(companiesInit);
 
   const [f, setF] = useState<Record<string, string>>(edit?.values ?? {
@@ -440,13 +442,19 @@ export default function YeniProjeForm({
 
               {!revMode && (
                 <>
+                  {kilitli && (
+                    <div className="text-xs text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 inline-flex items-center gap-1.5 mb-1">
+                      <span className="material-symbols-rounded text-[16px]">lock</span>
+                      Muhasebe tarafından teslim edildi — fiyat, fatura durumu ve teslim/tamamlanma bilgileri değiştirilemez.
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Fiyat">
-                      <input type="number" min={0} step="0.01" className={inp} value={f.fiyat} onChange={(e) => set("fiyat", e.target.value)} placeholder="0.00" />
+                      <input type="number" min={0} step="0.01" disabled={kilitli} className={inp + (kilitli ? " bg-slate-100 text-slate-500" : "")} value={f.fiyat} onChange={(e) => set("fiyat", e.target.value)} placeholder="0.00" />
                       <p className="text-[11px] font-bold text-amber-600 mt-1">⚠ KDV HARİÇ GİRİNİZ</p>
                     </Field>
                     <Field label="Fatura Durumu">
-                      <select className={inp} value={f.fatura_tipi} onChange={(e) => set("fatura_tipi", e.target.value)}>
+                      <select className={inp + (kilitli ? " bg-slate-100 text-slate-500" : "")} disabled={kilitli} value={f.fatura_tipi} onChange={(e) => set("fatura_tipi", e.target.value)}>
                         <option value="faturasiz">Faturasız</option>
                         <option value="faturali">Faturalı (%20 KDV eklenir)</option>
                       </select>
@@ -474,8 +482,8 @@ export default function YeniProjeForm({
                 </select>
               </Field>
               <Field label="Tahmini Tamamlanma Tarihi *">
-                <input type="date" min={f.siparis_tarihi || undefined}
-                  className={inp + reqCls(!f.tahmini_tamamlanma || (!!f.siparis_tarihi && f.tahmini_tamamlanma < f.siparis_tarihi))}
+                <input type="date" min={f.siparis_tarihi || undefined} disabled={kilitli}
+                  className={inp + (kilitli ? " bg-slate-100 text-slate-500" : reqCls(!f.tahmini_tamamlanma || (!!f.siparis_tarihi && f.tahmini_tamamlanma < f.siparis_tarihi)))}
                   value={f.tahmini_tamamlanma} onChange={(e) => set("tahmini_tamamlanma", e.target.value)} />
                 {f.siparis_tarihi && <p className="text-[11px] text-slate-400 mt-1">Sipariş tarihinden ({new Date(f.siparis_tarihi).toLocaleDateString("tr-TR")}) eski olamaz.</p>}
               </Field>

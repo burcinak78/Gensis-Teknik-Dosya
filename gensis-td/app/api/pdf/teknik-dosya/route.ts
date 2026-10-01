@@ -64,9 +64,9 @@ export async function GET(req: NextRequest) {
     isG: boolean;
     pf: Record<string, string[]>;
     engMakine: string[]; engElektrik: string[];
-    coSanayi: string[]; coTse: string[]; coCe: string[]; coCeSelected: string[];
+    coImza: string[]; coSanayi: string[]; coTse: string[]; coCe: string[]; coCeSelected: string[];
     motorCerts: string[]; otherCerts: string[];
-  } = { isG: false, pf: {}, engMakine: [], engElektrik: [], coSanayi: [], coTse: [], coCe: [], coCeSelected: [], motorCerts: [], otherCerts: [] };
+  } = { isG: false, pf: {}, engMakine: [], engElektrik: [], coImza: [], coSanayi: [], coTse: [], coCe: [], coCeSelected: [], motorCerts: [], otherCerts: [] };
   // Müşteri logosu (varsa header'da kısa ad yerine kullanılır)
   let logoBytes: Uint8Array | null = null;
   let logoMime = "image/png";
@@ -159,7 +159,8 @@ export async function GET(req: NextRequest) {
         .select("id, doc_type, storage_path").eq("company_id", companyId);
       for (const d of cdocs ?? []) {
         if (!d.storage_path) continue;
-        if (d.doc_type === "sanayi_sicil") attach.coSanayi.push(d.storage_path);
+        if (d.doc_type === "imza_sirkuleri") attach.coImza.push(d.storage_path);
+        else if (d.doc_type === "sanayi_sicil") attach.coSanayi.push(d.storage_path);
         else if (d.doc_type === "tse_hyb") attach.coTse.push(d.storage_path);
         else if (String(d.doc_type).startsWith("ce")) attach.coCe.push(d.storage_path);
       }
@@ -406,6 +407,8 @@ export async function GET(req: NextRequest) {
       // Fatura, Garanti Belgesi'nin hemen arkasına
       for (const p of attach.pf["fatura"] ?? []) await addFile("documents", p);
     } else if (code === "firma_bilgileri") {
+      // Firma Bilgileri'nden sonra, Sanayi Sicil'den önce: İmza Sirküleri
+      for (const p of attach.coImza) await addFile("documents", p);
       for (const p of attach.coSanayi) await addFile("documents", p);
       for (const p of attach.coTse) await addFile("documents", p);
       // Mod G seçiliyse: yüklenen Modül G belgesi; değilse Belgeler'de seçilen CE belgeleri

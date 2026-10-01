@@ -326,15 +326,50 @@ export async function sendProjectToMuhasebe(p: MuhasebeGonderPayload): Promise<{
   }
 }
 
+// ---------- Teknik dosyayı Muhasebe panelinden çıkar ----------
+// Fiyat 0/boş yapıldığında ya da TD silindiğinde, önceden oluşmuş muhasebe kaydını kaldırır.
+// Muhasebe tarafından "teslim edildi" (cariye_islendi) yapılmış kayıtlar silinmez.
+async function removeTakipForTd(admin: ReturnType<typeof createAdminClient>, tdNo: string | null): Promise<void> {
+  if (!tdNo) return;
+  const { data: rows } = await admin.from("takip_projeler").select("id").eq("td_no", tdNo);
+  for (const r of rows ?? []) {
+    const { data: m } = await admin.from("takip_muhasebe").select("cariye_islendi").eq("takip_id", r.id).maybeSingle();
+    if (m?.cariye_islendi) continue; // teslim edildi → koru
+    await admin.from("takip_projeler").delete().eq("id", r.id);
+  }
+}
+export async function removeProjectFromMuhasebe(projectId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Oturum bulunamadı." };
+    if (!projectId) return { ok: false, error: "Proje bulunamadı." };
+    const admin = createAdminClient();
+    const { data: proj } = await admin.from("projects").select("td_no").eq("id", projectId).maybeSingle();
+    await removeTakipForTd(admin, proj?.td_no ?? null);
+    revalidatePath("/muhasebe");
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // ---------- Teknik dosyayı tamamen sil ----------
 export async function deleteProject(id: string): Promise<{ ok: boolean; error?: string }> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Oturum bulunamadı." };
   if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+  // Muhasebeye düşmüş (teslim edilmemiş) kaydı da kaldır
+  try {
+    const admin = createAdminClient();
+    const { data: proj } = await admin.from("projects").select("td_no").eq("id", id).maybeSingle();
+    await removeTakipForTd(admin, proj?.td_no ?? null);
+  } catch { /* yoksay */ }
   await supabase.from("project_equipment").delete().eq("project_id", id);
   const { error } = await supabase.from("projects").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/panel");
+  revalidatePath("/muhasebe");
   return { ok: true };
 }
