@@ -14,7 +14,7 @@ type Company = {
 type Category = { id: string; code: string; name: string; sort_order: number; drive_type?: string };
 type Brand = { id: string; category_id: string; name: string };
 type Model = { id: string; brand_id: string; name: string; certificate_id: string | null };
-type Certificate = { id: string; cert_no: string; notified_body_id: string | null };
+type Certificate = { id: string; cert_no: string; notified_body_id: string | null; valid_until?: string | null };
 type NotifiedBody = { id: string; identity_no: string | null; name: string; address?: string | null };
 type Province = { id: number; name: string };
 type Capacity = { beyan_yuku_kg: number; kisi_sayisi: number | null; kabin_agirlik_kg: number | null; karsi_agirlik_kg: number | null };
@@ -717,32 +717,69 @@ export default function DataEntryWizard(props: Props) {
   // Full TD Oluştur öncesi: eksik bilgi + yüklenmeyen evrak + süresi geçmiş evrak uyarıları
   function openFullTdUyari() {
     const bugun = new Date().toISOString().slice(0, 10);
+    const expired = (vu: string | null | undefined) => !!vu && String(vu).slice(0, 10) < bugun;
+    const d10 = (vu: any) => String(vu).slice(0, 10);
+    const cdocs = (props.companyDocuments ?? []).filter((d) => d.company_id === companyId);
+    const coDoc = (t: string) => cdocs.find((d) => d.doc_type === t);
+
+    // ---- Eksik bilgi (form alanları) ----
     const eksik = [
       ...missingText.map((k) => FIELD_LABELS[k] ?? k),
       ...missingEquip.map((c) => c.label),
     ];
-    const cdocs = (props.companyDocuments ?? []).filter((d) => d.company_id === companyId);
-    const has = (t: string) => cdocs.some((d) => d.doc_type === t);
+
+    // ---- Yüklenmeyen / eksik evrak (tüm sekmeler) ----
     const evrak: string[] = [];
-    if (!yapiRuhsatiVar) evrak.push("Yapı Ruhsatı");
-    if (!has("imza_sirkuleri")) evrak.push("İmza Sirküleri (firma)");
-    if (!has("sanayi_sicil")) evrak.push("Sanayi Sicil Belgesi (firma)");
-    if (!has("tse_hyb")) evrak.push("TSE HYB Belgesi (firma)");
-    if (modulSecim === "G") { if (!(pending["modul_g_belge"]?.length || existingFiles.some((f) => f.kind === "modul_g_belge"))) evrak.push("Modül G Belgesi"); }
-    else if (modulBelgeIds.length === 0) evrak.push("CE / Modül belgesi (Belgeler adımında seçilmedi)");
-    const suresi: string[] = [];
-    const expired = (vu: string | null | undefined) => !!vu && String(vu).slice(0, 10) < bugun;
-    // Firma belgeleri
-    for (const d of cdocs) {
-      if (expired(d.valid_until)) suresi.push(`${DOC_AD[d.doc_type] ?? d.doc_type} (firma) — geçerlilik ${String(d.valid_until).slice(0, 10)}`);
+    // Firma sekmesi
+    if (!coDoc("imza_sirkuleri")) evrak.push("Firma: İmza Sirküleri");
+    if (!coDoc("sanayi_sicil")) evrak.push("Firma: Sanayi Sicil Belgesi");
+    if (!coDoc("tse_hyb")) evrak.push("Firma: TSE HYB Belgesi");
+    // Yapı Ruhsatı sekmesi
+    if (!yapiRuhsatiVar) evrak.push("Yapı Ruhsatı: Yapı Ruhsatı dosyası");
+    // Belgeler sekmesi — modül belgesi
+    if (modulSecim === "G") {
+      if (!(pending["modul_g_belge"]?.length || existingFiles.some((f) => f.kind === "modul_g_belge"))) evrak.push("Belgeler: Modül G Belgesi (dosya)");
+    } else if (modulBelgeIds.length === 0) {
+      evrak.push("Belgeler: CE / Modül belgesi seçilmedi");
     }
-    // Mühendis belgeleri (seçili makine/elektrik müellifleri)
+    // Ekipmanlar sekmesi — seçili ekipmanların sertifikası
+    for (const card of equipCards) {
+      if (card.code === "kabin_kilidi" && kabinYok) continue;
+      const sel = equip[card.key];
+      if (!sel?.modelId) continue; // YOK/boş ekipman — zorunlu değil, atla
+      const model = props.models.find((m) => m.id === sel.modelId);
+      if (!model?.certificate_id) evrak.push(`Ekipmanlar: ${card.label} — sertifika yok`);
+    }
+
+    // ---- Süresi geçmiş evrak (tüm sekmeler) ----
+    const suresi: string[] = [];
+    // Firma + Belgeler: firma belgeleri (sanayi sicil, TSE, CE, imza sirküleri vb.)
+    for (const d of cdocs) {
+      if (expired(d.valid_until)) suresi.push(`Firma: ${DOC_AD[d.doc_type] ?? d.doc_type} (geçerlilik ${d10(d.valid_until)})`);
+    }
+    // Belgeler: Modül G belgesi geçerlilik
+    if (modulSecim === "G" && expired(modulG.gecerlilik)) suresi.push(`Belgeler: Modül G Belgesi (geçerlilik ${d10(modulG.gecerlilik)})`);
+    // Müellif (mühendis) belgeleri — seçili makine/elektrik müellifleri
     const selEng = [makineMuhId, elektrikMuhId].filter(Boolean);
     const engName = (id: string) => props.engineers.find((e) => e.id === id)?.full_name ?? "Mühendis";
     for (const ed of (props.engineerDocuments ?? [])) {
       if (!selEng.includes(ed.engineer_id)) continue;
-      if (expired(ed.valid_until)) suresi.push(`${engName(ed.engineer_id)} — ${DOC_AD[ed.doc_type] ?? ed.doc_type} (geçerlilik ${String(ed.valid_until).slice(0, 10)})`);
+      if (expired(ed.valid_until)) suresi.push(`Müellif: ${engName(ed.engineer_id)} — ${DOC_AD[ed.doc_type] ?? ed.doc_type} (geçerlilik ${d10(ed.valid_until)})`);
     }
+    // Ekipmanlar: seçili her ekipmanın sertifikası (Mod H/B vb.)
+    const seenCert = new Set<string>();
+    for (const card of equipCards) {
+      if (card.code === "kabin_kilidi" && kabinYok) continue;
+      const sel = equip[card.key];
+      if (!sel?.modelId) continue;
+      const model = props.models.find((m) => m.id === sel.modelId);
+      const cert = model?.certificate_id ? certById.get(model.certificate_id) : undefined;
+      if (cert && !seenCert.has(cert.id) && expired(cert.valid_until)) {
+        seenCert.add(cert.id);
+        suresi.push(`Ekipmanlar: ${card.label} — ${cert.cert_no} (geçerlilik ${d10(cert.valid_until)})`);
+      }
+    }
+
     setFullTdUyari({ eksik, evrak, suresi });
   }
 
