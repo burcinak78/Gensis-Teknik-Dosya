@@ -74,15 +74,18 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
   const inp = (project.input_data ?? {}) as Record<string, any>;
 
   // Muhasebe teslim edildi mi? (TD'nin takip_projeler kaydı + takip_muhasebe.cariye_islendi)
+  // Not: Herhangi bir hata (td_no kolonu yoksa, servis anahtarı vb.) sayfayı bozmasın.
   let muhasebeKilit = false;
-  if (project.td_no) {
-    const admin = createAdminClient();
-    const { data: tp } = await admin.from("takip_projeler").select("id").eq("td_no", project.td_no).limit(1).maybeSingle();
-    if (tp?.id) {
-      const { data: tm } = await admin.from("takip_muhasebe").select("cariye_islendi").eq("takip_id", tp.id).maybeSingle();
-      muhasebeKilit = tm?.cariye_islendi === true;
+  try {
+    if (project.td_no) {
+      const admin = createAdminClient();
+      const { data: tp } = await admin.from("takip_projeler").select("id").eq("td_no", project.td_no).limit(1).maybeSingle();
+      if (tp?.id) {
+        const { data: tm } = await admin.from("takip_muhasebe").select("cariye_islendi").eq("takip_id", tp.id).maybeSingle();
+        muhasebeKilit = tm?.cariye_islendi === true;
+      }
     }
-  }
+  } catch { /* muhasebe durumu okunamazsa kilit uygulanmaz */ }
 
   // Ekipmanları wizard formatına çevir (kategori başına tek slot)
   // anahtar: "<kategoriId>|<slot>" (tampon kabin/agirlik ayrımı için)
