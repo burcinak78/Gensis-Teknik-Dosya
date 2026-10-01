@@ -59,6 +59,7 @@ type Props = {
   capacity: Capacity[]; lookups: Lookup[];
   engineers: Engineer[]; gensisCompanyId: string | null;
   companyDocuments?: CompanyDoc[];
+  engineerDocuments?: { engineer_id: string; doc_type: string; valid_until: string | null }[];
   initial?: InitialData | null;
 };
 
@@ -109,6 +110,9 @@ const empty = (x: any) => x === "" || x === null || x === undefined;
 const DOC_AD: Record<string, string> = {
   imza_sirkuleri: "İmza Sirküleri", sanayi_sicil: "Sanayi Sicil Belgesi", tse_hyb: "TSE HYB Belgesi",
   ce_h1: "CE H1 Belgesi", ce_e: "CE Mod E Belgesi", ce_b: "CE Mod B Belgesi", ce_tasarim: "CE Tasarım İnceleme",
+  // Mühendis belgeleri
+  imza: "İmza", oda_kayit: "Oda Kayıt Belgesi", oda_sicil: "Oda Sicil Belgesi", smm: "SMM Belgesi",
+  diploma: "Diploma", sgk: "SGK Belgesi", tescil: "Tescil Belgesi",
 };
 const FIELD_LABELS: Record<string, string> = {
   companyId: "Montaj / Mimarlık Firması", dosyaNo: "Proje No", dosyaTarihi: "Tarih",
@@ -727,8 +731,17 @@ export default function DataEntryWizard(props: Props) {
     if (modulSecim === "G") { if (!(pending["modul_g_belge"]?.length || existingFiles.some((f) => f.kind === "modul_g_belge"))) evrak.push("Modül G Belgesi"); }
     else if (modulBelgeIds.length === 0) evrak.push("CE / Modül belgesi (Belgeler adımında seçilmedi)");
     const suresi: string[] = [];
+    const expired = (vu: string | null | undefined) => !!vu && String(vu).slice(0, 10) < bugun;
+    // Firma belgeleri
     for (const d of cdocs) {
-      if (d.valid_until && String(d.valid_until) < bugun) suresi.push(`${DOC_AD[d.doc_type] ?? d.doc_type} — geçerlilik ${d.valid_until}`);
+      if (expired(d.valid_until)) suresi.push(`${DOC_AD[d.doc_type] ?? d.doc_type} (firma) — geçerlilik ${String(d.valid_until).slice(0, 10)}`);
+    }
+    // Mühendis belgeleri (seçili makine/elektrik müellifleri)
+    const selEng = [makineMuhId, elektrikMuhId].filter(Boolean);
+    const engName = (id: string) => props.engineers.find((e) => e.id === id)?.full_name ?? "Mühendis";
+    for (const ed of (props.engineerDocuments ?? [])) {
+      if (!selEng.includes(ed.engineer_id)) continue;
+      if (expired(ed.valid_until)) suresi.push(`${engName(ed.engineer_id)} — ${DOC_AD[ed.doc_type] ?? ed.doc_type} (geçerlilik ${String(ed.valid_until).slice(0, 10)})`);
     }
     setFullTdUyari({ eksik, evrak, suresi });
   }
