@@ -35,11 +35,13 @@ export default async function ProjeTakipPage() {
   const muhByTakip: Record<string, any> = {};
   for (const m of muhasebe ?? []) muhByTakip[m.takip_id] = m;
 
-  const rows = (projeler ?? []).map((p: any) => ({
-    ...p,
-    docs: docsByTakip[p.id] ?? [],
-    muhasebe: muhByTakip[p.id] ?? null,
-  }));
+  const rows = (projeler ?? [])
+    .filter((p: any) => !p.td_no) // ATD'den muhasebeye gönderilen (TD) kayıtlar Proje Takip'te listelenmez
+    .map((p: any) => ({
+      ...p,
+      docs: docsByTakip[p.id] ?? [],
+      muhasebe: muhByTakip[p.id] ?? null,
+    }));
 
   return (
     <ProjeTakipClient

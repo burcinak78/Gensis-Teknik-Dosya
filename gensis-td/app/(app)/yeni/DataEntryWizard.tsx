@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { saveDraftProject, updateDraftProject, uploadProjectFile, deleteProjectFile, type DraftPayload } from "./actions";
+import { saveDraftProject, updateDraftProject, uploadProjectFile, deleteProjectFile, sendProjectToMuhasebe, type DraftPayload } from "./actions";
 import { uploadEngineerDocument } from "../admin/actions";
 
 type Company = {
@@ -48,7 +48,7 @@ export type InitialData = {
   modulSecim?: string; modulBelgeIds?: string[];
   modulG?: { belge_no: string; verilis: string; gecerlilik: string; nb_id: string };
   faturaNo?: string; faturaTarihi?: string; periyodikTarihi?: string;
-  faturali?: string; fiyat?: string; teslimDurumu?: string; teslimTarihi?: string;
+  faturali?: string; fiyat?: string; teslimDurumu?: string; teslimTarihi?: string; teslimTipi?: string;
   files?: ProjectFile[];
 };
 
@@ -239,10 +239,11 @@ export default function DataEntryWizard(props: Props) {
   const [faturaTarihi, setFaturaTarihi] = useState(init?.faturaTarihi ?? "");
   const [periyodikTarihi, setPeriyodikTarihi] = useState(init?.periyodikTarihi ?? "");
   // Dosya İşlemleri adımı
-  const [faturali, setFaturali] = useState(init?.faturali ?? "");
+  const [faturali, setFaturali] = useState(init?.faturali ?? "faturasiz");
   const [fiyat, setFiyat] = useState(formatThousands(init?.fiyat ?? ""));
   const [teslimDurumu, setTeslimDurumu] = useState(init?.teslimDurumu ?? "taslak");
   const [teslimTarihi, setTeslimTarihi] = useState(init?.teslimTarihi ?? "");
+  const [teslimTipi, setTeslimTipi] = useState(init?.teslimTipi ?? "dijital"); // hard_copy | dijital
   const [kopyalandi, setKopyalandi] = useState<string>("");
   // Yüklenecek (staged) ve mevcut dosyalar
   const [pending, setPending] = useState<Record<string, File[]>>({});
@@ -531,13 +532,13 @@ export default function DataEntryWizard(props: Props) {
     try { await navigator.clipboard.writeText(text); setKopyalandi(key); setTimeout(() => setKopyalandi(""), 1500); } catch { /* yok say */ }
   }
 
-  async function handleSave(opts?: { gotoBelge?: boolean }) {
+  async function handleSave(opts?: { gotoBelge?: boolean; silent?: boolean }): Promise<{ id: string } | null> {
     if (modulSecim === "G" && !modulG.nb_id) {
       setShowErrors(true);
       setError("Modül G için Onaylanmış Kuruluş seçimi zorunludur.");
       setEksikModal({ adim: STEPS[S_BELGELER], alanlar: ["Onaylanmış Kuruluş (Mod G)"] });
       setStep(S_BELGELER);
-      return;
+      return null;
     }
     if (!isValid) {
       setShowErrors(true);
@@ -549,7 +550,7 @@ export default function DataEntryWizard(props: Props) {
       setEksikModal({ adim: "Dosya oluşturma", alanlar });
       if (missingEquip.length > 0 && missingText.length === 0) setStep(S_EKIPMAN);
       else if (missingText.length > 0) setStep(S_FIRMA);
-      return;
+      return null;
     }
     setSaving(true);
     setError(null);
@@ -627,7 +628,7 @@ export default function DataEntryWizard(props: Props) {
         // Belgeler + Dosya İşlemleri (Faz 1 metadata)
         modul_secim: modulSecim, modul_belge_ids: modulBelgeIds,
         modul_g: modulG, fatura_no: faturaNo, fatura_tarihi: faturaTarihi, periyodik_tarihi: periyodikTarihi,
-        faturali, fiyat, teslim_durumu: teslimDurumu, teslim_tarihi: teslimTarihi, proje_no: dosyaNo,
+        faturali, fiyat, teslim_durumu: teslimDurumu, teslim_tarihi: teslimTarihi, teslim_tipi: teslimTipi, proje_no: dosyaNo,
         // Tescil vb. için müşteri belgelerinden çözümlenen değerler
         sanayi_sicil_no: ssDoc?.belge_no ?? "", sanayi_sicil_tarihi: ssDoc?.issue_date ?? "",
         tse_tarihi: tseDoc?.issue_date ?? "", tse_gecerlilik: tseDoc?.valid_until ?? "",
@@ -641,7 +642,7 @@ export default function DataEntryWizard(props: Props) {
     };
 
     const res = isEdit ? await updateDraftProject(init!.id, payload) : await saveDraftProject(payload);
-    if (!res.ok) { setSaving(false); setError(res.error); return; }
+    if (!res.ok) { setSaving(false); setError(res.error); return null; }
 
     // Staged dosyaları yükle
     if (res.id) {
@@ -662,8 +663,29 @@ export default function DataEntryWizard(props: Props) {
     }
 
     setSaving(false);
-    if (opts?.gotoBelge && res.id) { router.push(`/panel/${res.id}`); return; }
+    if (opts?.silent) return res.id ? { id: res.id } : null;
+    if (opts?.gotoBelge && res.id) { router.push(`/panel/${res.id}`); return res.id ? { id: res.id } : null; }
     setSavedId(res.id); router.refresh();
+    return res.id ? { id: res.id } : null;
+  }
+
+  // Fiyatı sayıya çevir ("25.000" → 25000)
+  const fiyatSayi = Number(String(fiyat).replace(/\./g, "").replace(/[^\d]/g, "")) || 0;
+
+  // Muhasebeye Gönder: önce projeyi kaydet, sonra takip_projeler muhasebe kaydı oluştur
+  async function handleMuhasebe() {
+    const saved = await handleSave({ silent: true });
+    if (!saved?.id) return; // doğrulama/kayıt hatası zaten gösterildi
+    setSaving(true); setError(null);
+    const r = await sendProjectToMuhasebe({
+      projectId: saved.id,
+      fiyat: fiyatSayi,
+      fatura_tipi: (faturali === "faturali" ? "faturali" : "faturasiz"),
+      teslim_tipi: (teslimTipi === "hard_copy" ? "hard_copy" : "dijital"),
+    });
+    setSaving(false);
+    if (!r.ok) { setError(r.error ?? "Muhasebeye gönderilemedi."); return; }
+    setSavedId(saved.id); router.refresh();
   }
 
   if (savedId) {
@@ -1355,59 +1377,51 @@ export default function DataEntryWizard(props: Props) {
                   onAdd={(l) => addFiles("asansor_projesi", l)} onRemoveStaged={(i) => removeStaged("asansor_projesi", i)} onDelete={silExisting} />
               </div>
 
-              {/* Fatura durumu + fiyat */}
+              {/* Dosya Tamamlama */}
               <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-                <div className="text-sm font-bold text-slate-800">Fatura</div>
-                <div className="flex gap-2">
-                  {[{ v: "faturali", t: "FATURALI" }, { v: "faturasiz", t: "FATURASIZ" }].map((o) => (
-                    <button key={o.v} type="button" onClick={() => setFaturali(o.v)}
-                      className={`px-4 py-2.5 rounded-lg text-sm font-bold border transition-colors ${faturali === o.v ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
-                      style={faturali === o.v ? { background: "linear-gradient(135deg,#1e2a5b,#33478a)" } : undefined}>
-                      {o.t}
-                    </button>
-                  ))}
+                <div className="text-sm font-bold text-slate-800">Dosya Tamamlama</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <Field label="Fiyat (TL)">
+                    <input className="inp" value={fiyat} onChange={(e) => setFiyat(formatThousands(e.target.value))} placeholder="Örn. 25.000" inputMode="numeric" />
+                    <p className="text-[11px] text-amber-600 font-semibold mt-1">KDV HARİÇ GİRİNİZ</p>
+                  </Field>
+                  <Field label="Fatura Durumu">
+                    <select className="inp" value={faturali} onChange={(e) => setFaturali(e.target.value)}>
+                      <option value="faturali">Faturalı</option>
+                      <option value="faturasiz">Faturasız</option>
+                    </select>
+                    {faturali === "faturali" && <p className="text-[11px] text-slate-500 mt-1">%20 KDV eklenir</p>}
+                  </Field>
+                  <Field label="Teslim Tipi">
+                    <select className="inp" value={teslimTipi} onChange={(e) => setTeslimTipi(e.target.value)}>
+                      <option value="hard_copy">Hard Copy</option>
+                      <option value="dijital">Dijital</option>
+                    </select>
+                  </Field>
                 </div>
-                {faturali && (
-                  <div className="space-y-2">
-                    {faturali === "faturali" && (
-                      <div className="text-xs text-slate-500">Fatura bilgileri (Belgeler adımından): No <b>{faturaNo || "—"}</b> · Tarih <b>{faturaTarihi || "—"}</b></div>
-                    )}
-                    <Field label="Fiyat + KDV (TL)"><input className="inp" value={fiyat} onChange={(e) => setFiyat(formatThousands(e.target.value))} placeholder="Örn. 25.000" inputMode="numeric" /></Field>
-                  </div>
+                {fiyatSayi > 0 && faturali === "faturali" && (
+                  <div className="text-xs text-slate-500">Toplam (KDV dahil): <b>{formatThousands(String(Math.round(fiyatSayi * 1.2)))} TL</b></div>
                 )}
-              </div>
-
-              {/* Teslim durumu */}
-              <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-                <div className="text-sm font-bold text-slate-800">Teslim Durumu</div>
-                <div className="flex gap-2">
-                  {[{ v: "taslak", t: "Taslakta Bırak" }, { v: "teslim", t: "Teslim Edildi" }].map((o) => (
-                    <button key={o.v} type="button" onClick={() => setTeslimDurumu(o.v)}
-                      className={`px-4 py-2.5 rounded-lg text-sm font-bold border transition-colors ${teslimDurumu === o.v ? "border-transparent text-white" : "bg-white border-slate-200 text-slate-700 hover:border-brand hover:text-brand"}`}
-                      style={teslimDurumu === o.v ? { background: "linear-gradient(135deg,#16a34a,#15803d)" } : undefined}>
-                      {o.t}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {fiyatSayi > 0 ? (
+                    <>
+                      <button type="button" disabled={saving} onClick={handleMuhasebe}
+                        className="gs-btn text-sm font-bold px-4 py-2.5 rounded-lg inline-flex items-center gap-1 disabled:opacity-50">
+                        <span className="material-symbols-rounded text-[18px]">send</span> Muhasebeye Gönder
+                      </button>
+                      <button type="button" disabled={saving} onClick={() => handleSave()}
+                        className="text-sm font-bold px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1 disabled:opacity-50">
+                        <span className="material-symbols-rounded text-[18px]">save</span> Kaydet
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" disabled={saving} onClick={() => handleSave()}
+                      className="gs-btn text-sm font-bold px-4 py-2.5 rounded-lg inline-flex items-center gap-1 disabled:opacity-50">
+                      <span className="material-symbols-rounded text-[18px]">check</span> Tamamla ve Kaydet
                     </button>
-                  ))}
+                  )}
                 </div>
-                {teslimDurumu === "teslim" && (
-                  <div className="space-y-3">
-                    <Field label="Teslim Tarihi"><input type="date" className="inp" value={teslimTarihi} onChange={(e) => setTeslimTarihi(e.target.value)} /></Field>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                      <div className="text-xs font-bold text-slate-600 mb-1">Muhasebe bildirimi</div>
-                      <pre className="text-xs text-slate-700 whitespace-pre-wrap font-sans">{muhasebeMetni()}</pre>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <a href={mailto(`${dosyaNo} — Muhasebe Bildirimi`, muhasebeMetni())}
-                          className="text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-white inline-flex items-center gap-1">
-                          <span className="material-symbols-rounded text-[16px]">send</span> Muhasebeye Gönder (e-posta)
-                        </a>
-                        <button type="button" onClick={() => kopyala("muhasebe", muhasebeMetni())}
-                          className="text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-white inline-flex items-center gap-1">
-                          <span className="material-symbols-rounded text-[16px]">content_copy</span> {kopyalandi === "muhasebe" ? "Kopyalandı" : "Metni kopyala"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <p className="text-[11px] text-slate-400">Fiyat 0 veya boşsa kayıt muhasebeye düşmez; yalnızca dosya kaydedilir.</p>
               </div>
 
               {error && <div className="mt-1 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}

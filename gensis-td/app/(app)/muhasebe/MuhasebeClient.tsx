@@ -11,7 +11,7 @@ type Muh = {
   teslim_yontemi: string | null; kargo_sirketi: string | null; kargo_takip_no: string | null; teslim_tarihi: string | null;
 };
 type Row = {
-  id: string; proje_no: number; parent_id: string | null; rev_no: string | null;
+  id: string; proje_no: number; td_no: string | null; parent_id: string | null; rev_no: string | null;
   proje_tipi: string; company_id: string | null; montaj_firma_id: string | null;
   ada_parsel: string | null; is_adi: string | null; il_adi: string | null; ilce_adi: string | null;
   fiyat: number | null; fatura_tipi: string | null; toplam_tutar: number | null;
@@ -55,11 +55,11 @@ export default function MuhasebeClient({
     const s = q.trim().toLocaleLowerCase("tr");
     return rows.filter((r) => {
       if (s) {
-        const hay = [String(r.proje_no), firmaAd(r.company_id), r.ada_parsel, r.is_adi].map(tc).join(" ");
+        const hay = [String(r.proje_no), r.td_no, firmaAd(r.company_id), r.ada_parsel, r.is_adi].map(tc).join(" ");
         if (!hay.includes(s)) return false;
       }
       if (!durumMatch(r, f.durum)) return false;
-      if (f.projeNo && !String(r.proje_no).includes(f.projeNo.trim())) return false;
+      if (f.projeNo && !(`${r.proje_no} ${r.td_no ?? ""}`).toLocaleLowerCase("tr").includes(f.projeNo.trim().toLocaleLowerCase("tr"))) return false;
       if (f.tip && r.proje_tipi !== f.tip) return false;
       if (f.firma && r.company_id !== f.firma) return false;
       if (f.adaParsel && !tc(r.ada_parsel).includes(tc(f.adaParsel))) return false;
@@ -190,10 +190,10 @@ export default function MuhasebeClient({
                       </td>
                       <td className={td + " font-bold text-navy"}>
                         {sent && !done && <span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5 align-middle" title="Yeni" />}
-                        {r.proje_no}
+                        {r.td_no ?? r.proje_no}
                         {r.parent_id && <span className="ml-1.5 text-[10px] font-bold bg-brand-light text-brand px-1.5 py-0.5 rounded">Rev {r.rev_no ?? ""}</span>}
                       </td>
-                      <td className={td + " font-semibold text-center"}>{TIP_KISA[r.proje_tipi] ?? "—"}</td>
+                      <td className={td + " font-semibold text-center"}>{r.td_no ? "TD" : (TIP_KISA[r.proje_tipi] ?? "—")}</td>
                       <td className={td + " font-semibold"}>
                         {firmaAd(r.company_id)}
                         {montajAd(r.montaj_firma_id) && (
@@ -283,14 +283,14 @@ function MuhModal({ row, firmaAd, forceEdit, viewOnly, onClose, onSaved }: { row
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl my-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-extrabold text-lg">Muhasebe İşlemleri — Proje #{row.proje_no}</h2>
+          <h2 className="font-extrabold text-lg">Muhasebe İşlemleri — {row.td_no ? `TD ${row.td_no}` : `Proje #${row.proje_no}`}</h2>
           <button onClick={onClose} className="material-symbols-rounded text-slate-400 hover:text-slate-700">close</button>
         </div>
         <div className="px-6 py-5 space-y-4">
           {/* Otomatik gelen bilgiler */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 grid grid-cols-2 gap-y-1.5 gap-x-4 text-sm">
             <Info l="Firma" v={firmaAd} />
-            <Info l="Proje No" v={String(row.proje_no)} />
+            <Info l={row.td_no ? "TD No" : "Proje No"} v={row.td_no ?? String(row.proje_no)} />
             <Info l="Ada / Parsel" v={row.ada_parsel ?? "—"} />
             <Info l="Fiyat" v={money(row.fiyat)} />
             <Info l="Fatura" v={faturali ? "Faturalı" : "Faturasız"} />

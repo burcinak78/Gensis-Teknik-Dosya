@@ -238,6 +238,94 @@ export async function deleteProjectFile(id: string): Promise<{ ok: boolean; erro
   return { ok: true };
 }
 
+// ---------- Teknik dosyayı Muhasebe paneline gönder ----------
+// ATD projesinden takip_projeler üzerinde bir muhasebe kaydı oluşturur/günceller.
+// Muhasebe paneli bu tabloyu okur; kayıt "İşlem bekliyor" olarak düşer, güncelle akışı
+// (Cariye işleme → Teslim edildi) mevcut saveMuhasebe ile aynen çalışır.
+export type MuhasebeGonderPayload = {
+  projectId: string;
+  fiyat: number;
+  fatura_tipi: "faturali" | "faturasiz";
+  teslim_tipi: "hard_copy" | "dijital";
+};
+export async function sendProjectToMuhasebe(p: MuhasebeGonderPayload): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Oturum bulunamadı." };
+    if (!p.projectId) return { ok: false, error: "Proje bulunamadı." };
+    if (!p.fiyat || p.fiyat <= 0) return { ok: false, error: "Muhasebeye göndermek için fiyat girilmeli." };
+
+    const admin = createAdminClient();
+    const { data: proj } = await admin.from("projects")
+      .select("td_no, company_id, bina_adi, province_id, district_id, input_data").eq("id", p.projectId).single();
+    if (!proj) return { ok: false, error: "Proje kaydı bulunamadı." };
+
+    const inp = (proj.input_data ?? {}) as Record<string, any>;
+    const ada = inp.ada ?? null;
+    const parsel = inp.parsel ?? null;
+    const ada_parsel = [ada, parsel].filter(Boolean).join(" / ") || null;
+
+    // İl / ilçe adlarını çöz
+    let il_adi: string | null = null, ilce_adi: string | null = null;
+    if (proj.province_id != null) {
+      const { data: pr } = await admin.from("provinces").select("name").eq("id", proj.province_id).maybeSingle();
+      il_adi = pr?.name ?? null;
+    }
+    if (proj.district_id) {
+      const { data: di } = await admin.from("districts").select("name").eq("id", proj.district_id).maybeSingle();
+      ilce_adi = di?.name ?? null;
+    }
+
+    const fiyat = p.fiyat;
+    const toplam_tutar = p.fatura_tipi === "faturali" ? Math.round(fiyat * 1.2 * 100) / 100 : fiyat;
+    const td_no = proj.td_no ?? null;
+
+    const common = {
+      company_id: proj.company_id ?? null,
+      td_no,
+      ada, parsel, ada_parsel,
+      is_adi: proj.bina_adi ?? null,
+      il_adi, ilce_adi,
+      fiyat,
+      fatura_tipi: p.fatura_tipi,
+      toplam_tutar,
+      teslim_tipi: p.teslim_tipi,
+      muhasebeye_gonderildi: true,
+      muhasebe_durumu: "bekliyor" as const,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Aynı TD için daha önce gönderilmişse yeniden kayıt açma — güncelle
+    let existingId: string | null = null;
+    if (td_no) {
+      const { data: ex } = await admin.from("takip_projeler").select("id").eq("td_no", td_no).limit(1).maybeSingle();
+      existingId = ex?.id ?? null;
+    }
+
+    if (existingId) {
+      const { error } = await admin.from("takip_projeler").update(common).eq("id", existingId);
+      if (error) return { ok: false, error: error.message };
+    } else {
+      const { data: noData, error: noErr } = await admin.rpc("next_takip_no");
+      if (noErr || noData == null) return { ok: false, error: "Kayıt no üretilemedi: " + (noErr?.message ?? "") };
+      const { error } = await admin.from("takip_projeler").insert({
+        ...common,
+        proje_no: Number(noData),
+        proje_tipi: "uygulama", // şema zorunlu; muhasebede TD olarak gösterilir
+        durum: "HAZIRLANIYOR",
+        created_by: user.id,
+      });
+      if (error) return { ok: false, error: error.message };
+    }
+
+    revalidatePath("/muhasebe");
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // ---------- Teknik dosyayı tamamen sil ----------
 export async function deleteProject(id: string): Promise<{ ok: boolean; error?: string }> {
   const supabase = createClient();
