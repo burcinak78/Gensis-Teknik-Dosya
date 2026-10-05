@@ -104,7 +104,7 @@ const st = StyleSheet.create({
   ckbox: { width: 11, height: 11, borderWidth: 0.9, borderColor: "#000000", borderRadius: 2, marginRight: 8 },
 
   // Teknik & Komponent Listesi (Excel birebir, tek sayfa)
-  kPage: { fontFamily: "Roboto", fontSize: 8, color: "#000000", paddingTop: HDR_CLEAR, paddingLeft: ML, paddingRight: MR, paddingBottom: 30, lineHeight: 1.2 },
+  kPage: { fontFamily: "Roboto", fontSize: 8, color: "#000000", paddingTop: Math.round(1.5 * CM * 10) / 10, paddingLeft: ML, paddingRight: MR, paddingBottom: 30, lineHeight: 1.2 },
   kTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#000000", marginBottom: 20 },
   kInfoRow: { flexDirection: "row", paddingVertical: 1 },
   kLbl: { width: "26%", fontSize: 10, fontWeight: "bold", color: "#000000" },
@@ -331,7 +331,7 @@ function teknikKomponentPage(c: any) {
   return (
     <Page key="teknik_komponent" size="A4" style={st.kPage}>
       <FirmaHeader c={c} />
-      <Text style={st.kTitle}>ASANSÖR TEKNİK ÖZELLİKLERİ &amp; GÜVENLİK EKİPMANLARI LİSTESİ</Text>
+      <Text style={st.kTitle}>ASANSÖR TEKNİK ÖZELLİKLERİ{"\n"}VE GÜVENLİK EKİPMANLARI LİSTESİ</Text>
 
       <KInfo l="ASANSÖR SERİ NO" val={c.inp.asansor_seri_no} />
       <KInfo l="ASANSÖRÜN TİPİ" val={c.inp.asansor_sinifi || c.asansorTuru} />
@@ -431,13 +431,12 @@ const bsP = { textAlign: "justify" as const, fontSize: 8.6, lineHeight: 1.35, ma
 
 const v = (x: any) => (x !== undefined && x !== null && String(x).trim() !== "" ? String(x) : "—");
 
-function R({ l, val }: { l: string; val?: any }) {
-  // Başta görünmez ince boşluk: react-pdf bazı metinlerde ilk glyph'i kırpıyor;
-  // düşse bile boşluk düşer, gerçek metin korunur.
+function R({ l, val, plain }: { l: string; val?: any; plain?: boolean }) {
+  // plain: değer kalın değil (normal punto)
   return (
     <View style={st.row}>
       <View style={st.lbl}><Text>{l}</Text></View>
-      <View style={st.val}><Text style={{ fontWeight: "bold" }}>{v(val)}</Text></View>
+      <View style={st.val}><Text style={{ fontWeight: plain ? "normal" : "bold" }}>{v(val)}</Text></View>
     </View>
   );
 }
@@ -1046,7 +1045,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   },
 
   yazili_beyanname: (c) => (
-    <Page key="yazili_beyanname" size="A4" style={st.page}>
+    <Page key="yazili_beyanname" size="A4" style={[st.page, { paddingTop: Math.round(3 * CM) }]}>
       <FirmaHeader c={c} />
       <Text style={st.docTitle}>BEYANNAME</Text>
       <View style={st.rule} />
@@ -1079,7 +1078,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   teknik_komponent: (c) => teknikKomponentPage(c),
 
   motor_beyannamesi: (c) => (
-    <Page key="motor_beyannamesi" size="A4" style={st.page}>
+    <Page key="motor_beyannamesi" size="A4" style={[st.page, { paddingTop: Math.round(5 * CM) }]}>
       <FirmaHeader c={c} />
       <Text style={{ textAlign: "right", fontSize: 9, color: "#000000", marginBottom: 2 }}>{c.tarih}</Text>
       <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 2 }}>MOTOR BEYANNAMESİ</Text>
@@ -1131,7 +1130,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <FRow l="Bakım Sözleşmesi Tarihi" val="" />
       </View>
 
-      <Text style={[st.secB, { marginTop: 10 }]}>ASANSÖR TEKNİK ÖZELLİKLERİ</Text>
+      <Text style={[st.secB, { marginTop: 10, textAlign: "center", borderBottomWidth: 0, paddingBottom: 0 }]}>ASANSÖR TEKNİK ÖZELLİKLERİ</Text>
       <View style={st.fBox}>
         <FRow l="Askı Tipi" val={c.inp.aski_tipi} />
         <FRow l="Seyir Mesafesi" val={c.inp.seyir_mesafesi ? `${c.inp.seyir_mesafesi} m` : ""} />
@@ -1143,7 +1142,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         {!c.isHid && <FRow l="Karşı Ağırlık Yeri ve Ağırlığı" val={[c.inp.karsi_agirlik_yeri, (c.inp.karsi_agirlik_agirligi || c.kap?.karsi_agirlik) ? `${c.inp.karsi_agirlik_agirligi || c.kap?.karsi_agirlik} kg` : ""].filter(Boolean).join(" · ")} />}
       </View>
 
-      <Text style={[st.secB, { marginTop: 12 }]}>ÖNEMLİ REVİZYON VE DEĞİŞİKLİKLER</Text>
+      <Text style={[st.secB, { marginTop: 12, textAlign: "center", borderBottomWidth: 0, paddingBottom: 0 }]}>ÖNEMLİ REVİZYON VE DEĞİŞİKLİKLER</Text>
       <View style={[st.tbl, { flexGrow: 1 }]}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
@@ -1163,13 +1162,13 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         ))}
       </View>
 
-      <Text style={[st.secB, { marginTop: 12 }]} break>YASAL VE PERİYODİK KONTROLLER</Text>
+      <Text style={[st.secB, { marginTop: 12, textAlign: "center", borderBottomWidth: 0, paddingBottom: 0 }]} break>YASAL VE PERİYODİK KONTROLLER</Text>
       <View style={[st.tbl, { flexGrow: 1 }]}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
           <Text style={[st.thcell, { width: "24%" }]}>Kontrolü Yapan Kuruluş</Text>
-          <Text style={[st.thcell, { width: "14%" }]}>Kontrol Tipi</Text>
-          <Text style={[st.thcell, { width: "27%" }]}>Kontrolü Gerçekleştiren{"\n"}Adı-Soyadı / Unvanı</Text>
+          <Text style={[st.thcell, { width: "22%" }]}>Kontrol Tipi</Text>
+          <Text style={[st.thcell, { width: "19%" }]}>Kontrolü Gerçekleştiren{"\n"}Adı-Soyadı / Unvanı</Text>
           <Text style={[st.thcell, { width: "15%" }]}>Kaşe / İmza</Text>
           <Text style={[st.thcell, { width: "14%" }]}>Tarih</Text>
         </View>
@@ -1177,15 +1176,15 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           <View style={[st.trow, { flexGrow: 1 }]} key={i}>
             <Text style={[st.tcellTall, tall, { width: "6%", textAlign: "center" }]}>{i + 1}</Text>
             <Text style={[st.tcellTall, tall, { width: "24%" }]}> </Text>
-            <Text style={[st.tcellTall, tall, { width: "14%" }]}> </Text>
-            <Text style={[st.tcellTall, tall, { width: "27%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "22%" }]}> </Text>
+            <Text style={[st.tcellTall, tall, { width: "19%" }]}> </Text>
             <Text style={[st.tcellTall, tall, { width: "15%" }]}> </Text>
             <Text style={[st.tcellTall, tall, { width: "14%" }]}> </Text>
           </View>
         ))}
       </View>
 
-      <Text style={[st.secB, { marginTop: 12 }]}>BİLDİRİLMESİ GEREKEN ÖNEMLİ OLAYLAR (KURTARMA OPERASYONLARI, KAZALAR vb.)</Text>
+      <Text style={[st.secB, { marginTop: 12, textAlign: "center", borderBottomWidth: 0, paddingBottom: 0 }]}>BİLDİRİLMESİ GEREKEN ÖNEMLİ OLAYLAR (KURTARMA OPERASYONLARI, KAZALAR vb.)</Text>
       <View style={[st.tbl, { flexGrow: 1 }]}>
         <View style={st.trow}>
           <Text style={[st.thcell, { width: "6%" }]}>No</Text>
@@ -1215,16 +1214,16 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   },
 
   egitim_tutanagi: (c) => (
-    <Page key="egitim_tutanagi" size="A4" style={st.page}>
+    <Page key="egitim_tutanagi" size="A4" style={[st.page, { paddingTop: Math.round(3 * CM) }]}>
       <FirmaHeader c={c} />
       <Text style={st.docTitle}>{"ASANSÖRDE MAHSUR KALAN KİŞİLERİN KURTARILMASI\nEĞİTİM TUTANAĞI"}</Text>
-      <View style={st.rule} />
-      <R l="Asansör Tipi" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} />
-      <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
-      <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
-      <R l="Servise Veriliş Tarihi" val={c.servisTarihi} />
-      <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
-      <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
+      <View style={{ height: 22 }} />
+      <R l="Asansör Tipi" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} plain />
+      <R l="Asansör Seri No" val={c.inp.asansor_seri_no} plain />
+      <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} plain />
+      <R l="Servise Veriliş Tarihi" val={c.servisTarihi} plain />
+      <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} plain />
+      <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} plain />
       <Text style={st.secB}>EĞİTİM İÇERİĞİ</Text>
       <Text style={[st.p, { textAlign: "justify", lineHeight: 1.45, textIndent: 28 }]}>
         Aşağıda listede ismi bulunan kişilere , yetkili kişi tarafından , asansörde mahsur kalan kişilerin
@@ -1260,16 +1259,16 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   ),
 
   teslim_tutanagi: (c) => (
-    <Page key="teslim_tutanagi" size="A4" style={st.page}>
+    <Page key="teslim_tutanagi" size="A4" style={[st.page, { paddingTop: Math.round(3 * CM) }]}>
       <FirmaHeader c={c} />
       <Text style={st.docTitle}>ASANSÖR ve DOKÜMAN TESLİM TUTANAĞI</Text>
-      <View style={st.rule} />
-      <R l="Asansör Tipi" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} />
-      <R l="Asansör Seri No" val={c.inp.asansor_seri_no} />
-      <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} />
-      <R l="Servise Veriliş Tarihi" val={c.servisTarihi} />
-      <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} />
-      <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} />
+      <View style={{ height: 22 }} />
+      <R l="Asansör Tipi" val={c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"} plain />
+      <R l="Asansör Seri No" val={c.inp.asansor_seri_no} plain />
+      <R l="Asansörün Bulunduğu Adres" val={c.d.montaj_adresi} plain />
+      <R l="Servise Veriliş Tarihi" val={c.servisTarihi} plain />
+      <R l="Asansörün Sahibi" val={c.inp.yapi_sahibi} plain />
+      <R l="Asansör Sahibinin Adresi" val={c.inp.yapi_sahibi_adresi} plain />
       <Text style={st.secB}>ASANSÖR SAHİBİNE VERİLEN DOKÜMAN LİSTESİ</Text>
       {[
         "AB Uygunluk Beyanı", "Asansör Teknik Özellikleri", "Güvenlik Ekipmanları Listesi",

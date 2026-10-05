@@ -308,9 +308,24 @@ export async function GET(req: NextRequest) {
             const font = await doc.embedFont(robotoBytes);
             const fontB = robotoBoldBytes ? await doc.embedFont(robotoBoldBytes) : font;
             const black = rgb(0, 0, 0);
+            // Sol üst köşe logosu (yoksa kısa ad): 2 cm / 1 cm, 2×5 cm kutuya sığdır
+            const CM = 28.3465, boxW = 5 * CM, boxH = 2 * CM;
+            let logoImg: any = null;
+            if (logoBytes) { try { logoImg = logoMime === "image/png" ? await doc.embedPng(logoBytes) : await doc.embedJpg(logoBytes); } catch { logoImg = null; } }
+            const kisaAd = String(cf.kisa_ad || cf.unvan || "").trim();
             for (const pg of doc.getPages()) {
-              const { width } = pg.getSize();
+              const { width, height } = pg.getSize();
               const left = 42, right = width - 42, maxW = right - left;
+              // Logo / kısa ad (sol üst)
+              if (logoImg) {
+                const ratio = logoImg.width / logoImg.height;
+                let lw = boxW, lh = lw / ratio;
+                if (lh > boxH) { lh = boxH; lw = lh * ratio; }
+                pg.drawImage(logoImg, { x: 2 * CM, y: height - 1 * CM - lh, width: lw, height: lh });
+              } else if (kisaAd) {
+                pg.drawText(kisaAd, { x: 2 * CM, y: height - 1 * CM - 10, size: 10, font: fontB, color: black });
+              }
+              // Footer
               pg.drawLine({ start: { x: left, y: 32 }, end: { x: right, y: 32 }, thickness: 0.8, color: black });
               if (fUnvan) pg.drawText(fUnvan, { x: left, y: 22, size: 8, font: fontB, color: black });
               if (fAlt) {
