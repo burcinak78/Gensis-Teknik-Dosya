@@ -10,11 +10,20 @@ import { SON_KONTROL_NO } from "./son_kontrol_no";
 const NAVY = "#000000";
 const TEAL = "#000000";
 
+// Sayfa kenar boşlukları: sol 2 cm (dosyalama deliği), sağ 1 cm. Logo kutusu: üst 1 cm, sol 2 cm'den; 2 cm (y) × 5 cm (g).
+const CM = 28.3465;
+const ML = Math.round(2 * CM * 10) / 10;   // sol kenar ≈ 56.7pt
+const MR = Math.round(1 * CM * 10) / 10;   // sağ kenar ≈ 28.3pt
+const LOGO_T = Math.round(1 * CM * 10) / 10; // üst 1 cm
+const LOGO_W = Math.round(5 * CM * 10) / 10; // 5 cm genişlik
+const LOGO_H = Math.round(2 * CM * 10) / 10; // 2 cm yükseklik
+const HDR_CLEAR = Math.round((LOGO_T + LOGO_H + 6) * 10) / 10; // logo altındaki içerik boşluğu ≈ 91pt
+
 const st = StyleSheet.create({
-  page: { fontFamily: "Roboto", fontSize: 10, color: "#000000", padding: 42, paddingBottom: 60, lineHeight: 1.45 },
+  page: { fontFamily: "Roboto", fontSize: 10, color: "#000000", paddingTop: HDR_CLEAR, paddingLeft: ML, paddingRight: MR, paddingBottom: 60, lineHeight: 1.45 },
   topRow: { flexDirection: "row", justifyContent: "space-between", fontSize: 9, color: "#000000", marginBottom: 10 },
   // Dilekçe sol üst köşe firma kısa adı (letterhead)
-  dilekceHdr: { position: "absolute", top: 26, left: 42, fontSize: 11, fontWeight: "bold", color: NAVY },
+  dilekceHdr: { position: "absolute", top: LOGO_T, left: ML, fontSize: 11, fontWeight: "bold", color: NAVY },
   firmaName: { fontSize: 13, fontWeight: "bold", color: NAVY },
   firmaSub: { fontSize: 9, color: "#000000", marginBottom: 14 },
   docTitle: { fontSize: 15, fontWeight: "bold", color: NAVY, textAlign: "center", marginTop: 4 },
@@ -35,9 +44,9 @@ const st = StyleSheet.create({
   signLine: { borderTopWidth: 0.5, borderTopColor: "#000000", marginTop: 34, paddingTop: 4, fontSize: 9, color: "#000000" },
   listRow: { flexDirection: "row", paddingVertical: 2 },
   listNo: { width: 22, color: "#000000", fontWeight: "bold" },
-  footer: { position: "absolute", bottom: 24, left: 42, right: 42, fontSize: 8, color: "#000000", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#000000", paddingTop: 6 },
+  footer: { position: "absolute", bottom: 24, left: ML, right: MR, fontSize: 8, color: "#000000", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#000000", paddingTop: 6 },
   // Yeni footer: iki satır, sola dayalı, siyah metin + siyah üst çizgi
-  footerBox: { position: "absolute", bottom: 20, left: 42, right: 42, borderTopWidth: 0.8, borderTopColor: "#000000", paddingTop: 5 },
+  footerBox: { position: "absolute", bottom: 20, left: ML, right: MR, borderTopWidth: 0.8, borderTopColor: "#000000", paddingTop: 5 },
   footerUnvan: { fontSize: 8, fontWeight: "bold", color: "#000000", textAlign: "left" },
   footerAlt: { fontSize: 7.5, color: "#000000", textAlign: "left", marginTop: 1 },
   coverWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
@@ -55,13 +64,14 @@ const st = StyleSheet.create({
   skNo: { width: 92, paddingRight: 4, fontSize: 6.6, color: "#000000" },
   skItem: { flex: 1, paddingRight: 4 },
   skBox: { width: 40, alignItems: "center" },
-  skFirmaHdr: { position: "absolute", top: 14, left: 30, fontSize: 8, fontWeight: "bold", color: "#000000" },
-  logoHdr: { position: "absolute", top: 12, left: 30, height: 30, objectFit: "contain", objectPositionX: 0 },
+  skFirmaHdr: { position: "absolute", top: LOGO_T, left: ML, fontSize: 10, fontWeight: "bold", color: "#000000" },
+  // Logo: sol üst köşesi (2 cm, 1 cm); 2 cm × 5 cm kutuya sığacak şekilde (contain), sol-üste hizalı
+  logoHdr: { position: "absolute", top: LOGO_T, left: ML, width: LOGO_W, height: LOGO_H, objectFit: "contain", objectPositionX: 0, objectPositionY: 0 },
   skSquare: { width: 11, height: 11, borderWidth: 0.8, borderColor: "#000000", borderRadius: 2 },
 
   // Resmi form (EK-1 / EK-3 / Taahhütname) — kutulu, keskin köşeli, koyu kenarlık
   // Resmi form için daraltılmış sayfa (tek sayfaya sığması için)
-  pageForm: { fontFamily: "Roboto", fontSize: 8, color: "#000000", paddingTop: 24, paddingHorizontal: 32, paddingBottom: 18, lineHeight: 1.25 },
+  pageForm: { fontFamily: "Roboto", fontSize: 8, color: "#000000", paddingTop: 24, paddingLeft: ML, paddingRight: MR, paddingBottom: 18, lineHeight: 1.25 },
   formTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#000000", marginBottom: 1 },
   formSub: { textAlign: "center", fontSize: 8.5, color: "#000000", marginBottom: 6 },
   fBox: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderRightWidth: 0.8, borderColor: "#000000" },
@@ -92,7 +102,7 @@ const st = StyleSheet.create({
   ckbox: { width: 11, height: 11, borderWidth: 0.9, borderColor: "#000000", borderRadius: 2, marginRight: 8 },
 
   // Teknik & Komponent Listesi (Excel birebir, tek sayfa)
-  kPage: { fontFamily: "Roboto", fontSize: 8, color: "#000000", paddingTop: 26, paddingHorizontal: 30, paddingBottom: 30, lineHeight: 1.2 },
+  kPage: { fontFamily: "Roboto", fontSize: 8, color: "#000000", paddingTop: HDR_CLEAR, paddingLeft: ML, paddingRight: MR, paddingBottom: 30, lineHeight: 1.2 },
   kTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#000000", marginBottom: 20 },
   kInfoRow: { flexDirection: "row", paddingVertical: 1 },
   kLbl: { width: "26%", fontSize: 10, fontWeight: "bold", color: "#000000" },

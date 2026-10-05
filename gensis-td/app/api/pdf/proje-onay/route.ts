@@ -99,6 +99,24 @@ export async function GET(req: NextRequest) {
     }
   } catch { /* imza gömülemezse taahhütname imzasız üretilir */ }
 
+  // Firma logosu (company_documents doc_type=logo) → dilekçe sol üst köşe
+  try {
+    if (r.company_id) {
+      const admin = createAdminClient();
+      const { data: logoDoc } = await admin.from("company_documents")
+        .select("storage_path").eq("company_id", r.company_id).eq("doc_type", "logo").limit(1).maybeSingle();
+      if (logoDoc?.storage_path) {
+        const { data: blob } = await admin.storage.from("documents").download(logoDoc.storage_path);
+        if (blob) {
+          const bytes = new Uint8Array(await blob.arrayBuffer());
+          const ext = (logoDoc.storage_path.split(".").pop() || "").toLowerCase();
+          const mime = ext === "png" ? "image/png" : "image/jpeg";
+          (data.firma as any).logo = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+        }
+      }
+    }
+  } catch { /* logo alınamazsa kısa ad kalır */ }
+
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
   const host = req.headers.get("host");
   registerFonts(`${proto}://${host}`);

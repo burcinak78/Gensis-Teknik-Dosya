@@ -6,10 +6,21 @@ import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/render
 
 const NAVY = "#1e2a5b";
 
+// Sayfa kenar boşlukları: sol 2 cm (dosyalama deliği), sağ 1 cm. Logo kutusu: üst 1 cm, sol 2 cm'den; 2 cm (y) × 5 cm (g).
+const CM = 28.3465;
+const ML = Math.round(2 * CM * 10) / 10;
+const MR = Math.round(1 * CM * 10) / 10;
+const LOGO_T = Math.round(1 * CM * 10) / 10;
+const LOGO_W = Math.round(5 * CM * 10) / 10;
+const LOGO_H = Math.round(2 * CM * 10) / 10;
+const HDR_CLEAR = Math.round((LOGO_T + LOGO_H + 6) * 10) / 10;
+
 const st = StyleSheet.create({
   // Dilekçe
-  page: { fontFamily: "Roboto", fontSize: 11, color: "#111827", paddingTop: 48, paddingHorizontal: 56, paddingBottom: 56, lineHeight: 1.6 },
+  page: { fontFamily: "Roboto", fontSize: 11, color: "#111827", paddingTop: HDR_CLEAR, paddingLeft: ML, paddingRight: MR, paddingBottom: 56, lineHeight: 1.6 },
   firma: { fontSize: 15, fontWeight: "bold", color: NAVY },
+  logoHdr: { position: "absolute", top: LOGO_T, left: ML, width: LOGO_W, height: LOGO_H, objectFit: "contain", objectPositionX: 0, objectPositionY: 0 },
+  nameHdr: { position: "absolute", top: LOGO_T, left: ML, fontSize: 13, fontWeight: "bold", color: NAVY },
   tarih: { textAlign: "right", marginTop: 6, marginBottom: 26 },
   belediye: { fontWeight: "bold", marginTop: 2, textAlign: "center" },
   il: { fontWeight: "bold", marginBottom: 20, textAlign: "center" },
@@ -24,7 +35,7 @@ const st = StyleSheet.create({
 
   // Taahhütname (resmi kutulu form)
   // Taahhütname: Asansör Teknik Dosya (ATD) taahhutPage formatıyla aynı
-  formPage: { fontFamily: "Roboto", fontSize: 10, color: "#1f2937", paddingTop: 42, paddingHorizontal: 42, paddingBottom: 60, lineHeight: 1.45 },
+  formPage: { fontFamily: "Roboto", fontSize: 10, color: "#1f2937", paddingTop: 42, paddingLeft: ML, paddingRight: MR, paddingBottom: 60, lineHeight: 1.45 },
   formTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#0f172a", marginBottom: 1 },
   formSub: { textAlign: "center", fontSize: 8.5, color: "#475569", marginBottom: 6 },
   fBox: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderRightWidth: 0.8, borderColor: "#334155" },
@@ -41,7 +52,7 @@ const st = StyleSheet.create({
   tVal: { flex: 1, paddingVertical: 1.8, paddingLeft: 2, paddingRight: 4, fontSize: 7.3, color: "#111827" },
   tSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#0f172a", backgroundColor: "#e5e9f0", textAlign: "center", borderTopWidth: 0.8, borderBottomWidth: 0.8, borderColor: "#334155" },
   tOuter: { borderWidth: 0.8, borderColor: "#334155", padding: 10, marginTop: 12 },
-  footer: { position: "absolute", bottom: 24, left: 48, right: 48, fontSize: 8, color: "#9ca3af", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#e2e8f0", paddingTop: 6 },
+  footer: { position: "absolute", bottom: 24, left: ML, right: MR, fontSize: 8, color: "#9ca3af", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#e2e8f0", paddingTop: 6 },
 });
 
 const v = (x: any) => (x !== undefined && x !== null && String(x).trim() !== "" ? String(x) : "");
@@ -102,8 +113,8 @@ function DilekcePage({ d }: { d: any }) {
   const kapasite = [d.beyan_yuku_kg ? `${d.beyan_yuku_kg} Kg.` : "", d.kisi_sayisi ? `${d.kisi_sayisi} Kişi` : ""].filter(Boolean).join(" , ");
   return (
     <Page key="dilekce" size="A4" style={st.page}>
-      {/* Sol üst firma adı yerinde kalır */}
-      <Text style={st.firma}>{firmaAdi}</Text>
+      {/* Sol üst köşe: logo (varsa) veya firma kısa adı — 2×5 cm kutu, (2 cm, 1 cm) */}
+      {d.firma?.logo ? <Image src={d.firma.logo} style={st.logoHdr} fixed /> : <Text style={st.nameHdr} fixed>{firmaAdi}</Text>}
       {/* Tarihten itibaren içerik sayfa yüksekliğine göre ortalanır */}
       <View style={{ flexGrow: 1, justifyContent: "center" }}>
         <Text style={st.tarih}>{tarih}</Text>

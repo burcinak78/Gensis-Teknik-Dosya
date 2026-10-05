@@ -350,14 +350,17 @@ export async function GET(req: NextRequest) {
         // Sol üst köşe: logo varsa logo, yoksa firma kısa adı (her sayfa)
         let logoImg: any = null;
         if (logoBytes) { try { logoImg = logoMime === "image/png" ? await doc.embedPng(logoBytes) : await doc.embedJpg(logoBytes); } catch { logoImg = null; } }
+        // Logo: sol 2 cm / üst 1 cm; 2 cm (y) × 5 cm (g) kutuya sığacak şekilde (contain)
+        const CM = 28.3465, boxW = 5 * CM, boxH = 2 * CM;
         for (const pg of pages) {
           const { height } = pg.getSize();
           if (logoImg) {
-            let lh = 28, lw = (logoImg.width / logoImg.height) * lh;
-            if (lw > 120) { lw = 120; lh = (logoImg.height / logoImg.width) * lw; }
-            pg.drawImage(logoImg, { x: 30, y: height - 10 - lh, width: lw, height: lh });
+            const ratio = logoImg.width / logoImg.height;
+            let lw = boxW, lh = lw / ratio;
+            if (lh > boxH) { lh = boxH; lw = lh * ratio; }
+            pg.drawImage(logoImg, { x: 2 * CM, y: height - 1 * CM - lh, width: lw, height: lh });
           } else if (kisaAd) {
-            pg.drawText(kisaAd, { x: 30, y: height - 16, size: 8, font: fontB, color: rgb(0.25, 0.25, 0.25) });
+            pg.drawText(kisaAd, { x: 2 * CM, y: height - 1 * CM - 10, size: 10, font: fontB, color: rgb(0, 0, 0) });
           }
         }
         // Bilgi: yalnız 1. sayfa, başlık altındaki boşluğa — çizgisiz (etiket : değer)

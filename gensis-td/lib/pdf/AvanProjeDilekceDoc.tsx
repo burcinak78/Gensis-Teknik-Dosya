@@ -6,8 +6,14 @@ import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 
 const NAVY = "#1e2a5b";
 
+// Sayfa kenar boşlukları: sol 2 cm (dosyalama deliği), sağ 1 cm; üst 1 cm'den başlar.
+const CM = 28.3465;
+const ML = Math.round(2 * CM * 10) / 10;
+const MR = Math.round(1 * CM * 10) / 10;
+const MT = Math.round(1 * CM * 10) / 10;
+
 const s = StyleSheet.create({
-  page: { fontFamily: "Roboto", fontSize: 11, color: "#111827", paddingTop: 48, paddingHorizontal: 56, paddingBottom: 56, lineHeight: 1.6 },
+  page: { fontFamily: "Roboto", fontSize: 11, color: "#111827", paddingTop: MT, paddingLeft: ML, paddingRight: MR, paddingBottom: 56, lineHeight: 1.6 },
   firma: { fontSize: 15, fontWeight: "bold", color: NAVY },
   tarih: { textAlign: "right", marginTop: 6, marginBottom: 26 },
   belediye: { fontWeight: "bold", marginTop: 2 },
