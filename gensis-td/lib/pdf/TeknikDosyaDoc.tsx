@@ -78,7 +78,7 @@ const st = StyleSheet.create({
   formSub: { textAlign: "center", fontSize: 8.5, color: "#000000", marginBottom: 6 },
   fBox: { borderTopWidth: 0.8, borderLeftWidth: 0.8, borderRightWidth: 0.8, borderColor: "#000000" },
   fRow: { flexDirection: "row", borderBottomWidth: 0.8, borderColor: "#000000" },
-  fLabel: { width: "46%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#000000", borderRightWidth: 0.8, borderColor: "#000000" },
+  fLabel: { width: "37%", paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, fontWeight: "bold", color: "#000000", borderRightWidth: 0.8, borderColor: "#000000" },
   fVal: { flex: 1, paddingVertical: 1.8, paddingHorizontal: 4, fontSize: 7.3, color: "#000000" },
   fSection: { paddingVertical: 2, paddingHorizontal: 4, fontSize: 7.6, fontWeight: "bold", color: "#000000", backgroundColor: "#e5e9f0", textAlign: "center", borderBottomWidth: 0.8, borderColor: "#000000" },
   fColHead: { flexDirection: "row", backgroundColor: "#f1f5f9", borderBottomWidth: 0.8, borderColor: "#000000" },
@@ -123,13 +123,23 @@ const st = StyleSheet.create({
 const KW = { ad: "26%", kat: "8%", marka: "14%", tip: "14%", seri: "14%", sert: "12%", kur: "12%" };
 
 // Resmi form yardımcıları
-function FRow({ l, val, tall, max }: { l: string; val?: any; tall?: number; max?: number }) {
+// Değer sütunu genişliği ≈ içerik genişliği (A4 − 2cm − 1cm = 510pt) × %63 − yatay padding (8) ≈ 313pt
+const FVAL_W = 313;
+// Excel "sığdır" mantığı: değer tek satırı aşıyorsa punto küçültülüp tek satıra sığdırılır; sığıyorsa aynı kalır.
+function fitFVal(s: any): number {
+  const t = s === undefined || s === null ? "" : String(s);
+  const base = 7.3, min = 5;
+  if (!t.trim()) return base;
+  const est = t.length * base * 0.52; // ortalama karakter ≈ 0.52em
+  return est <= FVAL_W ? base : Math.max(min, (base * FVAL_W) / est);
+}
+function FRow({ l, val, tall }: { l: string; val?: any; tall?: number; max?: number }) {
   // tall verildiğinde alignItems'e dokunma (stretch kalsın) → ortadaki dikey çizgi tüm satır boyu tamamlanır
-  // max: değer en fazla bu kadar satır (tek sayfa güvencesi için uzun adreslerde kullanılır)
+  const txt = val !== undefined && val !== null && String(val).trim() !== "" ? String(val) : "";
   return (
     <View style={[st.fRow, tall ? { minHeight: tall } : null]}>
       <Text style={st.fLabel}>{l}</Text>
-      <Text style={st.fVal} numberOfLines={max}>{val !== undefined && val !== null && String(val).trim() !== "" ? String(val) : ""}</Text>
+      <Text style={[st.fVal, { fontSize: fitFVal(txt) }]} numberOfLines={1}>{txt}</Text>
     </View>
   );
 }
@@ -672,8 +682,9 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     const kilitSeriMetin = kilitPairs.length
       ? kilitPairs.map((x) => `${x.ad}: ${x.seri}`).join("   ")
       : (kk.seri_no || "");
-    return (
-      <Page key="tescil" size="A4" style={st.pageForm}>
+    // Çıktıda 3 kopya (arka arkaya) — her biri aynı içerik
+    const makeTescil = (copy: number) => (
+      <Page key={`tescil-${copy}`} size="A4" style={st.pageForm}>
         <Text style={st.formTitle}>EK-1: YENİ ASANSÖR İÇİN TESCİL BELGESİ</Text>
         <View style={st.fBox}>
           <FRow l="TESCİL TARİHİ" val="" />
@@ -749,6 +760,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         </View>
       </Page>
     );
+    return (<React.Fragment key="tescil-grup">{makeTescil(0)}{makeTescil(1)}{makeTescil(2)}</React.Fragment>) as any;
   },
 
   garanti: (c) => (
