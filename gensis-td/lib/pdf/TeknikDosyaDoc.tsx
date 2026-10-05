@@ -195,7 +195,7 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
           <View style={{ alignItems: "flex-end", position: "relative", height: 70 }}>
             {m?.imza && (
               <View style={{ position: "absolute", top: 0, bottom: 0, right: 0, left: 0, alignItems: "flex-end", justifyContent: "center" }}>
-                <Image src={m.imza} style={{ width: 130, height: 44, objectFit: "contain" }} />
+                <Image src={m.imza} style={{ width: 85 }} />
               </View>
             )}
             <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 8 }}>Proje Müellifi</Text>
@@ -450,13 +450,25 @@ function CoverR({ l, val }: { l: string; val?: any }) {
     </View>
   );
 }
+// LR değeri için "Excel sığdır" mantığı: değer tek satırı aşıyorsa punto küçültülür (fit prop).
+// base = sayfa fontu (AB Uygunluk Beyanı: 9). İçerik genişliği ≈ 510pt (A4 − 2cm − 1cm).
+function fitLRVal(s: string, labelW: number, base = 9, min = 5): number {
+  const t = String(s || "");
+  if (!t.trim() || t.includes("\n")) return base;
+  const avail = 510 - labelW - 8;
+  const est = t.length * base * 0.52;
+  return est <= avail ? base : Math.max(min, (base * avail) / est);
+}
 // Dar satır: değer, başlığın hemen yanında (Dilekçe / Firma Bilgileri)
-function LR({ l, val, w = 110, plain, dark }: { l: string; val?: any; w?: number; plain?: boolean; dark?: boolean }) {
-  // plain: değer bold değil; dark: sol başlık siyah
+function LR({ l, val, w = 110, plain, dark, fit }: { l: string; val?: any; w?: number; plain?: boolean; dark?: boolean; fit?: boolean }) {
+  // plain: değer bold değil; dark: sol başlık siyah; fit: değeri tek satıra sığdır (punto küçült)
+  const txt = v(val);
   return (
     <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
       <View style={{ width: w, paddingRight: 6 }}><Text style={{ color: "#000000" }}>{l}</Text></View>
-      <View style={{ flex: 1 }}><Text style={{ fontWeight: plain ? "normal" : "bold", color: "#000000" }}>{v(val)}</Text></View>
+      <View style={{ flex: 1 }}>
+        <Text style={[{ fontWeight: plain ? "normal" : "bold", color: "#000000" }, fit ? { fontSize: fitLRVal(txt, w) } : null]} numberOfLines={fit ? 1 : undefined}>{txt}</Text>
+      </View>
     </View>
   );
 }
@@ -975,52 +987,49 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           uygun olduğunu beyan ederiz.
         </Text>
         <View style={{ height: 6 }} />
-        <LR l="Asansörün Tipi" val={tip} w={secW} plain dark />
-        <LR l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg. - ${v(c.kisi)} Kişilik` : ""} w={secW} plain dark />
-        <LR l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} w={secW} plain dark />
-        <LR l="Askı Tipi" val={c.inp.aski_tipi} w={secW} plain dark />
-        <LR l="Kat Adedi / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} w={secW} plain dark />
-        <LR l="İmal Yılı" val={c.d.imal_yili} w={secW} plain dark />
-        <LR l="Asansör Seri No" val={c.inp.asansor_seri_no} w={secW} plain dark />
-        <LR l="Asansör Kimlik No" val={c.inp.asansor_kimlik_no} w={secW} plain dark />
-        <LR l="Montaj Adresi" val={c.d.montaj_adresi} w={secW} plain dark />
-        <LR l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} w={secW} plain dark />
-        <LR l="Yapı Sahibi" val={c.inp.yapi_sahibi} w={secW} plain dark />
+        <LR l="Asansörün Tipi" val={tip} w={secW} plain dark fit />
+        <LR l="Beyan Yükü" val={c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} Kg. - ${v(c.kisi)} Kişilik` : ""} w={secW} plain dark fit />
+        <LR l="Beyan Hızı" val={c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""} w={secW} plain dark fit />
+        <LR l="Askı Tipi" val={c.inp.aski_tipi} w={secW} plain dark fit />
+        <LR l="Kat Adedi / Durak Adedi" val={`${v(c.d.kat_adedi)} / ${v(c.d.durak_adedi)}`} w={secW} plain dark fit />
+        <LR l="İmal Yılı" val={c.d.imal_yili} w={secW} plain dark fit />
+        <LR l="Asansör Seri No" val={c.inp.asansor_seri_no} w={secW} plain dark fit />
+        <LR l="Asansör Kimlik No" val={c.inp.asansor_kimlik_no} w={secW} plain dark fit />
+        <LR l="Montaj Adresi" val={c.d.montaj_adresi} w={secW} plain dark fit />
+        <LR l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} w={secW} plain dark fit />
+        <LR l="Yapı Sahibi" val={c.inp.yapi_sahibi} w={secW} plain dark fit />
         <View style={{ height: 8 }} />
-        <LR l="Uygulanan Standartlar" val="TS EN 81–20:2020, TS EN 81-50:2020, TS EN 81-70:2021, TS EN 81-28+AC:2022" w={secW} plain dark />
-        {/* İlgili Direktifler: Uygulanan Standartlar gibi — etiket solda (siyah), içerik sağda (bold değil, fontu küçültülmez) */}
-        <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
-          <View style={{ width: secW, paddingRight: 6 }}><Text style={{ color: "#000000" }}>İlgili Direktifler</Text></View>
-          <View style={{ flex: 1 }}><Text style={{ color: "#000000", fontSize: 10, textAlign: "justify" }}>{direktifler}</Text></View>
-        </View>
+        <LR l="Uygulanan Standartlar" val="TS EN 81–20:2020, TS EN 81-50:2020, TS EN 81-70:2021, TS EN 81-28+AC:2022" w={secW} plain dark fit />
+        {/* İlgili Direktifler: diğer bilgilerle aynı yazı boyutu + tek satıra sığdırma */}
+        <LR l="İlgili Direktifler" val={direktifler} w={secW} plain dark fit />
         {isG ? (
           <>
             <Text style={secHead}>MODÜL G</Text>
-            <LR l="Onaylanmış Kuruluş" val={c.inp.modul_onaylanmis_kurulus} w={secW} plain dark />
-            <LR l="Ünvanı ve Adresi" val={c.inp.modul_nb_adres} w={secW} plain dark />
-            <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.modul_kurulus_no} w={secW} plain dark />
-            <LR l="MODÜL G Belge No" val={c.inp.modul_belge_no} w={secW} plain dark />
+            <LR l="Onaylanmış Kuruluş" val={c.inp.modul_onaylanmis_kurulus} w={secW} plain dark fit />
+            <LR l="Ünvanı ve Adresi" val={c.inp.modul_nb_adres} w={secW} plain dark fit />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.inp.modul_kurulus_no} w={secW} plain dark fit />
+            <LR l="MODÜL G Belge No" val={c.inp.modul_belge_no} w={secW} plain dark fit />
           </>
         ) : hasH1 ? (
           <>
             <Text style={secHead}>MODÜL H1</Text>
-            <LR l="Onaylanmış Kuruluş" val={c.modulH1.onaylanmis_kurulus} w={secW} plain dark />
-            <LR l="Ünvanı ve Adresi" val={c.modulH1.nb_adres} w={secW} plain dark />
-            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulH1.kurulus_no} w={secW} plain dark />
-            <LR l="MODÜL H1 Belge No" val={c.modulH1.belge_no} w={secW} plain dark />
+            <LR l="Onaylanmış Kuruluş" val={c.modulH1.onaylanmis_kurulus} w={secW} plain dark fit />
+            <LR l="Ünvanı ve Adresi" val={c.modulH1.nb_adres} w={secW} plain dark fit />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulH1.kurulus_no} w={secW} plain dark fit />
+            <LR l="MODÜL H1 Belge No" val={c.modulH1.belge_no} w={secW} plain dark fit />
           </>
         ) : (
           <>
             <Text style={secHead}>MODÜL B</Text>
-            <LR l="Onaylanmış Kuruluş" val={c.modulB.onaylanmis_kurulus} w={secW} plain dark />
-            <LR l="Ünvanı ve Adresi" val={c.modulB.nb_adres} w={secW} plain dark />
-            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulB.kurulus_no} w={secW} plain dark />
-            <LR l="MODÜL B Belge No" val={c.modulB.belge_no} w={secW} plain dark />
+            <LR l="Onaylanmış Kuruluş" val={c.modulB.onaylanmis_kurulus} w={secW} plain dark fit />
+            <LR l="Ünvanı ve Adresi" val={c.modulB.nb_adres} w={secW} plain dark fit />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulB.kurulus_no} w={secW} plain dark fit />
+            <LR l="MODÜL B Belge No" val={c.modulB.belge_no} w={secW} plain dark fit />
             <Text style={secHead}>MODÜL E</Text>
-            <LR l="Onaylanmış Kuruluş" val={c.modulE.onaylanmis_kurulus} w={secW} plain dark />
-            <LR l="Ünvanı ve Adresi" val={c.modulE.nb_adres} w={secW} plain dark />
-            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulE.kurulus_no} w={secW} plain dark />
-            <LR l="MODÜL E Belge No" val={c.modulE.belge_no} w={secW} plain dark />
+            <LR l="Onaylanmış Kuruluş" val={c.modulE.onaylanmis_kurulus} w={secW} plain dark fit />
+            <LR l="Ünvanı ve Adresi" val={c.modulE.nb_adres} w={secW} plain dark fit />
+            <LR l="Onaylanmış Kuruluş Numarası" val={c.modulE.kurulus_no} w={secW} plain dark fit />
+            <LR l="MODÜL E Belge No" val={c.modulE.belge_no} w={secW} plain dark fit />
           </>
         )}
         <Text style={[st.p, { marginTop: 12, marginBottom: 0, textIndent: 24 }]}>

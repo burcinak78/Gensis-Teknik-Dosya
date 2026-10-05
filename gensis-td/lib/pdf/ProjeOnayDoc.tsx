@@ -185,7 +185,7 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
           <View style={{ alignItems: "flex-end", position: "relative", height: 70 }}>
             {m?.imza && (
               <View style={{ position: "absolute", top: 0, bottom: 0, right: 0, left: 0, alignItems: "flex-end", justifyContent: "center" }}>
-                <Image src={m.imza} style={{ width: 130, height: 44, objectFit: "contain" }} />
+                <Image src={m.imza} style={{ width: 85 }} />
               </View>
             )}
             <Text style={{ fontSize: 9.5, fontWeight: "bold", marginBottom: 8 }}>Proje Müellifi</Text>
