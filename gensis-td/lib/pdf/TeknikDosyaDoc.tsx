@@ -49,7 +49,9 @@ const st = StyleSheet.create({
   footerBox: { position: "absolute", bottom: 20, left: ML, right: MR, borderTopWidth: 0.8, borderTopColor: "#000000", paddingTop: 5 },
   footerUnvan: { fontSize: 8, fontWeight: "bold", color: "#000000", textAlign: "left" },
   footerAlt: { fontSize: 7.5, color: "#000000", textAlign: "left", marginTop: 1 },
-  coverWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+  // Kapak: içerik üstten 5 cm'den başlar (logo dahil), dikey ortalama yok
+  coverPage: { fontFamily: "Roboto", fontSize: 10, color: "#000000", paddingTop: Math.round(5 * CM * 10) / 10, paddingLeft: ML, paddingRight: MR, paddingBottom: 60, lineHeight: 1.45 },
+  coverWrap: { flex: 1, alignItems: "center" },
   coverBig: { fontSize: 26, fontWeight: "bold", color: NAVY, marginBottom: 14, lineHeight: 1.1, textAlign: "center" },
   coverSub: { fontSize: 13, color: TEAL, marginBottom: 40, textAlign: "center" },
   // Kapak bilgi satırı: satır aralığı 2 kat (2.2 → 4.4), etiket siyah
@@ -564,9 +566,14 @@ function CeMark({ size = 150, src }: { size?: number; src?: string }) {
 // Her belge için render fonksiyonu (code -> Page)
 const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   kapak: (c) => (
-    <Page key="kapak" size="A4" style={st.page}>
+    <Page key="kapak" size="A4" style={st.coverPage}>
       <View style={st.coverWrap}>
-        <View style={{ alignItems: "center", marginBottom: 22, marginTop: -(150 * 0.7047) }}>
+        {/* Firma logosu (yoksa kısa adı) — CE işaretinin üstünde ortalı.
+            Logo↔CE boşluğu = CE↔başlık boşluğu (22pt). */}
+        {c.firma?.logo
+          ? <Image src={c.firma.logo} style={{ width: 160, marginBottom: 22 }} />
+          : <Text style={{ fontSize: 16, fontWeight: "bold", color: NAVY, textAlign: "center", marginBottom: 22 }}>{v(c.firma?.kisa_ad || c.firma?.unvan)}</Text>}
+        <View style={{ alignItems: "center", marginBottom: 22 }}>
           <CeMark size={150} src={c.assetBase ? `${c.assetBase}/ce-mark.png` : undefined} />
         </View>
         <Text style={st.coverBig}>ASANSÖR TEKNİK DOSYASI</Text>
@@ -577,8 +584,6 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <CoverR l="Bina Adı" val={c.d.bina_adi} />
         <CoverR l="Bina Adresi" val={c.d.montaj_adresi} />
         <CoverR l="Pafta / Ada / Parsel" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
-        <View style={{ height: 40 }} />
-        <Text style={{ fontSize: 9, color: "#000000" }}>{c.tarih}</Text>
       </View>
       <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
