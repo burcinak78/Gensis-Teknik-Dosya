@@ -800,7 +800,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   ),
 
   bakim_sozlesmesi: (c) => (
-    <Page key="bakim_sozlesmesi" size="A4" style={st.page} wrap>
+    <Page key="bakim_sozlesmesi" size="A4" style={[st.page, { paddingTop: Math.round(3 * CM * 10) / 10 }]} wrap>
       <FirmaHeader c={c} />
       <Text style={[st.formTitle, { marginBottom: 4 }]}>ASANSÖR BAKIM SÖZLEŞMESİ</Text>
 
@@ -870,6 +870,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         Asansör tesislerinde teknik ve idari kurallara aykırı emniyet tertibatı ve yetersiz emniyet tedbirleri tespitinde keyfiyet müşteriye bildirilir. Eğer müşteri bildirilen noksanlıkların ve aykırılıkların düzeltilmesi için gerekli tedbir ve malzemelerin yüklenici tarafından müşteri nam ve hesabına karşılanmasına olur vermez ve zaaf gösterirse vuku bulan veya bulması olası kaza ve kazalarda kendisi sorumlu olacaktır. Yüklenici tarafından yazılı olarak müşteriye bildirilen veya teklif edilen tadilat, tamirat, değişiklik ve ilave işleri ile emniyet tertibatlarıyla ilgili işlerin müşteri tarafından yaptırılmaması veya yükleniciye yapması için gerekli onayı vermemesi durumunda yüklenici taahhüdünden vazgeçebilir sözleşmeyi tek taraflı olarak fesih edebilir. Bu hususta yüklenici sorumlu tutulamaz. Aynı şekilde firmanın sözleşme şartlarına uymamasının tespiti durumunda da müşteri hiçbir ihtara gerek olmadan tek taraflı olarak sözleşmeyi fesih edebilir.
       </BsMadde>
 
+      {/* MADDE 9 ve sonrası 2. sayfadan başlar */}
+      <View break />
       <BsMadde no={9} baslik="SÖZLEŞME MÜDDETİ VE FESİH">
         İşbu sözleşme imzalandığı tarihten itibaren 1(bir) yıl için geçerlidir. Taraflardan herhangi biri haklı sebep göstermek kaydı ile sözleşmeyi tek taraflı olarak fesih edebilir. Sözleşmenin haksız olarak feshi halinde, haksız feshi yapan taraf diğer taraftan sözleşmeden doğan zararı karşılamakla yükümlüdür.
       </BsMadde>
