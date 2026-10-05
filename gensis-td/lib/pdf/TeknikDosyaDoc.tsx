@@ -620,21 +620,29 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
   ),
 
   firma_bilgileri: (c) => (
-    <Page key="firma_bilgileri" size="A4" style={st.page}>
+    <Page key="firma_bilgileri" size="A4" style={st.coverPage}>
       <FirmaHeader c={c} />
-      <View style={{ flexGrow: 1, justifyContent: "center" }}>
+      <View>
         <Text style={st.docTitle}>FİRMA BİLGİLERİ</Text>
-        <View style={st.rule} />
-        <LR l="Ticari Ünvan" val={c.firma.unvan} w={150} />
-        <LR l="Tescilli Marka" val={c.firma.tescilli_marka} w={150} />
-        <LR l="Yetkili / Ünvanı" val={c.firma.yetkili} w={150} />
-        <LR l="Adres" val={c.firma.adres} w={150} />
-        <LR l="Yer" val={c.firma.sehir} w={150} />
-        <LR l="Ülke" val="TÜRKİYE" w={150} />
-        <LR l="Telefon" val={c.firma.telefon} w={150} />
-        <LR l="E-posta" val={c.firma.email} w={150} />
-        <LR l="Sanayi Sicil No" val={c.firma.sanayi_sicil_no} w={150} />
-        <LR l="CE İşaretlemesi Sorumlusu" val={c.firma.yetkili} w={150} />
+        {/* Başlık altı çizgi kaldırıldı; başlık–satır boşluğu korunuyor (çizgi bloğunun yeri = 22pt) */}
+        <View style={{ height: 22 }} />
+        <LR l="Ticari Ünvan" val={c.firma.unvan} w={150} plain />
+        <LR l="Tescilli Marka" val={c.firma.tescilli_marka} w={150} plain />
+        <LR l="Yetkili / Ünvanı" val={c.firma.yetkili} w={150} plain />
+        <LR l="Adres" val={c.firma.adres} w={150} plain />
+        <LR l="Yer" val={c.firma.sehir} w={150} plain />
+        <LR l="Ülke" val="TÜRKİYE" w={150} plain />
+        <LR l="Telefon" val={c.firma.telefon} w={150} plain />
+        <LR l="E-posta" val={c.firma.email} w={150} plain />
+        <LR l="Sanayi Sicil No" val={c.firma.sanayi_sicil_no} w={150} plain />
+        <LR l="CE İşaretlemesi Sorumlusu" val={c.firma.yetkili} w={150} plain />
+        <View style={{ marginTop: 16 }}>
+          <Text style={{ fontWeight: "bold" }}>Ekler;</Text>
+          <Text style={{ marginTop: 3 }}>-  İmza sirküleri</Text>
+          <Text>-  Sanayi Sicil Belgesi</Text>
+          <Text>-  HYB Belgesi</Text>
+          <Text>-  CE Belgesi(leri)</Text>
+        </View>
       </View>
       <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
     </Page>
