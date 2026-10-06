@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   createTakipProje, updateTakipProje, createRevision, completeTakipProje,
-  deleteTakipDoc, type TakipPayload,
+  deleteTakipDoc, deleteTakipProje, type TakipPayload,
 } from "./actions";
 import { createCompany } from "@/app/(app)/admin/actions";
 import { uploadTakipFile } from "@/lib/takipUpload";
@@ -284,6 +284,16 @@ export default function YeniProjeForm({
     router.push("/proje-takip"); router.refresh();
   }
 
+  async function silProje() {
+    if (!edit) return;
+    if (!window.confirm(`#${edit.proje_no} numaralı proje ve bağlı tüm kayıtları (dökümanlar, muhasebe, revizyonlar) kalıcı olarak silinecek. Devam edilsin mi?`)) return;
+    setErr(null); setBusy(true); setProgress("Siliniyor…");
+    const res = await deleteTakipProje(edit.id);
+    setBusy(false); setProgress("");
+    if (!res.ok) { setErr(res.error); return; }
+    router.push("/proje-takip"); router.refresh();
+  }
+
   const projeNoText = isEdit ? String(edit!.proje_no) : (nextNo ?? "—");
 
   // Dokümanlar bölümü — hem yeni, hem güncelle, hem revizyonda aynı slotlar
@@ -548,6 +558,16 @@ export default function YeniProjeForm({
               {busy ? "Kaydediliyor…" : revMode ? "Revizyonu Kaydet" : isEdit ? "Güncelle" : "Kaydet"}
             </button>
           </div>
+
+          {isEdit && !revMode && (
+            <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between gap-3">
+              <span className="text-xs text-slate-500">Bu projeyi ve bağlı tüm kayıtlarını (dökümanlar, muhasebe, revizyonlar) kalıcı olarak siler. Proje No bir geri alınır.</span>
+              <button type="button" disabled={busy} onClick={silProje}
+                className="text-sm font-bold text-white bg-red-600 hover:bg-red-700 px-5 py-2.5 rounded-xl disabled:opacity-50 inline-flex items-center gap-1 shrink-0">
+                <span className="material-symbols-rounded text-[18px]">delete</span> Sil
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

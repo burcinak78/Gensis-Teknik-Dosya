@@ -361,12 +361,23 @@ export async function deleteTakipProje(id: string): Promise<Result> {
     await assertStaff();
     if (!id) return { ok: false, error: "Kayıt yok." };
     const admin = createAdminClient();
-    const { data: docs } = await admin.from("takip_dokumanlar").select("storage_path").eq("takip_id", id);
+    // Silinecek proje + revizyonları (parent_id = id); hepsinin bağlı tüm kayıtları silinir.
+    const { data: proj } = await admin.from("takip_projeler").select("proje_no").eq("id", id).maybeSingle();
+    const { data: revs } = await admin.from("takip_projeler").select("id").eq("parent_id", id);
+    const ids = [id, ...((revs ?? []).map((r: any) => r.id))];
+    // Storage dosyalarını temizle (proje + revizyon dökümanları)
+    const { data: docs } = await admin.from("takip_dokumanlar").select("storage_path").in("takip_id", ids);
     const paths = (docs ?? []).map((d: any) => d.storage_path).filter(Boolean);
     if (paths.length) await admin.storage.from("documents").remove(paths);
+    // Projeyi sil — takip_dokumanlar, takip_muhasebe ve revizyonlar cascade ile silinir
     const { error } = await admin.from("takip_projeler").delete().eq("id", id);
     if (error) return { ok: false, error: error.message };
+    // Proje No sayacını geri al: bir sonraki yeni kayıt silinen numarayı alsın
+    if (proj?.proje_no != null) {
+      await admin.from("takip_counter").update({ next_no: proj.proje_no }).eq("id", 1).gt("next_no", proj.proje_no);
+    }
     revalidatePath("/proje-takip");
+    revalidatePath("/muhasebe");
     return { ok: true, message: "Kayıt silindi." };
   } catch (e: any) {
     return { ok: false, error: e.message };
