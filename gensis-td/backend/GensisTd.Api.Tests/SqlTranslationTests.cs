@@ -39,4 +39,11 @@ public class SqlTranslationTests
         Assert.Contains("projects", sql);
         Assert.Contains("generated_files", sql);
     }
+
+    [Fact]
+    public void Name_sorts_use_turkish_collation()
+    {
+        var sql = Db().Districts.OrderBy(d => EF.Functions.Collate(d.Name, Collations.Turkish)).ToQueryString();
+        Assert.Contains("COLLATE \"tr-x-icu\"", sql);
+    }
 }

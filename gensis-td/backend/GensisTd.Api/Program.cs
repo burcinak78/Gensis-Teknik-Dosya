@@ -1,5 +1,6 @@
 using GensisTd.Api.Auth;
 using GensisTd.Api.Data;
+using GensisTd.Api.Endpoints;
 using GensisTd.Api.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -72,5 +73,7 @@ app.UseAuthorization();
 app.MapGet("/api/health", async (AppDbContext db) =>
     await db.Database.CanConnectAsync() ? Results.Ok(new { status = "ok" }) : Results.StatusCode(503));
 app.MapAuthEndpoints();
+app.MapCatalogEndpoints();
+app.MapProjectEndpoints();
 
 app.Run();
