@@ -902,8 +902,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         Asansör tesislerinde teknik ve idari kurallara aykırı emniyet tertibatı ve yetersiz emniyet tedbirleri tespitinde keyfiyet müşteriye bildirilir. Eğer müşteri bildirilen noksanlıkların ve aykırılıkların düzeltilmesi için gerekli tedbir ve malzemelerin yüklenici tarafından müşteri nam ve hesabına karşılanmasına olur vermez ve zaaf gösterirse vuku bulan veya bulması olası kaza ve kazalarda kendisi sorumlu olacaktır. Yüklenici tarafından yazılı olarak müşteriye bildirilen veya teklif edilen tadilat, tamirat, değişiklik ve ilave işleri ile emniyet tertibatlarıyla ilgili işlerin müşteri tarafından yaptırılmaması veya yükleniciye yapması için gerekli onayı vermemesi durumunda yüklenici taahhüdünden vazgeçebilir sözleşmeyi tek taraflı olarak fesih edebilir. Bu hususta yüklenici sorumlu tutulamaz. Aynı şekilde firmanın sözleşme şartlarına uymamasının tespiti durumunda da müşteri hiçbir ihtara gerek olmadan tek taraflı olarak sözleşmeyi fesih edebilir.
       </BsMadde>
 
-      {/* MADDE 9 ve sonrası 2. sayfadan başlar */}
-      <View break />
+      {/* MADDE 9 ve sonrası doğal akışla 2. sayfaya geçer (zorlanmış sayfa sonu yok → boş sayfa oluşmaz) */}
       <BsMadde no={9} baslik="SÖZLEŞME MÜDDETİ VE FESİH">
         İşbu sözleşme imzalandığı tarihten itibaren 1(bir) yıl için geçerlidir. Taraflardan herhangi biri haklı sebep göstermek kaydı ile sözleşmeyi tek taraflı olarak fesih edebilir. Sözleşmenin haksız olarak feshi halinde, haksız feshi yapan taraf diğer taraftan sözleşmeden doğan zararı karşılamakla yükümlüdür.
       </BsMadde>
