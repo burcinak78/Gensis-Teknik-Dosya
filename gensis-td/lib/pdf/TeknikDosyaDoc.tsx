@@ -15,7 +15,7 @@ const CM = 28.3465;
 const ML = Math.round(2 * CM * 10) / 10;   // sol kenar ≈ 56.7pt
 const MR = Math.round(1 * CM * 10) / 10;   // sağ kenar ≈ 28.3pt
 const LOGO_T = Math.round(1 * CM * 10) / 10; // üst 1 cm
-const LOGO_W = Math.round(5 * CM * 10) / 10; // 5 cm genişlik
+const LOGO_W = Math.round(4 * CM * 10) / 10; // 4 cm genişlik
 const LOGO_H = Math.round(2 * CM * 10) / 10; // 2 cm yükseklik
 const HDR_CLEAR = Math.round((LOGO_T + LOGO_H + 6) * 10) / 10; // logo altındaki içerik boşluğu ≈ 91pt
 

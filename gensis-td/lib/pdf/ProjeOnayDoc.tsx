@@ -11,7 +11,7 @@ const CM = 28.3465;
 const ML = Math.round(2 * CM * 10) / 10;
 const MR = Math.round(1 * CM * 10) / 10;
 const LOGO_T = Math.round(1 * CM * 10) / 10;
-const LOGO_W = Math.round(5 * CM * 10) / 10;
+const LOGO_W = Math.round(4 * CM * 10) / 10;
 const LOGO_H = Math.round(2 * CM * 10) / 10;
 const HDR_CLEAR = Math.round((LOGO_T + LOGO_H + 6) * 10) / 10;
 

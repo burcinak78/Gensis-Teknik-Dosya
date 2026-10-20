@@ -309,7 +309,7 @@ export async function GET(req: NextRequest) {
             const fontB = robotoBoldBytes ? await doc.embedFont(robotoBoldBytes) : font;
             const black = rgb(0, 0, 0);
             // Sol üst köşe logosu (yoksa kısa ad): 2 cm / 1 cm, 2×5 cm kutuya sığdır
-            const CM = 28.3465, boxW = 5 * CM, boxH = 2 * CM;
+            const CM = 28.3465, boxW = 4 * CM, boxH = 2 * CM;
             let logoImg: any = null;
             if (logoBytes) { try { logoImg = logoMime === "image/png" ? await doc.embedPng(logoBytes) : await doc.embedJpg(logoBytes); } catch { logoImg = null; } }
             const kisaAd = String(cf.kisa_ad || cf.unvan || "").trim();
@@ -366,7 +366,7 @@ export async function GET(req: NextRequest) {
         let logoImg: any = null;
         if (logoBytes) { try { logoImg = logoMime === "image/png" ? await doc.embedPng(logoBytes) : await doc.embedJpg(logoBytes); } catch { logoImg = null; } }
         // Logo: sol 2 cm / üst 1 cm; 2 cm (y) × 5 cm (g) kutuya sığacak şekilde (contain)
-        const CM = 28.3465, boxW = 5 * CM, boxH = 2 * CM;
+        const CM = 28.3465, boxW = 4 * CM, boxH = 2 * CM;
         for (const pg of pages) {
           const { height } = pg.getSize();
           if (logoImg) {
