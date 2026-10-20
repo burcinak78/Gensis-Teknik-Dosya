@@ -344,9 +344,11 @@ export async function removeProjectFromMuhasebe(projectId: string): Promise<{ ok
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { ok: false, error: "Oturum bulunamadı." };
     if (!projectId) return { ok: false, error: "Proje bulunamadı." };
+    // Erişim kontrolü: projeyi kullanıcının kendi oturumuyla (RLS) oku; admin istemcisinden önce
+    const { data: proj } = await supabase.from("projects").select("td_no").eq("id", projectId).maybeSingle();
+    if (!proj) return { ok: false, error: "Yetkiniz yok." };
     const admin = createAdminClient();
-    const { data: proj } = await admin.from("projects").select("td_no").eq("id", projectId).maybeSingle();
-    await removeTakipForTd(admin, proj?.td_no ?? null);
+    await removeTakipForTd(admin, proj.td_no ?? null);
     revalidatePath("/muhasebe");
     return { ok: true };
   } catch (e: any) {
@@ -360,11 +362,13 @@ export async function deleteProject(id: string): Promise<{ ok: boolean; error?: 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Oturum bulunamadı." };
   if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+  // Erişim kontrolü: projeyi kullanıcının kendi oturumuyla (RLS) oku; admin istemcisinden önce
+  const { data: proj } = await supabase.from("projects").select("td_no").eq("id", id).maybeSingle();
+  if (!proj) return { ok: false, error: "Yetkiniz yok." };
   // Muhasebeye düşmüş (teslim edilmemiş) kaydı da kaldır
   try {
     const admin = createAdminClient();
-    const { data: proj } = await admin.from("projects").select("td_no").eq("id", id).maybeSingle();
-    await removeTakipForTd(admin, proj?.td_no ?? null);
+    await removeTakipForTd(admin, proj.td_no ?? null);
   } catch { /* yoksay */ }
   await supabase.from("project_equipment").delete().eq("project_id", id);
   const { error } = await supabase.from("projects").delete().eq("id", id);
