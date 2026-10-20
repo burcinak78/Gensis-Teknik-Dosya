@@ -37,6 +37,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     is_adi: st(p.is_adi),
     asansor_sayisi: st(p.asansor_sayisi),
     asansor_tipi: st(p.asansor_tipi),
+    asansor_seri_no: st(p.asansor_seri_no),
     province_id: st(p.province_id),
     district_id: st(p.district_id),
     fiyat: st(p.fiyat),

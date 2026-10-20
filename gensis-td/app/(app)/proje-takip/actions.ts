@@ -47,6 +47,7 @@ export type TakipPayload = {
   is_adi: string | null;
   asansor_sayisi: number | null;
   asansor_tipi: string | null;
+  asansor_seri_no: string | null;
   province_id: number | null;
   district_id: string | null;
   il_adi: string | null;
@@ -85,6 +86,7 @@ export async function createTakipProje(p: TakipPayload): Promise<Result> {
       is_adi: p.is_adi,
       asansor_sayisi: p.asansor_sayisi,
       asansor_tipi: p.asansor_tipi,
+      asansor_seri_no: p.asansor_seri_no,
       province_id: p.province_id,
       district_id: p.district_id,
       il_adi: p.il_adi,
@@ -126,6 +128,7 @@ export async function updateTakipProje(id: string, p: TakipPayload): Promise<Res
       is_adi: p.is_adi,
       asansor_sayisi: p.asansor_sayisi,
       asansor_tipi: p.asansor_tipi,
+      asansor_seri_no: p.asansor_seri_no,
       province_id: p.province_id,
       district_id: p.district_id,
       il_adi: p.il_adi,
@@ -161,7 +164,7 @@ export async function createRevision(parentId: string, r: RevizyonPayload): Prom
     const admin = createAdminClient();
     // Ana projeyi al — bilgileri devral
     const { data: parent } = await admin.from("takip_projeler")
-      .select("proje_no, proje_tipi, siparis_tarihi, company_id, ada, parsel, ada_parsel, is_adi, asansor_sayisi, asansor_tipi, province_id, district_id, il_adi, ilce_adi, proje_sorumlusu_id, parent_id")
+      .select("proje_no, proje_tipi, siparis_tarihi, company_id, ada, parsel, ada_parsel, is_adi, asansor_sayisi, asansor_tipi, asansor_seri_no, province_id, district_id, il_adi, ilce_adi, proje_sorumlusu_id, parent_id")
       .eq("id", parentId).maybeSingle();
     if (!parent) return { ok: false, error: "Ana proje bulunamadı." };
     // Revizyonun revizyonu değil, her zaman kök projeye bağla
@@ -185,6 +188,7 @@ export async function createRevision(parentId: string, r: RevizyonPayload): Prom
       is_adi: parent.is_adi,
       asansor_sayisi: parent.asansor_sayisi,
       asansor_tipi: parent.asansor_tipi,
+      asansor_seri_no: (parent as any).asansor_seri_no,
       province_id: parent.province_id,
       district_id: parent.district_id,
       il_adi: parent.il_adi,

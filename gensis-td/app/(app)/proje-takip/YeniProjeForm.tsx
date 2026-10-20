@@ -69,7 +69,7 @@ export default function YeniProjeForm({
 
   const [f, setF] = useState<Record<string, string>>(edit?.values ?? {
     proje_tipi: "mimari", siparis_tarihi: "", company_id: "", ada: "", parsel: "", is_adi: "",
-    asansor_sayisi: "", asansor_tipi: "", province_id: "", district_id: "",
+    asansor_sayisi: "", asansor_tipi: "", asansor_seri_no: "", province_id: "", district_id: "",
     fiyat: "", fatura_tipi: "faturasiz", proje_sorumlusu_id: "", tahmini_tamamlanma: "", montaj_firma_id: "",
   });
   const [districts, setDistricts] = useState<District[]>(edit?.initialDistricts ?? []);
@@ -206,6 +206,7 @@ export default function YeniProjeForm({
       is_adi: f.is_adi || null,
       asansor_sayisi: f.asansor_sayisi ? Number(f.asansor_sayisi) : null,
       asansor_tipi: f.asansor_tipi || null,
+      asansor_seri_no: f.asansor_seri_no?.trim() || null,
       province_id: f.province_id ? Number(f.province_id) : null,
       district_id: f.district_id || null,
       il_adi: prov?.name ?? null,
@@ -427,6 +428,7 @@ export default function YeniProjeForm({
 
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Asansör Sayısı"><input type="number" min={0} className={inp} value={f.asansor_sayisi} onChange={(e) => set("asansor_sayisi", e.target.value)} /></Field>
+                <Field label="Asansör Seri No"><input className={inp} value={f.asansor_seri_no} onChange={(e) => set("asansor_seri_no", e.target.value)} placeholder="Opsiyonel" /></Field>
                 <Field label="Asansör Tipi">
                   <select className={inp} value={f.asansor_tipi} onChange={(e) => set("asansor_tipi", e.target.value)}>
                     <option value="">Seçiniz…</option>
