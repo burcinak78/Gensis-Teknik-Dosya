@@ -107,20 +107,22 @@ const st = StyleSheet.create({
   kPage: { fontFamily: "Roboto", fontSize: 8, color: "#000000", paddingTop: Math.round(3 * CM * 10) / 10, paddingLeft: ML, paddingRight: MR, paddingBottom: 30, lineHeight: 1.2 },
   kTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#000000", marginBottom: 20 },
   kInfoRow: { flexDirection: "row", paddingVertical: 1 },
-  kLbl: { width: "26%", fontSize: 10, fontWeight: "bold", color: "#000000" },
-  kSep: { width: "3%", fontSize: 10 },
-  kVal: { flex: 1, fontSize: 10, color: "#000000" },
-  kSub: { width: "26%", fontSize: 10, color: "#000000", paddingLeft: 10 },
+  kLbl: { width: "26%", fontSize: 8, fontWeight: "bold", color: "#000000" },
+  kSep: { width: "3%", fontSize: 8 },
+  kVal: { flex: 1, fontSize: 8, color: "#000000" },
+  kSub: { width: "26%", fontSize: 8, color: "#000000", paddingLeft: 10 },
   kTbl: { borderTopWidth: 0.9, borderLeftWidth: 0.9, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#000000", marginTop: 10 },
   kRow: { flexDirection: "row" },
-  kH: { fontSize: 6, fontWeight: "bold", backgroundColor: "#e5e9f0", color: "#000000", paddingVertical: 3, paddingHorizontal: 2, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#000000", textAlign: "center" },
-  kC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#000000" },
+  kH: { fontSize: 8, fontWeight: "bold", backgroundColor: "#e5e9f0", color: "#000000", paddingVertical: 3, paddingHorizontal: 2, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#000000", textAlign: "center" },
+  kC: { fontSize: 8.4, paddingVertical: 2.4, paddingHorizontal: 2, borderRightWidth: 0.9, borderBottomWidth: 0.9, borderColor: "#000000" },
   kCol: { borderRightWidth: 0.9, borderColor: "#000000" },
-  kSubC: { fontSize: 6.4, paddingVertical: 2.4, paddingHorizontal: 2, minHeight: 12, borderBottomWidth: 0.9, borderColor: "#000000" },
+  kSubC: { fontSize: 8.4, paddingVertical: 2.4, paddingHorizontal: 2, minHeight: 12, borderBottomWidth: 0.9, borderColor: "#000000" },
 });
 
 // Teknik & Komponent tablosu kolon genişlikleri (Excel ile aynı sıra)
-const KW = { ad: "26%", kat: "8%", marka: "14%", tip: "14%", seri: "14%", sert: "12%", kur: "12%" };
+const KW = { ad: "24%", kat: "5%", marka: "16%", tip: "16%", seri: "14%", sert: "12%", kur: "13%" };
+// Sol "Aksam" sütununun birleşik genişliği (ad + kat) — satirlar satırları için
+const KW_AD_KAT = 29;
 
 // Resmi form yardımcıları
 // Değer sütunu genişliği ≈ içerik genişliği (A4 − 2cm − 1cm = 510pt) × %63 − yatay padding (8) ≈ 313pt
@@ -218,7 +220,7 @@ const ebat = (a: any, b: any) => (vb(a) && vb(b) ? `${vb(a)} x ${vb(b)}` : "");
 
 // Hücreye sığmayan uzun metinlerde (sertifika/seri no) fontu otomatik küçült.
 // A4 içerik genişliği ≈ 535pt; sütun yüzdesine göre kalan alana göre ölçekler.
-const fitFs = (s: any, widthPct: number, base = 6.4, min = 4.2) => {
+const fitFs = (s: any, widthPct: number, base = 8.4, min = 4.2) => {
   const txt = vb(s);
   if (!txt) return base;
   const contentW = 535 * (widthPct / 100) - 5;
@@ -238,7 +240,7 @@ function KInfo({ l, val, unit, sub }: { l: string; val?: any; unit?: string; sub
   );
 }
 function KSection({ children }: { children: any }) {
-  return <Text style={{ fontSize: 10, fontWeight: "bold", marginTop: 4 }}>{children}</Text>;
+  return <Text style={{ fontSize: 8, fontWeight: "bold", marginTop: 4 }}>{children}</Text>;
 }
 
 // Çok satırlı komponent bloğu: seri no alt satır satır, diğer sütunlar birleşik
@@ -248,18 +250,18 @@ function KBlok({ ad, e, alt }: { ad: string; e: any; alt: { ad: string; seri: st
   return (
     <View style={[st.kRow, { borderBottomWidth: 0.9, borderColor: "#000000" }]}>
       <View style={[st.kCol, { width: KW.ad, justifyContent: "center", paddingHorizontal: 2 }]}>
-        <Text style={{ fontSize: fitFs(ad, 26) }}>{ad}</Text>
+        <Text style={{ fontSize: fitFs(ad, 24) }}>{ad}</Text>
       </View>
       <View style={[st.kCol, { width: KW.kat }]}>
         {alt.map((k, i) => (
-          <Text key={i} style={[st.kSubC, { fontSize: fitFs(k.ad, 8) }, i === son ? { borderBottomWidth: 0 } : {}]}>{k.ad}</Text>
+          <Text key={i} style={[st.kSubC, { fontSize: fitFs(k.ad, 5) }, i === son ? { borderBottomWidth: 0 } : {}]}>{k.ad}</Text>
         ))}
       </View>
       <View style={[st.kCol, { width: KW.marka, justifyContent: "center", paddingHorizontal: 2 }]}>
-        <Text style={{ fontSize: fitFs(e?.marka, 14) }}>{vb(e?.marka)}</Text>
+        <Text style={{ fontSize: fitFs(e?.marka, 16) }}>{vb(e?.marka)}</Text>
       </View>
       <View style={[st.kCol, { width: KW.tip, justifyContent: "center", paddingHorizontal: 2 }]}>
-        <Text style={{ fontSize: fitFs(e?.model, 14) }}>{vb(e?.model)}</Text>
+        <Text style={{ fontSize: fitFs(e?.model, 16) }}>{vb(e?.model)}</Text>
       </View>
       <View style={[st.kCol, { width: KW.seri }]}>
         {alt.map((k, i) => (
@@ -270,7 +272,7 @@ function KBlok({ ad, e, alt }: { ad: string; e: any; alt: { ad: string; seri: st
         <Text style={{ fontSize: fitFs(e?.sertifika_no, 12) }}>{vb(e?.sertifika_no)}</Text>
       </View>
       <View style={{ width: KW.kur, justifyContent: "center", paddingHorizontal: 2 }}>
-        <Text style={{ fontSize: fitFs(kurulus, 12) }}>{kurulus}</Text>
+        <Text style={{ fontSize: fitFs(kurulus, 13) }}>{kurulus}</Text>
       </View>
     </View>
   );
@@ -388,7 +390,7 @@ function teknikKomponentPage(c: any) {
 
       <View style={st.kTbl}>
         <View style={st.kRow}>
-          <Text style={[st.kH, { width: "34%" }]}>KULLANILAN GÜVENLİK KOMPONENTİ</Text>
+          <Text style={[st.kH, { width: `${KW_AD_KAT}%` }]}>KULLANILAN GÜVENLİK KOMPONENTİ</Text>
           <Text style={[st.kH, { width: KW.marka }]}>MARKASI</Text>
           <Text style={[st.kH, { width: KW.tip }]}>TİPİ</Text>
           <Text style={[st.kH, { width: KW.seri }]}>SERİ NO</Text>
@@ -408,12 +410,12 @@ function teknikKomponentPage(c: any) {
             <KBlok key={i} ad={ad} e={e} alt={tamponAlt(e)} />
           ) : (
             <View style={st.kRow} key={i}>
-              <Text style={[st.kC, { width: "34%", fontSize: fitFs(ad, 34) }]}>{ad}</Text>
-              <Text style={[st.kC, { width: KW.marka, fontSize: fitFs(e?.marka, 14) }]}>{vb(e?.marka)}</Text>
-              <Text style={[st.kC, { width: KW.tip, fontSize: fitFs(e?.model, 14) }]}>{vb(e?.model)}</Text>
+              <Text style={[st.kC, { width: `${KW_AD_KAT}%`, fontSize: fitFs(ad, KW_AD_KAT) }]}>{ad}</Text>
+              <Text style={[st.kC, { width: KW.marka, fontSize: fitFs(e?.marka, 16) }]}>{vb(e?.marka)}</Text>
+              <Text style={[st.kC, { width: KW.tip, fontSize: fitFs(e?.model, 16) }]}>{vb(e?.model)}</Text>
               <Text style={[st.kC, { width: KW.seri, fontSize: fitFs(e?.seri_no, 14) }]}>{vb(e?.seri_no)}</Text>
               <Text style={[st.kC, { width: KW.sert, fontSize: fitFs(e?.sertifika_no, 12) }]}>{vb(e?.sertifika_no)}</Text>
-              <Text style={[st.kC, { width: KW.kur, fontSize: fitFs(kurulus(e), 12) }]}>{kurulus(e)}</Text>
+              <Text style={[st.kC, { width: KW.kur, fontSize: fitFs(kurulus(e), 13) }]}>{kurulus(e)}</Text>
             </View>
           )
         )}
