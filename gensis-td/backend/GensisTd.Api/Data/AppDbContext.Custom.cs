@@ -20,9 +20,19 @@ public partial class AppDbContext
 
     public virtual DbSet<PendingChange> PendingChanges { get; set; }
 
+    public virtual DbSet<TdCounter> TdCounters { get; set; }
+
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
         var b = modelBuilder;
+
+        b.Entity<TdCounter>(e =>
+        {
+            e.ToTable("td_counters");
+            e.HasKey(x => x.Year).HasName("td_counters_pkey");
+            e.Property(x => x.Year).HasColumnName("year").ValueGeneratedNever();
+            e.Property(x => x.LastNo).HasColumnName("last_no");
+        });
 
         b.Entity<PendingChange>(e =>
         {

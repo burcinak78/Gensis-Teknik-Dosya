@@ -149,31 +149,41 @@ public static partial class ProjectWriteEndpoints
 
     private static readonly TimeZoneInfo Istanbul = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
 
+    /// <summary>
+    /// Numbers are never reused (user decision 2026-10-21): td_counters keeps the last number per year,
+    /// so deleting a project does not free its number. The upsert's row lock serializes concurrent
+    /// creates. The counter never falls behind numbers already in the data (projects and takip rows,
+    /// e.g. after the data migration), hence GREATEST with the highest existing number + 1.
+    /// </summary>
     private static async Task<string> NextTdNoAsync(AppDbContext db, CancellationToken ct)
     {
-        // Serializes concurrent creates until the transaction ends; td_no has no unique index
-        // (existing data may contain duplicates), so the lock is what prevents new ones.
-        await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(hashtext('projects.td_no'))", ct);
-        var prefix = TdPrefix(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Istanbul).Year);
-        // Takip rows keep the TD number after their project is deleted (posted rows are never removed).
-        // Counting them too stops a deleted project's number from being handed out again and the new
-        // project picking up the old project's accounting rows (they are linked by td_no only).
+        var year = (short)TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Istanbul).Year;
+        var prefix = TdPrefix(year);
         // Longest first, then text: keeps TD-26-10000 above TD-26-9999.
         var last = await db.Projects.Select(p => p.TdNo)
             .Concat(db.TakipProjelers.Select(t => t.TdNo))
             .Where(td => td != null && td.StartsWith(prefix))
             .OrderByDescending(td => td!.Length).ThenByDescending(td => td)
             .FirstOrDefaultAsync(ct);
-        return NextTdNo(prefix, last);
+        var floor = LastNumber(last) + 1;
+        // ToListAsync, not SingleAsync: an INSERT cannot be wrapped in the SELECT ... LIMIT that Single adds.
+        var next = await db.Database.SqlQuery<int>($"""
+            INSERT INTO td_counters (year, last_no) VALUES ({year}, {floor})
+            ON CONFLICT (year) DO UPDATE SET last_no = GREATEST(td_counters.last_no + 1, EXCLUDED.last_no)
+            RETURNING last_no AS "Value"
+            """).ToListAsync(ct);
+        return FormatTdNo(prefix, next.Single());
     }
 
     public static string TdPrefix(int year) => $"TD-{year % 100:00}-";
 
-    public static string NextTdNo(string prefix, string? last)
+    public static string FormatTdNo(string prefix, int number) => $"{prefix}{number:0000}";
+
+    /// <summary>Trailing number of an existing TD No, 0 when there is none.</summary>
+    public static int LastNumber(string? tdNo)
     {
-        var m = last is null ? null : TrailingNumber().Match(last);
-        var next = m is { Success: true } ? int.Parse(m.Groups[1].Value) + 1 : 1;
-        return $"{prefix}{next:0000}";
+        var m = tdNo is null ? null : TrailingNumber().Match(tdNo);
+        return m is { Success: true } ? int.Parse(m.Groups[1].Value) : 0;
     }
 
     [GeneratedRegex(@"(\d+)\s*$")]

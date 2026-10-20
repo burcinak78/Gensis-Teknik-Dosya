@@ -11,12 +11,19 @@ public class TdNoTests
     public void Prefix_uses_two_digit_year(int year, string prefix) => Assert.Equal(prefix, ProjectWriteEndpoints.TdPrefix(year));
 
     [Theory]
-    [InlineData(null, "TD-26-0001")]
-    [InlineData("TD-26-0001", "TD-26-0002")]
-    [InlineData("TD-26-0099", "TD-26-0100")]
-    [InlineData("TD-26-9999", "TD-26-10000")]
-    [InlineData("TD-26-0041 ", "TD-26-0042")]
-    [InlineData("TD-26-", "TD-26-0001")]
-    public void Next_number_follows_last(string? last, string next) =>
-        Assert.Equal(next, ProjectWriteEndpoints.NextTdNo("TD-26-", last));
+    [InlineData(null, 0)]
+    [InlineData("TD-26-0001", 1)]
+    [InlineData("TD-26-0099", 99)]
+    [InlineData("TD-26-10000", 10000)]
+    [InlineData("TD-26-0041 ", 41)]
+    [InlineData("TD-26-", 0)]
+    public void Last_number_is_the_trailing_digits(string? tdNo, int number) =>
+        Assert.Equal(number, ProjectWriteEndpoints.LastNumber(tdNo));
+
+    [Theory]
+    [InlineData(1, "TD-26-0001")]
+    [InlineData(100, "TD-26-0100")]
+    [InlineData(10000, "TD-26-10000")]
+    public void Format_pads_to_four_digits(int number, string tdNo) =>
+        Assert.Equal(tdNo, ProjectWriteEndpoints.FormatTdNo("TD-26-", number));
 }

@@ -2267,6 +2267,22 @@ namespace GensisTd.Api.Data.Migrations
                     b.ToTable("takip_projeler", (string)null);
                 });
 
+            modelBuilder.Entity("GensisTd.Api.Data.Entities.TdCounter", b =>
+                {
+                    b.Property<short>("Year")
+                        .HasColumnType("smallint")
+                        .HasColumnName("year");
+
+                    b.Property<int>("LastNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_no");
+
+                    b.HasKey("Year")
+                        .HasName("td_counters_pkey");
+
+                    b.ToTable("td_counters", (string)null);
+                });
+
             modelBuilder.Entity("GensisTd.Api.Data.Entities.TemplateField", b =>
                 {
                     b.Property<Guid>("Id")
