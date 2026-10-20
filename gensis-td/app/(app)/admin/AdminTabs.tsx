@@ -7,6 +7,7 @@ const TABS = [
   { href: "/admin/kullanicilar", label: "Kullanıcılar", icon: "group", adminOnly: true },
   { href: "/admin/muhendisler", label: "Yetkili Mühendisler", icon: "engineering" },
   { href: "/admin/musteriler", label: "Müşteriler", icon: "business" },
+  { href: "/admin/onaylanmis-kuruluslar", label: "Onaylanmış Kuruluşlar", icon: "verified" },
   { href: "/admin/ekipmanlar", label: "Güvenlik Ekipmanları", icon: "verified_user" },
   { href: "/admin/ilgili-idareler", label: "İlgili İdareler", icon: "account_balance" },
 ];

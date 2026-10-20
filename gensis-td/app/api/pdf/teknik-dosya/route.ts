@@ -200,6 +200,24 @@ export async function GET(req: NextRequest) {
     const { data: allCats } = await admin.from("equipment_categories").select("code, name, drive_type");
     if (allCats) (ctx as any).equipCats = allCats;
 
+    // Teknik Komponent'te ekipman OK'si TİCARİ ÜNVAN yerine KISA AD gösterilsin.
+    // (RPC onaylanmis_kurulus'u ünvan=name ile dolduruyor; ünvan → kısa ad eşle.)
+    // Tescil ve AB Uygunluk Beyanı kendi alanlarını kullandığından ünvanı korur.
+    try {
+      const { data: allNbs } = await admin.from("notified_bodies").select("name, short_name");
+      const shortByName = new Map((allNbs ?? []).map((n: any) => [String(n.name || "").trim(), n.short_name]));
+      const ek = (ctx as any).ekipman;
+      if (ek && typeof ek === "object") {
+        for (const key of Object.keys(ek)) {
+          const o = ek[key];
+          if (o && typeof o === "object" && o.onaylanmis_kurulus) {
+            const sn = shortByName.get(String(o.onaylanmis_kurulus).trim());
+            if (sn) o.onaylanmis_kurulus = sn;
+          }
+        }
+      }
+    } catch { /* eşleşme kurulamazsa ünvan kalır */ }
+
     // Marka seçili ama model yok olan ekipmanlarda, RPC marka ismini doldurmamış olabilir.
     // Burada marka'yı brand_id üzerinden tamamlıyoruz (yalnızca boşsa) — böylece Teknik Komponent
     // ve Tescil tablolarında ilgili satırda marka görünür, model/seri boş kalır.

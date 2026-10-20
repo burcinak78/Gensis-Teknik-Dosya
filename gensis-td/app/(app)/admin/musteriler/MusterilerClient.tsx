@@ -11,7 +11,9 @@ type Company = {
   category?: string | null; sector?: string | null;
 };
 type Doc = { id: string; company_id: string; doc_type: string; original_name: string | null; issue_date: string | null; valid_until: string | null; belge_no: string | null; notified_body_id: string | null; sub_type: string | null; parent_id: string | null };
-type NB = { id: string; identity_no: string | null; name: string };
+type NB = { id: string; identity_no: string | null; name: string; short_name?: string | null };
+const nbLabel = (n: NB) => n.short_name || n.name;
+const nbSort = (a: NB, b: NB) => nbLabel(a).toLocaleLowerCase("tr").localeCompare(nbLabel(b).toLocaleLowerCase("tr"), "tr");
 type Row = { uid: string; id?: string; belge_no: string; issue_date: string; valid_until: string; notified_body_id: string; file: File | null; original_name?: string | null; sub_type?: string };
 type BRow = Row & { sub_type: string; eki: Row[] };
 type DocsState = { logo: Row; imza_sirkuleri: Row; sanayi_sicil: Row; tse_hyb: Row; ce_h1: Row; ce_e: Row; ce_tasarim: Row[]; ce_b: BRow[] };
@@ -606,7 +608,7 @@ function DocRow({
               <div className="flex gap-1.5">
                 <select value={row.notified_body_id} onChange={(e) => onChange({ notified_body_id: e.target.value })} className={dinp}>
                   <option value="">Seçiniz…</option>
-                  {nbs.filter((n) => n.identity_no).map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
+                  {nbs.filter((n) => n.identity_no).sort(nbSort).map((n) => <option key={n.id} value={n.id}>{nbLabel(n)}</option>)}
                 </select>
                 {canAddNb && onNbAdded && (
                   <button type="button" onClick={() => { setShowAddNb((v) => !v); setNbErr(null); }}

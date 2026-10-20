@@ -729,20 +729,71 @@ export async function deleteIlgiliIdare(id: string): Promise<Result> {
 }
 
 // ---------- Yeni Onaylanmış Kuruluş ----------
-export async function createNotifiedBody(form: { name: string; identity_no: string; address: string }): Promise<Result> {
+export async function createNotifiedBody(form: {
+  name: string; identity_no?: string; address?: string;
+  short_name?: string; city?: string; country?: string;
+}): Promise<Result> {
   try {
     await assertStaff();
-    if (!form.name?.trim()) return { ok: false, error: "Kuruluş adı zorunlu." };
+    if (!form.name?.trim()) return { ok: false, error: "Ticari ünvan zorunlu." };
     const admin = createAdminClient();
     const { data, error } = await admin.from("notified_bodies").insert({
       name: form.name.trim(),
+      short_name: form.short_name?.trim() || form.name.trim(), // kısa ad boşsa ünvan
       identity_no: form.identity_no?.trim() || null,
+      city: form.city?.trim() || null,
+      country: form.country?.trim() || null,
       address: form.address?.trim() || null,
     }).select("id").single();
     if (error || !data) return { ok: false, error: error?.message ?? "Kuruluş eklenemedi." };
     revalidatePath("/admin/ekipmanlar");
     revalidatePath("/admin/musteriler");
+    revalidatePath("/admin/onaylanmis-kuruluslar");
     return { ok: true, message: "Onaylanmış kuruluş eklendi.", id: data.id };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+export async function updateNotifiedBody(id: string, form: {
+  name: string; identity_no?: string; short_name?: string; city?: string; country?: string;
+}): Promise<Result> {
+  try {
+    await assertStaff();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    if (!form.name?.trim()) return { ok: false, error: "Ticari ünvan zorunlu." };
+    const admin = createAdminClient();
+    const { error } = await admin.from("notified_bodies").update({
+      name: form.name.trim(),
+      short_name: form.short_name?.trim() || form.name.trim(),
+      identity_no: form.identity_no?.trim() || null,
+      city: form.city?.trim() || null,
+      country: form.country?.trim() || null,
+    }).eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/ekipmanlar");
+    revalidatePath("/admin/musteriler");
+    revalidatePath("/admin/onaylanmis-kuruluslar");
+    return { ok: true, message: "Onaylanmış kuruluş güncellendi.", id };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+export async function deleteNotifiedBody(id: string): Promise<Result> {
+  try {
+    await assertStaff();
+    if (!id) return { ok: false, error: "Kayıt bulunamadı." };
+    const admin = createAdminClient();
+    // Referansları çöz (FK engellemesin)
+    await admin.from("certificates").update({ notified_body_id: null }).eq("notified_body_id", id);
+    await admin.from("company_documents").update({ notified_body_id: null }).eq("notified_body_id", id);
+    const { error } = await admin.from("notified_bodies").delete().eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/ekipmanlar");
+    revalidatePath("/admin/musteriler");
+    revalidatePath("/admin/onaylanmis-kuruluslar");
+    return { ok: true, message: "Onaylanmış kuruluş silindi." };
   } catch (e: any) {
     return { ok: false, error: e.message };
   }

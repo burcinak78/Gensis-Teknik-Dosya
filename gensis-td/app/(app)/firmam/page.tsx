@@ -24,7 +24,7 @@ export default async function FirmamPage() {
     admin.from("company_documents")
       .select("id, company_id, doc_type, original_name, issue_date, valid_until, belge_no, notified_body_id, sub_type, parent_id")
       .eq("company_id", companyId).limit(2000),
-    admin.from("notified_bodies").select("id, identity_no, name").order("name"),
+    admin.from("notified_bodies").select("id, identity_no, name, short_name").order("short_name"),
   ]);
   if (!company) redirect("/panel");
 

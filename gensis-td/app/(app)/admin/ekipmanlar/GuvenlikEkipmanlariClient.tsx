@@ -3,15 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  createCertificate, updateCertificate, deleteCertificate, createNotifiedBody,
+  createCertificate, updateCertificate, deleteCertificate,
   createEquipmentModel, updateEquipmentModel, deleteEquipmentModel, createEquipmentBrand,
 } from "../actions";
+import OkFormModal, { OkNB } from "../onaylanmis-kuruluslar/OkFormModal";
 
 type Cat = { id: string; name: string };
 type Brand = { id: string; category_id: string; name: string };
 type Model = { id: string; brand_id: string; name: string; certificate_id: string | null };
 type Cert = { id: string; cert_no: string; notified_body_id: string | null; issue_date: string | null; valid_until: string | null; belge_tipi: string | null; category_id: string | null; firma_adi: string | null };
-type NB = { id: string; identity_no: string | null; name: string; address: string | null };
+type NB = { id: string; identity_no: string | null; name: string; short_name: string | null; city: string | null; country: string | null };
 type ModelCert = { model_id: string; certificate_id: string };
 
 const BELGE_TIPI = [
@@ -183,8 +184,11 @@ function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, firmaOp
   const [suresiz, setSuresiz] = useState(cert ? !cert.valid_until : true); // varsayılan: süresiz
   const [file, setFile] = useState<File | null>(null);
   const [nbs, setNbs] = useState<NB[]>(notifiedBodies);
-  const [showNb, setShowNb] = useState(false);
-  const [nb, setNb] = useState({ name: "", identity_no: "", address: "" });
+  const [okModal, setOkModal] = useState(false);
+  const nbsSorted = useMemo(
+    () => [...nbs].sort((a, b) => tc(a.short_name || a.name).localeCompare(tc(b.short_name || b.name), "tr")),
+    [nbs]
+  );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
@@ -193,12 +197,10 @@ function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, firmaOp
   const req = (v: string) => (bad(v) ? " !border-red-300 !bg-red-50" : "");
   const existingFile = cert ? certFileMap[cert.id] : "";
 
-  async function addNb() {
-    if (!nb.name.trim()) return setErr("Kuruluş adı zorunlu.");
-    const res = await createNotifiedBody(nb);
-    if (!res.ok) return setErr(res.error);
-    const n: NB = { id: (res as any).id, name: nb.name.trim(), identity_no: nb.identity_no.trim() || null, address: nb.address.trim() || null };
-    setNbs((a) => [...a, n]); set("notified_body_id", n.id); setNb({ name: "", identity_no: "", address: "" }); setShowNb(false); setErr(null);
+  function onOkSaved(n: OkNB) {
+    setNbs((a) => [...a.filter((x) => x.id !== n.id), n]);
+    set("notified_body_id", n.id);
+    setOkModal(false); setErr(null);
   }
 
   async function submit() {
@@ -243,9 +245,9 @@ function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, firmaOp
         <Field label="Onaylanmış Kuruluş *">
           <div className="flex gap-2">
             <select className={inp + req(f.notified_body_id)} value={f.notified_body_id} onChange={(e) => set("notified_body_id", e.target.value)}>
-              <option value="">Seçiniz…</option>{nbs.map((n) => <option key={n.id} value={n.id}>{n.identity_no ? `${n.identity_no} · ` : ""}{n.name}</option>)}
+              <option value="">Seçiniz…</option>{nbsSorted.map((n) => <option key={n.id} value={n.id}>{n.identity_no ? `${n.identity_no} · ` : ""}{n.short_name || n.name}</option>)}
             </select>
-            <button type="button" onClick={() => setShowNb((v) => !v)} className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-2 hover:bg-brand-light whitespace-nowrap">{showNb ? "Kapat" : "+ Yeni"}</button>
+            <button type="button" onClick={() => setOkModal(true)} className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-2 hover:bg-brand-light whitespace-nowrap">+ Yeni</button>
           </div>
         </Field>
         <Field label="Verildiği Firma *">
@@ -259,17 +261,7 @@ function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, firmaOp
         </Field>
       </div>
 
-      {showNb && (
-        <div className="mt-3 bg-brand-light/40 border border-brand/15 rounded-lg p-3 space-y-2">
-          <p className="text-xs font-bold text-slate-600">Yeni Onaylanmış Kuruluş</p>
-          <div className="grid grid-cols-3 gap-2">
-            <input className={inp} placeholder="Adı *" value={nb.name} onChange={(e) => setNb((s) => ({ ...s, name: e.target.value }))} />
-            <input className={inp} placeholder="No" value={nb.identity_no} onChange={(e) => setNb((s) => ({ ...s, identity_no: e.target.value }))} />
-            <input className={inp} placeholder="Adres" value={nb.address} onChange={(e) => setNb((s) => ({ ...s, address: e.target.value }))} />
-          </div>
-          <div className="flex justify-end"><button type="button" onClick={addNb} className="text-xs font-bold text-white bg-brand hover:bg-brand-dark px-4 py-2 rounded-lg">Ekle ve Seç</button></div>
-        </div>
-      )}
+      {okModal && <OkFormModal z={60} onClose={() => setOkModal(false)} onSaved={onOkSaved} />}
 
       {err && <div className="mt-3 text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600">{err}</div>}
       <div className="flex items-center justify-end gap-2 pt-3">
