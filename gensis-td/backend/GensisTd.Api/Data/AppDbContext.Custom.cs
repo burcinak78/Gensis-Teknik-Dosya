@@ -18,8 +18,47 @@ public partial class AppDbContext
         .MapEnum<SubscriptionStatus>("subscription_status")
         .MapEnum<TemplateFormat>("template_format");
 
-    partial void OnModelCreatingPartial(ModelBuilder b)
+    public virtual DbSet<PendingChange> PendingChanges { get; set; }
+
+    partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
+        var b = modelBuilder;
+
+        b.Entity<PendingChange>(e =>
+        {
+            e.ToTable("pending_changes", t =>
+            {
+                t.HasCheckConstraint("pending_changes_kind_check", $"kind IN ({SqlList(PendingChange.Kinds)})");
+                t.HasCheckConstraint("pending_changes_status_check", $"status IN ({SqlList(PendingChange.Statuses)})");
+            });
+            e.HasKey(x => x.Id).HasName("pending_changes_pkey");
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.Kind).HasColumnName("kind");
+            e.Property(x => x.CompanyId).HasColumnName("company_id");
+            e.Property(x => x.TargetId).HasColumnName("target_id");
+            e.Property(x => x.EngineerId).HasColumnName("engineer_id");
+            e.Property(x => x.DocType).HasColumnName("doc_type");
+            e.Property(x => x.Payload).HasColumnName("payload").HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb");
+            e.Property(x => x.StoragePath).HasColumnName("storage_path");
+            e.Property(x => x.OriginalName).HasColumnName("original_name");
+            e.Property(x => x.Status).HasColumnName("status").HasDefaultValueSql("'pending'");
+            e.Property(x => x.Note).HasColumnName("note");
+            e.Property(x => x.SubmittedBy).HasColumnName("submitted_by");
+            e.Property(x => x.SubmittedAt).HasColumnName("submitted_at").HasDefaultValueSql("now()");
+            e.Property(x => x.ReviewedBy).HasColumnName("reviewed_by");
+            e.Property(x => x.ReviewedAt).HasColumnName("reviewed_at");
+            e.HasIndex(x => x.Status, "idx_pending_changes_status");
+            e.HasIndex(x => x.CompanyId, "idx_pending_changes_company");
+            e.HasOne<Company>().WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("pending_changes_company_id_fkey");
+            e.HasOne<Engineer>().WithMany().HasForeignKey(x => x.EngineerId).OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("pending_changes_engineer_id_fkey");
+            e.HasOne<Profile>().WithMany().HasForeignKey(x => x.SubmittedBy).OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("pending_changes_submitted_by_fkey");
+            e.HasOne<Profile>().WithMany().HasForeignKey(x => x.ReviewedBy).OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("pending_changes_reviewed_by_fkey");
+        });
+
         // Enum columns skipped by the scaffolder.
         b.Entity<CompanyModuleCert>(e =>
         {
@@ -55,4 +94,6 @@ public partial class AppDbContext
             }
         }
     }
+
+    private static string SqlList(IEnumerable<string> values) => string.Join(", ", values.Select(v => $"'{v}'"));
 }

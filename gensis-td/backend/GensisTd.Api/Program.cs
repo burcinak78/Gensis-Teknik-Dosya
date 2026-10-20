@@ -42,7 +42,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorizationBuilder().AddGensisPolicies();
 
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.AddSingleton<StorageService>();
@@ -66,6 +66,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
 app.UseAuthentication();
+app.UseActor();
 app.UseAuthorization();
 
 app.MapGet("/api/health", async (AppDbContext db) =>

@@ -1238,6 +1238,100 @@ namespace GensisTd.Api.Data.Migrations
                     b.ToTable("notlar", (string)null);
                 });
 
+            modelBuilder.Entity("GensisTd.Api.Data.Entities.PendingChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
+                    b.Property<string>("DocType")
+                        .HasColumnType("text")
+                        .HasColumnName("doc_type");
+
+                    b.Property<Guid?>("EngineerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("engineer_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<string>("OriginalName")
+                        .HasColumnType("text")
+                        .HasColumnName("original_name");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload")
+                        .HasDefaultValueSql("'{}'::jsonb");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasColumnName("status")
+                        .HasDefaultValueSql("'pending'");
+
+                    b.Property<string>("StoragePath")
+                        .HasColumnType("text")
+                        .HasColumnName("storage_path");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("SubmittedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submitted_by");
+
+                    b.Property<Guid?>("TargetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_id");
+
+                    b.HasKey("Id")
+                        .HasName("pending_changes_pkey");
+
+                    b.HasIndex("EngineerId");
+
+                    b.HasIndex("ReviewedBy");
+
+                    b.HasIndex("SubmittedBy");
+
+                    b.HasIndex(new[] { "CompanyId" }, "idx_pending_changes_company");
+
+                    b.HasIndex(new[] { "Status" }, "idx_pending_changes_status");
+
+                    b.ToTable("pending_changes", null, t =>
+                        {
+                            t.HasCheckConstraint("pending_changes_kind_check", "kind IN ('company_edit', 'engineer_new', 'engineer_edit', 'company_doc', 'engineer_doc')");
+
+                            t.HasCheckConstraint("pending_changes_status_check", "status IN ('pending', 'approved', 'rejected')");
+                        });
+                });
+
             modelBuilder.Entity("GensisTd.Api.Data.Entities.Plan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2734,6 +2828,33 @@ namespace GensisTd.Api.Data.Migrations
                         .HasConstraintName("notlar_user_id_fkey");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GensisTd.Api.Data.Entities.PendingChange", b =>
+                {
+                    b.HasOne("GensisTd.Api.Data.Entities.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("pending_changes_company_id_fkey");
+
+                    b.HasOne("GensisTd.Api.Data.Entities.Engineer", null)
+                        .WithMany()
+                        .HasForeignKey("EngineerId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("pending_changes_engineer_id_fkey");
+
+                    b.HasOne("GensisTd.Api.Data.Entities.Profile", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("pending_changes_reviewed_by_fkey");
+
+                    b.HasOne("GensisTd.Api.Data.Entities.Profile", null)
+                        .WithMany()
+                        .HasForeignKey("SubmittedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("pending_changes_submitted_by_fkey");
                 });
 
             modelBuilder.Entity("GensisTd.Api.Data.Entities.Profile", b =>

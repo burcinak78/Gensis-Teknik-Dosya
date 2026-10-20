@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using GensisTd.Api.Data;
 using GensisTd.Api.Data.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -51,12 +50,11 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
-        g.MapGet("/me", async (ClaimsPrincipal principal, AppDbContext db) =>
+        // ActorMiddleware has already rejected missing or inactive profiles.
+        g.MapGet("/me", async (Actor actor, AppDbContext db) =>
         {
-            if (!Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var id))
-                return Results.Unauthorized();
-            var user = await db.Users.Include(u => u.Profile).SingleOrDefaultAsync(u => u.Id == id);
-            return user?.Profile is { IsActive: true } profile ? Results.Ok(UserDto.From(user, profile)) : Results.Unauthorized();
+            var user = await db.Users.Include(u => u.Profile).SingleAsync(u => u.Id == actor.UserId);
+            return Results.Ok(UserDto.From(user, user.Profile!));
         }).RequireAuthorization();
     }
 }
