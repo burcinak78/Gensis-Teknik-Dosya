@@ -425,8 +425,9 @@ export async function GET(req: NextRequest) {
           ["Ada / Pafta / Parsel", adaPaftaParsel],
           ["Asansör Seri No", seriNo],
         ];
-        const tblX = 18, labelW = 130, rowH = 12.5, yTop = PH - 85;
-        const maxVW = PW - 18 - (tblX + labelW) - 2;
+        // Başlık altındaki boş dikdörtgenin içine (ASANSÖR KUYUSU'nun hemen üstü)
+        const tblX = 26, labelW = 120, rowH = 12.5, yTop = PH - 134;
+        const maxVW = PW - 26 - (tblX + labelW) - 2;
         rows.forEach((r, i) => {
           const baseY = yTop - i * rowH - rowH + 3.7;
           p1.drawText(r[0], { x: tblX, y: baseY, size: 8, font: fontB, color: black });
