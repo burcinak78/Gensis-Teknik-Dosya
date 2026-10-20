@@ -92,8 +92,9 @@ export default function NotlarClient({ notlar }: { notlar: Not[] }) {
                     <td className={td + " text-slate-500 whitespace-nowrap"}>{dt(n.created_at)}</td>
                     <td className={td + " text-right whitespace-nowrap"}>
                       <div className="inline-flex items-center gap-3">
-                        <button onClick={() => ertele(n.id)} disabled={busyId === n.id}
-                          className="text-xs font-bold text-brand hover:underline disabled:opacity-50">Ertele</button>
+                        <button onClick={() => ertele(n.id)} disabled={busyId === n.id || !kirmizi}
+                          title={kirmizi ? "" : "Not henüz süresini doldurmadı"}
+                          className="text-xs font-bold text-brand hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed">Ertele</button>
                         <button onClick={() => sil(n.id)} disabled={busyId === n.id}
                           className="text-xs font-bold text-red-600 hover:underline disabled:opacity-50">Sil</button>
                       </div>
