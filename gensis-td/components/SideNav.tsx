@@ -19,6 +19,8 @@ export default function SideNav({
   if (!isMuhasebeci) items.push(
     { href: "/bildirimler", label: "Bildirimler", icon: "notifications", match: (p) => p.startsWith("/bildirimler"), badge: bildirimCount },
   );
+  // Notlar: her kullanıcı kendi notlarını görür
+  items.push({ href: "/notlar", label: "Notlar", icon: "sticky_note_2", match: (p) => p.startsWith("/notlar") });
   // Proje Takip, Bildirimler'in hemen altında
   if (isStaff) items.push({ href: "/proje-takip", label: "Proje Takip", icon: "table_view", match: (p) => p.startsWith("/proje-takip"), badge: takipCount });
   if (isStaff) items.push({ href: "/onaylar", label: "Onay Bekleyenler", icon: "rate_review", match: (p) => p.startsWith("/onaylar"), badge: onayCount });
