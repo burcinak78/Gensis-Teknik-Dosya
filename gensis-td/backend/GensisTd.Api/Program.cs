@@ -75,5 +75,6 @@ app.MapGet("/api/health", async (AppDbContext db) =>
 app.MapAuthEndpoints();
 app.MapCatalogEndpoints();
 app.MapProjectEndpoints();
+app.MapProjectWriteEndpoints();
 
 app.Run();
