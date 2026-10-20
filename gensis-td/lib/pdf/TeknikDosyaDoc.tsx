@@ -1038,7 +1038,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <View style={{ height: 12 }} />
         <R l="Yetkili Kişi" val={c.firma.yetkili} />
         <R l="İmzanın Yeri ve Tarihi" val={`${yer} — …../…../……`} />
-        <R l="Kaşe / İmza" val="" />
+        <View style={st.row}><View style={st.lbl}><Text>Kaşe / İmza</Text></View><View style={st.val}><Text> </Text></View></View>
         <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
       </Page>
     );
