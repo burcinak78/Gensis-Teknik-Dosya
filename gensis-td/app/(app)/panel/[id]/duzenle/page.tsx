@@ -116,6 +116,8 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     durakAdedi: s(project.durak_adedi),
     girisSayisi: s(inp.giris_sayisi),
     asansorSayisi: s(inp.asansor_sayisi) || "1",
+    tamponKabinSayisi: s(inp.tampon_kabin_sayisi) || "1",
+    tamponAgirlikSayisi: s(inp.tampon_agirlik_sayisi) || "1",
     kabinYok: inp.kabin_kilidi_yok === true,
     imzaMakine: inp.imza_makine === true,
     imzaElektrik: inp.imza_elektrik === true,

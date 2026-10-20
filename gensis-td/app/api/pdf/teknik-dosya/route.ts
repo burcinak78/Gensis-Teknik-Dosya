@@ -245,6 +245,27 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Tampon seri_list'i (kabin/ağırlık) ekipman nesnesine ekle — Teknik Komponent & Tescil'de çoklu seri no
+    try {
+      const { data: peqSeri } = await admin.from("project_equipment")
+        .select("slot, seri_list, equipment_categories(code)").eq("project_id", projectId);
+      if (peqSeri) {
+        const ek = ((ctx as any).ekipman = (ctx as any).ekipman || {});
+        for (const r of peqSeri as any[]) {
+          if (r.equipment_categories?.code !== "tampon") continue;
+          const list = Array.isArray(r.seri_list) ? r.seri_list : null;
+          if (!list) continue;
+          if ((r.slot || "kabin") === "agirlik") {
+            ek.tampon_agirlik = { ...(ek.tampon_agirlik || {}), seri_list: list };
+          } else if (ek.tampon_kabin) {
+            ek.tampon_kabin = { ...ek.tampon_kabin, seri_list: list };
+          } else {
+            ek.tampon = { ...(ek.tampon || {}), seri_list: list };
+          }
+        }
+      }
+    } catch { /* tampon seri_list eklenemezse tek seri_no gösterilir */ }
+
     const { data: peq } = await admin.from("project_equipment")
       .select("certificate_id, equipment_categories(code)").eq("project_id", projectId);
     const motorIds = new Set<string>(); const otherIds = new Set<string>();

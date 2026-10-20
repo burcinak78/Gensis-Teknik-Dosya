@@ -32,7 +32,7 @@ export type InitialData = {
   binaAdi: string; montajAdresi: string;
   provinceId: number | ""; districtId: string; districts: District[];
   beyanYuku: number | ""; beyanHizi: string; katAdedi: string; durakAdedi: string;
-  girisSayisi: string; asansorSayisi?: string; imalYili: string; askiTipi: string; katKapisi: string;
+  girisSayisi: string; asansorSayisi?: string; tamponKabinSayisi?: string; tamponAgirlikSayisi?: string; imalYili: string; askiTipi: string; katKapisi: string;
   pafta: string; ada: string; parsel: string; yapiSahibi: string; yapiSahibiAdresi: string;
   asansorSeriNo: string; asansorKimlikNo: string; seyirMesafesi: string; motorGucu: string;
   asansorTipi: string; pistonOlculeri: string; pistonYeri: string; debi: string; uniteBilgisi: string;
@@ -88,9 +88,11 @@ const RANGE_100 = Array.from({ length: 100 }, (_, i) => i + 1);
 // Her kat/giriş için ayrı seri no giren kategoriler:
 //  - kapı kilidi: KAT ADEDİ kadar (kat listesindeki her kat) → kat isimleri; asma katlar pasif
 //  - kabin kapı kilidi: giriş sayısı kadar → "Giriş 1..N"
-const MULTI_SERI: Record<string, { count: "durak" | "giris" | "kat"; label: string }> = {
+const MULTI_SERI: Record<string, { count: "durak" | "giris" | "kat" | "tampon"; label: string }> = {
   kapi_kilidi: { count: "kat", label: "Kat" },
   kabin_kilidi: { count: "giris", label: "Giriş" },
+  // Tampon: adet Asansör adımındaki "Tampon Sayısı" alanından gelir (slot: kabin / ağırlık)
+  tampon: { count: "tampon", label: "Tampon" },
 };
 // Kapı kilidinde her kat için giriş sayısı kadar seri no vardır. Tek bir string olarak
 // "seri1 / seri2" biçiminde saklanır; UI'de giriş sayısı kadar ayrı kutuya bölünür.
@@ -146,6 +148,7 @@ const KARSI_AGIRLIK_YERLERI = ["Sağ", "Sol", "Arka"];
 // Kat başlangıcı: bodrumlar → zemin → 1. kat
 const KAT_BASLANGIC = ["-5B", "-4B", "-3B", "-2B", "-1B", "Z", "1"];
 const RANGE_4 = [1, 2, 3, 4];
+const RANGE_5 = [1, 2, 3, 4, 5];
 
 // Başlangıç katı + kat adedine göre kat etiketlerini üretir (ör. -2B + 6 → -2B,-1B,Z,1,2,3)
 function buildFloors(start: string, count: number): string[] {
@@ -186,6 +189,8 @@ export default function DataEntryWizard(props: Props) {
   const [durakAdedi, setDurakAdedi] = useState(init?.durakAdedi ?? "");
   const [girisSayisi, setGirisSayisi] = useState(init?.girisSayisi ?? "");
   const [asansorSayisi, setAsansorSayisi] = useState(init?.asansorSayisi ?? "1");
+  const [tamponKabinSayisi, setTamponKabinSayisi] = useState(init?.tamponKabinSayisi ?? "1");
+  const [tamponAgirlikSayisi, setTamponAgirlikSayisi] = useState(init?.tamponAgirlikSayisi ?? "1");
   const [imalYili, setImalYili] = useState(init?.imalYili ?? "");
   const [askiTipi, setAskiTipi] = useState(init?.askiTipi ?? "");
   const [katKapisi, setKatKapisi] = useState(init?.katKapisi ?? "");
@@ -378,7 +383,16 @@ export default function DataEntryWizard(props: Props) {
     if (!cfg) return 0;
     if (cfg.count === "kat") return katListesi.length;      // kapı kilidi = kat adedi (kat listesi)
     if (cfg.count === "durak") return Number(durakAdedi || 0);
+    if (cfg.count === "tampon") return 0;                    // tampon: karttan (slot) hesaplanır
     return Number(girisSayisi || 0);                         // giriş
+  };
+  // Kart-farkında adet: tampon slot'una (kabin/ağırlık) göre "Tampon Sayısı"ndan okur
+  const multiCountForCard = (card: { key: string; code: string; slot?: string }) => {
+    if (card.code === "tampon") {
+      const slot = card.slot ?? card.key.split("|")[1];
+      return Math.max(1, Number(slot === "agirlik" ? tamponAgirlikSayisi : tamponKabinSayisi) || 1);
+    }
+    return multiCountForCode(card.code);
   };
   // Asma (ara) kat satırları: kapı kilidinde ara kat karşısındaki seri no PASİF olur
   const araKatLabelSet = useMemo(() => new Set(araKatlar.map((m) => m.label)), [araKatlar]);
@@ -421,7 +435,7 @@ export default function DataEntryWizard(props: Props) {
     // Model seçilmemiş / YOK (marka seçili olsa bile) → ekipman yok kabul edilir, geçerli.
     // Seri no yalnızca model seçildiğinde zorunludur.
     if (!s.modelId) return false;
-    const n = multiCountForCode(card.code);
+    const n = multiCountForCard(card);
     if (n > 0) {
       const list = s.seriList || [];
       for (let i = 0; i < n; i++) {
@@ -579,7 +593,7 @@ export default function DataEntryWizard(props: Props) {
       .map(([key, val]) => {
         const card = equipCards.find((c) => c.key === key)!;
         const model = val.modelId ? props.models.find((m) => m.id === val.modelId) : undefined;
-        const n = multiCountForCode(card.code);
+        const n = multiCountForCard(card);
         // Seri no / sertifika yalnızca model seçiliyse. Marka seçili + model yok → sadece marka kaydedilir.
         let seri_no = val.modelId ? (val.seriNo?.trim() || null) : null;
         let seri_list: string[] | null = null;
@@ -630,6 +644,8 @@ export default function DataEntryWizard(props: Props) {
         asansor_seri_no: asansorSeriNo, asansor_kimlik_no: asansorKimlikNo,
         seyir_mesafesi: seyirMesafesi, motor_gucu: motorGucu, giris_sayisi: girisSayisi,
         asansor_sayisi: asansorSayisi ? Number(asansorSayisi) : 1,
+        tampon_kabin_sayisi: Number(tamponKabinSayisi) || 1,
+        tampon_agirlik_sayisi: isHid ? null : (Number(tamponAgirlikSayisi) || 1),
         kabin_kilidi_yok: kabinYok,
         imza_makine: imzaMakine, imza_elektrik: imzaElektrik,
         asansor_tipi: asansorTipi,
@@ -1269,6 +1285,18 @@ export default function DataEntryWizard(props: Props) {
                     {RANGE_10.map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </Field>
+                <Field label="Kabin Tamponu Sayısı *">
+                  <select className="inp" value={tamponKabinSayisi} onChange={(e) => setTamponKabinSayisi(e.target.value)}>
+                    {RANGE_5.map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </Field>
+                {!isHid && (
+                  <Field label="Ağırlık Tamponu Sayısı *">
+                    <select className="inp" value={tamponAgirlikSayisi} onChange={(e) => setTamponAgirlikSayisi(e.target.value)}>
+                      {RANGE_5.map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </Field>
+                )}
                 <Field label="Askı Tipi *">
                   <select className={"inp" + ec(askiTipi)} value={askiTipi} onChange={(e) => setAskiTipi(e.target.value)}>
                     <option value="">Seçiniz…</option>
@@ -1339,7 +1367,7 @@ export default function DataEntryWizard(props: Props) {
                   const nb = cert?.notified_body_id ? nbById.get(cert.notified_body_id) : undefined;
                   const eksik = showErrors && eqIncomplete(cat);
                   const multiCfg = MULTI_SERI[cat.code];
-                  const multiN = multiCountForCode(cat.code);
+                  const multiN = multiCountForCard(cat);
                   const kabinKilidi = cat.code === "kabin_kilidi";
                   const gizli = kabinKilidi && kabinYok; // Kabin Kapı Kilidi "Yok" → seçim alanları gizli
                   return (

@@ -299,6 +299,14 @@ function teknikKomponentPage(c: any) {
   // Yukarı yön aşırı hızlanma: askı 1/1 ise fren bloğu, 2/1/4/1 ise makine motoru
   const yukari = aski.startsWith("1/1") ? (eq.fren_blogu || {}) : (eq.motor || {});
   const kurulus = (e: any) => [e?.kurulus_no, e?.onaylanmis_kurulus].filter(Boolean).join(" ");
+  // Tampon satırları: kapı kilidi gibi her tampon için ayrı seri no (seri_list)
+  const tamponAd = (ad: string) => ad === "Kabin Tamponu" || ad === "Ağırlık Tamponu";
+  const tamponAlt = (e: any): { ad: string; seri: string }[] => {
+    const list = (Array.isArray(e?.seri_list) ? e.seri_list : []).map((x: any) => String(x ?? "").trim());
+    const nz = list.filter(Boolean);
+    if (nz.length > 1) return nz.map((s: string, i: number) => ({ ad: `${i + 1}.`, seri: s }));
+    return [{ ad: "", seri: nz[0] || vb(e?.seri_no) }];
+  };
   // Hidrolik valfleri kategori ADINA göre bul (kod Supabase'te tanımlı; ada göre eşleştir)
   const cats: any[] = c.equipCats || [];
   const findEqByName = (patterns: string[]) => {
@@ -394,16 +402,21 @@ function teknikKomponentPage(c: any) {
           <KBlok ad="Kabin Kapısı Kilitleme Tertibatı" e={kbk} alt={girisler} />
         )}
 
-        {satirlar.map(([ad, e], i) => (
-          <View style={st.kRow} key={i}>
-            <Text style={[st.kC, { width: "34%", fontSize: fitFs(ad, 34) }]}>{ad}</Text>
-            <Text style={[st.kC, { width: KW.marka, fontSize: fitFs(e?.marka, 14) }]}>{vb(e?.marka)}</Text>
-            <Text style={[st.kC, { width: KW.tip, fontSize: fitFs(e?.model, 14) }]}>{vb(e?.model)}</Text>
-            <Text style={[st.kC, { width: KW.seri, fontSize: fitFs(e?.seri_no, 14) }]}>{vb(e?.seri_no)}</Text>
-            <Text style={[st.kC, { width: KW.sert, fontSize: fitFs(e?.sertifika_no, 12) }]}>{vb(e?.sertifika_no)}</Text>
-            <Text style={[st.kC, { width: KW.kur, fontSize: fitFs(kurulus(e), 12) }]}>{kurulus(e)}</Text>
-          </View>
-        ))}
+        {satirlar.map(([ad, e], i) =>
+          tamponAd(ad) ? (
+            // Tamponlar kapı kilidi gibi: her tampon için ayrı seri no satırı
+            <KBlok key={i} ad={ad} e={e} alt={tamponAlt(e)} />
+          ) : (
+            <View style={st.kRow} key={i}>
+              <Text style={[st.kC, { width: "34%", fontSize: fitFs(ad, 34) }]}>{ad}</Text>
+              <Text style={[st.kC, { width: KW.marka, fontSize: fitFs(e?.marka, 14) }]}>{vb(e?.marka)}</Text>
+              <Text style={[st.kC, { width: KW.tip, fontSize: fitFs(e?.model, 14) }]}>{vb(e?.model)}</Text>
+              <Text style={[st.kC, { width: KW.seri, fontSize: fitFs(e?.seri_no, 14) }]}>{vb(e?.seri_no)}</Text>
+              <Text style={[st.kC, { width: KW.sert, fontSize: fitFs(e?.sertifika_no, 12) }]}>{vb(e?.sertifika_no)}</Text>
+              <Text style={[st.kC, { width: KW.kur, fontSize: fitFs(kurulus(e), 12) }]}>{kurulus(e)}</Text>
+            </View>
+          )
+        )}
       </View>
 
       <Footer unvan={c.footerUnvan} alt={c.footerAlt} />
@@ -694,6 +707,13 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
     const kilitSeriMetin = kilitPairs.length
       ? kilitPairs.map((x) => `${x.ad}: ${x.seri}`).join("   ")
       : (kk.seri_no || "");
+    // Güvenlik aksamı seri no'su: durak kilidi → kat:seri; tampon → çoklu seri; diğer → tek seri
+    const aksamSeri = (lab: string, e: any): string => {
+      if (lab === "Durak kapılarını kilitleme tertibatı") return kilitSeriMetin;
+      const list = (Array.isArray(e?.seri_list) ? e.seri_list : []).map((x: any) => String(x ?? "").trim()).filter(Boolean);
+      if (list.length) return list.join("   ");
+      return e?.seri_no || "";
+    };
     // Çıktıda 3 kopya (arka arkaya) — her biri aynı içerik
     const makeTescil = (copy: number) => (
       <Page key={`tescil-${copy}`} size="A4" style={st.pageForm}>
@@ -729,7 +749,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
               <Text style={st.fc1} numberOfLines={2}>{lab}</Text>
               <Text style={st.fc2} numberOfLines={2}>{e?.marka || ""}</Text>
               <Text style={st.fc3} numberOfLines={2}>{e?.model || ""}</Text>
-              <Text style={st.fc4} numberOfLines={3}>{i === 0 ? kilitSeriMetin : (e?.seri_no || "")}</Text>
+              <Text style={st.fc4} numberOfLines={3}>{aksamSeri(lab, e)}</Text>
             </View>
           ))}
           <FSection>MEVZUAT</FSection>
