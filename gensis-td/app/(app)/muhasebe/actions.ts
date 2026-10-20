@@ -21,7 +21,7 @@ export type MuhasebePayload = {
   takip_id: string;
   fatura_tarihi: string | null;
   fatura_no: string | null;
-  cariye_islendi: boolean;
+  teslim_tarihi: string | null;
   teslim_yontemi: "elden" | "kargo" | null;
   kargo_sirketi: string | null;
   kargo_takip_no: string | null;
@@ -33,44 +33,41 @@ export async function saveMuhasebe(p: MuhasebePayload): Promise<Result> {
     if (!p.takip_id) return { ok: false, error: "Kayıt yok." };
     const admin = createAdminClient();
 
-    // Kaynak gerçek: takip kaydından fatura/teslim tipini al
+    // Kaynak gerçek: takip kaydından teslim tipini al
     const { data: takip } = await admin.from("takip_projeler")
-      .select("fatura_tipi, teslim_tipi, muhasebeye_gonderildi").eq("id", p.takip_id).maybeSingle();
+      .select("teslim_tipi, muhasebeye_gonderildi").eq("id", p.takip_id).maybeSingle();
     if (!takip) return { ok: false, error: "Proje bulunamadı." };
     if (!takip.muhasebeye_gonderildi) return { ok: false, error: "Bu proje henüz muhasebeye gönderilmedi." };
 
-    // Zorunlu alan doğrulaması
-    if (takip.fatura_tipi === "faturali") {
-      if (!p.fatura_tarihi) return { ok: false, error: "Fatura tarihi zorunludur." };
-      if (!p.fatura_no?.trim()) return { ok: false, error: "Fatura no zorunludur." };
-    }
-    if (!p.cariye_islendi) return { ok: false, error: "Cariye işleme (Tamamlandı) zorunludur." };
+    // Fatura alanları opsiyonel (– ile geçilebilir)
+    const fatura_tarihi = p.fatura_tarihi || null;
+    const fatura_no = p.fatura_no?.trim() || null;
+    const teslim_tarihi = p.teslim_tarihi || null;
 
-    const bugun = new Date().toISOString().slice(0, 10);
-    let teslim_tarihi = bugun;
     let teslim_yontemi: string | null = null;
     let kargo_sirketi: string | null = null;
     let kargo_takip_no: string | null = null;
-
     if (takip.teslim_tipi === "hard_copy") {
-      if (!p.teslim_yontemi) return { ok: false, error: "Elden / Kargo seçiniz." };
-      teslim_yontemi = p.teslim_yontemi;
+      teslim_yontemi = p.teslim_yontemi ?? null;
       if (p.teslim_yontemi === "kargo") {
-        if (!p.kargo_sirketi?.trim()) return { ok: false, error: "Kargo şirketi zorunludur." };
-        if (!p.kargo_takip_no?.trim()) return { ok: false, error: "Kargo takip no zorunludur." };
-        kargo_sirketi = p.kargo_sirketi.trim();
-        kargo_takip_no = p.kargo_takip_no.trim();
+        kargo_sirketi = p.kargo_sirketi?.trim() || null;
+        kargo_takip_no = p.kargo_takip_no?.trim() || null;
       }
-      teslim_tarihi = bugun; // elden ve kargo için bugün
-    } else {
-      teslim_tarihi = bugun; // dijital
     }
+
+    // "Teslim edildi" (tamamlandı) için tüm teslim bilgileri dolu olmalı.
+    // Fatura bilgileri opsiyoneldir; tamamlanmayı etkilemez.
+    const hard = takip.teslim_tipi === "hard_copy";
+    const teslimTamam = hard
+      ? (!!teslim_yontemi && (teslim_yontemi !== "kargo" || (!!kargo_sirketi && !!kargo_takip_no)))
+      : true;
+    const tamam = !!teslim_tarihi && teslimTamam;
 
     const { error } = await admin.from("takip_muhasebe").upsert({
       takip_id: p.takip_id,
-      fatura_tarihi: takip.fatura_tipi === "faturali" ? p.fatura_tarihi : null,
-      fatura_no: takip.fatura_tipi === "faturali" ? (p.fatura_no?.trim() || null) : null,
-      cariye_islendi: true,
+      fatura_tarihi,
+      fatura_no,
+      cariye_islendi: tamam,
       teslim_yontemi,
       kargo_sirketi,
       kargo_takip_no,
@@ -81,13 +78,13 @@ export async function saveMuhasebe(p: MuhasebePayload): Promise<Result> {
     if (error) return { ok: false, error: error.message };
 
     const { error: uErr } = await admin.from("takip_projeler")
-      .update({ muhasebe_durumu: "tamamlandi", updated_at: new Date().toISOString() })
+      .update({ muhasebe_durumu: tamam ? "tamamlandi" : "bekliyor", updated_at: new Date().toISOString() })
       .eq("id", p.takip_id);
     if (uErr) return { ok: false, error: uErr.message };
 
     revalidatePath("/muhasebe");
     revalidatePath("/proje-takip");
-    return { ok: true, message: "Muhasebe işlemi kaydedildi, teslim tamamlandı." };
+    return { ok: true, message: tamam ? "Kaydedildi — teslim edildi." : "Kaydedildi (eksik bilgi — işlem bekliyor)." };
   } catch (e: any) {
     return { ok: false, error: e.message };
   }

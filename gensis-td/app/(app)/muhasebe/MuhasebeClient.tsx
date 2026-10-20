@@ -64,7 +64,7 @@ export default function MuhasebeClient({
       if (f.firma && r.company_id !== f.firma) return false;
       if (f.adaParsel && !tc(r.ada_parsel).includes(tc(f.adaParsel))) return false;
       if (f.isAdi && !tc(r.is_adi).includes(tc(f.isAdi))) return false;
-      if (f.fatura && r.fatura_tipi !== f.fatura) return false;
+      if (f.fatura && !tc(r.muhasebe?.fatura_no).includes(tc(f.fatura))) return false;
       if (f.teslim && r.teslim_tipi !== f.teslim) return false;
       return true;
     });
@@ -126,7 +126,7 @@ export default function MuhasebeClient({
                   <th className={th}>Ada/Parsel</th>
                   <th className={th}>İşin Adı</th>
                   <th className={th}>Toplam Tutar</th>
-                  <th className={th}>Fatura</th>
+                  <th className={th}>Fatura No</th>
                   <th className={th}>Teslim Tipi</th>
                   <th className={th}>Teslim Tarihi</th>
                   <th className={th}>İşlem</th>
@@ -157,11 +157,7 @@ export default function MuhasebeClient({
                     <th className={fTh}><input className={fInp} value={f.adaParsel} onChange={(e) => setFilter("adaParsel", e.target.value)} placeholder="Ada/Parsel" /></th>
                     <th className={fTh}><input className={fInp} value={f.isAdi} onChange={(e) => setFilter("isAdi", e.target.value)} placeholder="İşin adı" /></th>
                     <th className={fTh}></th>
-                    <th className={fTh}>
-                      <select className={fInp} value={f.fatura} onChange={(e) => setFilter("fatura", e.target.value)}>
-                        <option value="">Hepsi</option><option value="faturali">Faturalı</option><option value="faturasiz">Faturasız</option>
-                      </select>
-                    </th>
+                    <th className={fTh}><input className={fInp} value={f.fatura} onChange={(e) => setFilter("fatura", e.target.value)} placeholder="Fatura No" /></th>
                     <th className={fTh}>
                       <select className={fInp} value={f.teslim} onChange={(e) => setFilter("teslim", e.target.value)}>
                         <option value="">Hepsi</option><option value="hard_copy">Hard Copy</option><option value="dijital">Dijital</option>
@@ -203,7 +199,7 @@ export default function MuhasebeClient({
                       <td className={td + " text-slate-500"}>{r.ada_parsel ?? "—"}</td>
                       <td className={td}>{r.is_adi ?? "—"}</td>
                       <td className={td + " font-semibold"}>{money(r.toplam_tutar)}</td>
-                      <td className={td}>{r.fatura_tipi === "faturali" ? "Faturalı" : r.fatura_tipi === "faturasiz" ? "Faturasız" : "—"}</td>
+                      <td className={td + " text-slate-500"}>{r.muhasebe?.fatura_no ?? "—"}</td>
                       <td className={td}>{teslimText(r)}</td>
                       <td className={td + " text-slate-500"}>{dt(r.muhasebe?.teslim_tarihi)}</td>
                       <td className={td + " text-right"}>
@@ -236,42 +232,36 @@ export default function MuhasebeClient({
 
 function MuhModal({ row, firmaAd, forceEdit, viewOnly, onClose, onSaved }: { row: Row; firmaAd: string; forceEdit?: boolean; viewOnly?: boolean; onClose: () => void; onSaved: () => void }) {
   const m = row.muhasebe;
-  const faturali = row.fatura_tipi === "faturali";
   const hardCopy = row.teslim_tipi === "hard_copy";
   const bugun = new Date().toISOString().slice(0, 10);
 
   const [faturaTarihi, setFaturaTarihi] = useState(m?.fatura_tarihi ?? "");
   const [faturaNo, setFaturaNo] = useState(m?.fatura_no ?? "");
-  const [cariye, setCariye] = useState(m?.cariye_islendi ?? false);
+  const [teslimTarihi, setTeslimTarihi] = useState(m?.teslim_tarihi ?? bugun);
   const [yontem, setYontem] = useState(m?.teslim_yontemi ?? "");
   const [kargoSirket, setKargoSirket] = useState(m?.kargo_sirketi ?? "");
   const [kargoNo, setKargoNo] = useState(m?.kargo_takip_no ?? "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [touched, setTouched] = useState(false);
 
   const readonly = !!viewOnly || (!!m?.cariye_islendi && !forceEdit);
-  const teslimTarihi = m?.teslim_tarihi ?? bugun;
 
-  const req = (bad: boolean) => (touched && bad ? " border-red-400 bg-red-50" : "");
+  // "Teslim edildi" için gereken bilgiler tam mı? (fatura opsiyonel)
+  const teslimTamam = hardCopy
+    ? (!!yontem && (yontem !== "kargo" || (!!kargoSirket.trim() && !!kargoNo.trim())))
+    : true;
+  const tamam = !!teslimTarihi && teslimTamam;
 
   async function submit() {
-    setTouched(true); setErr(null);
-    if (faturali && !faturaTarihi) return setErr("Fatura tarihi zorunludur.");
-    if (faturali && !faturaNo.trim()) return setErr("Fatura no zorunludur.");
-    if (!cariye) return setErr("Cariye işleme (Tamamlandı) zorunludur.");
-    if (hardCopy && !yontem) return setErr("Elden / Kargo seçiniz.");
-    if (hardCopy && yontem === "kargo" && !kargoSirket.trim()) return setErr("Kargo şirketi zorunludur.");
-    if (hardCopy && yontem === "kargo" && !kargoNo.trim()) return setErr("Kargo takip no zorunludur.");
-    setBusy(true);
+    setErr(null); setBusy(true);
     const payload: MuhasebePayload = {
       takip_id: row.id,
-      fatura_tarihi: faturali ? (faturaTarihi || null) : null,
-      fatura_no: faturali ? (faturaNo.trim() || null) : null,
-      cariye_islendi: cariye,
-      teslim_yontemi: hardCopy ? (yontem as any) : null,
-      kargo_sirketi: hardCopy && yontem === "kargo" ? kargoSirket.trim() : null,
-      kargo_takip_no: hardCopy && yontem === "kargo" ? kargoNo.trim() : null,
+      fatura_tarihi: faturaTarihi || null,
+      fatura_no: faturaNo.trim() || null,
+      teslim_tarihi: teslimTarihi || null,
+      teslim_yontemi: hardCopy ? ((yontem || null) as any) : null,
+      kargo_sirketi: hardCopy && yontem === "kargo" ? (kargoSirket.trim() || null) : null,
+      kargo_takip_no: hardCopy && yontem === "kargo" ? (kargoNo.trim() || null) : null,
     };
     const res = await saveMuhasebe(payload);
     setBusy(false);
@@ -292,9 +282,7 @@ function MuhModal({ row, firmaAd, forceEdit, viewOnly, onClose, onSaved }: { row
             <Info l="Firma" v={firmaAd} />
             <Info l={row.td_no ? "TD No" : "Proje No"} v={row.td_no ?? String(row.proje_no)} />
             <Info l="Ada / Parsel" v={row.ada_parsel ?? "—"} />
-            <Info l="Fiyat" v={money(row.fiyat)} />
-            <Info l="Fatura" v={faturali ? "Faturalı" : "Faturasız"} />
-            <Info l="Toplam" v={money(row.toplam_tutar)} />
+            <Info l="Fiyat (KDV Hariç)" v={money(row.fiyat)} />
             <Info l="Teslim Tipi" v={hardCopy ? `Hard Copy (${row.hard_copy_adedi ?? "?"} adet)` : "Dijital"} />
           </div>
 
@@ -305,30 +293,23 @@ function MuhModal({ row, firmaAd, forceEdit, viewOnly, onClose, onSaved }: { row
           )}
           {readonly && !viewOnly && (
             <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm text-green-800">
-              ✓ Bu proje teslim edildi ({dt(teslimTarihi)}). Kayıt görüntüleniyor.
+              ✓ Bu proje teslim edildi ({dt(m?.teslim_tarihi)}). Kayıt görüntüleniyor.
             </div>
           )}
 
-          {/* Girilecek alanlar */}
-          {faturali && (
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Fatura Tarihi *">
-                <input type="date" disabled={readonly} className={inp + req(!faturaTarihi)} value={faturaTarihi} onChange={(e) => setFaturaTarihi(e.target.value)} />
-              </Field>
-              <Field label="Fatura No *">
-                <input disabled={readonly} className={inp + req(!faturaNo.trim())} value={faturaNo} onChange={(e) => setFaturaNo(e.target.value)} />
-              </Field>
-            </div>
-          )}
+          {/* Fatura bilgileri — opsiyonel, boş bırakılabilir (– ile geçilebilir) */}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Fatura Tarihi">
+              <input type="date" disabled={readonly} className={inp} value={faturaTarihi} onChange={(e) => setFaturaTarihi(e.target.value)} />
+            </Field>
+            <Field label="Fatura No">
+              <input disabled={readonly} className={inp} value={faturaNo} onChange={(e) => setFaturaNo(e.target.value)} placeholder="– ile geçebilirsiniz" />
+            </Field>
+          </div>
 
-          <label className={`flex items-center gap-2 text-sm font-semibold cursor-pointer px-3 py-2 rounded-lg border ${touched && !cariye ? "border-red-400 bg-red-50" : "border-slate-200"}`}>
-            <input type="checkbox" disabled={readonly} checked={cariye} onChange={(e) => setCariye(e.target.checked)} className="w-4 h-4 accent-brand" />
-            Cariye İşleme — Tamamlandı *
-          </label>
-
-          {hardCopy ? (
+          {hardCopy && (
             <div className="border border-slate-200 rounded-lg p-3 space-y-3">
-              <Field label="Teslim Şekli *">
+              <Field label="Teslim Şekli">
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <input type="radio" name="yontem" disabled={readonly} checked={yontem === "elden"} onChange={() => setYontem("elden")} className="accent-brand" /> Elden
@@ -337,26 +318,30 @@ function MuhModal({ row, firmaAd, forceEdit, viewOnly, onClose, onSaved }: { row
                     <input type="radio" name="yontem" disabled={readonly} checked={yontem === "kargo"} onChange={() => setYontem("kargo")} className="accent-brand" /> Kargo
                   </label>
                 </div>
-                {touched && !yontem && <p className="text-[11px] text-red-500 mt-1">Elden veya Kargo seçiniz.</p>}
               </Field>
               {yontem === "kargo" && (
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Kargo Şirketi *">
-                    <input disabled={readonly} className={inp + req(!kargoSirket.trim())} value={kargoSirket} onChange={(e) => setKargoSirket(e.target.value)} />
+                  <Field label="Kargo Şirketi">
+                    <input disabled={readonly} className={inp} value={kargoSirket} onChange={(e) => setKargoSirket(e.target.value)} />
                   </Field>
-                  <Field label="Kargo Takip No *">
-                    <input disabled={readonly} className={inp + req(!kargoNo.trim())} value={kargoNo} onChange={(e) => setKargoNo(e.target.value)} />
+                  <Field label="Kargo Takip No">
+                    <input disabled={readonly} className={inp} value={kargoNo} onChange={(e) => setKargoNo(e.target.value)} />
                   </Field>
                 </div>
               )}
-              <Field label="Teslim Tarihi (otomatik)">
-                <input disabled className={inp + " bg-slate-50 text-slate-500"} value={dt(teslimTarihi)} />
-              </Field>
             </div>
-          ) : (
-            <Field label="Teslim Tarihi (otomatik)">
-              <input disabled className={inp + " bg-slate-50 text-slate-500"} value={dt(teslimTarihi)} />
-            </Field>
+          )}
+
+          <Field label="Teslim Tarihi">
+            <input type="date" disabled={readonly} className={inp} value={teslimTarihi} onChange={(e) => setTeslimTarihi(e.target.value)} />
+          </Field>
+
+          {!readonly && (
+            <div className={`text-xs px-3 py-2 rounded-lg ${tamam ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+              {tamam
+                ? "Tüm bilgiler tamam — kaydedildiğinde “Teslim edildi” olarak işaretlenecek."
+                : "Eksik bilgi var — kaydedilebilir ancak “İşlem bekliyor” olarak kalır."}
+            </div>
           )}
 
           {err && <div className="text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600">{err}</div>}
