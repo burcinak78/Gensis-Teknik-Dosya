@@ -457,21 +457,13 @@ export default function YeniProjeForm({
                   {kilitli && (
                     <div className="text-xs text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 inline-flex items-center gap-1.5 mb-1">
                       <span className="material-symbols-rounded text-[16px]">lock</span>
-                      Muhasebe tarafından teslim edildi — fiyat, fatura durumu ve teslim/tamamlanma bilgileri değiştirilemez.
+                      Muhasebe tarafından teslim edildi — fiyat ve teslim/tamamlanma bilgileri değiştirilemez.
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="Fiyat">
-                      <input type="number" min={0} step="0.01" disabled={kilitli} className={inp + (kilitli ? " bg-slate-100 text-slate-500" : "")} value={f.fiyat} onChange={(e) => set("fiyat", e.target.value)} placeholder="0.00" />
-                      <p className="text-[11px] font-bold text-amber-600 mt-1">⚠ KDV HARİÇ GİRİNİZ</p>
-                    </Field>
-                    <Field label="Fatura Durumu">
-                      <select className={inp + (kilitli ? " bg-slate-100 text-slate-500" : "")} disabled={kilitli} value={f.fatura_tipi} onChange={(e) => set("fatura_tipi", e.target.value)}>
-                        <option value="faturasiz">Faturasız</option>
-                        <option value="faturali">Faturalı (%20 KDV eklenir)</option>
-                      </select>
-                    </Field>
-                  </div>
+                  <Field label="Fiyat (KDV Hariç)">
+                    <input type="number" min={0} step="0.01" disabled={kilitli} className={inp + (kilitli ? " bg-slate-100 text-slate-500" : "")} value={f.fiyat} onChange={(e) => set("fiyat", e.target.value)} placeholder="0.00" />
+                    <p className="text-[11px] font-bold text-amber-600 mt-1">⚠ KDV HARİÇ GİRİNİZ</p>
+                  </Field>
                   <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 flex items-center justify-between">
                     <span className="text-sm font-semibold text-slate-600">Toplam Tutar</span>
                     <span className="text-xl font-extrabold text-navy">{money(toplam)}</span>

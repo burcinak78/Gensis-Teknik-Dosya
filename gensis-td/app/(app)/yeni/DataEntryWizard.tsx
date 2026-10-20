@@ -1552,20 +1552,13 @@ export default function DataEntryWizard(props: Props) {
                 {muhasebeKilit && (
                   <div className="text-xs text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 inline-flex items-center gap-1.5">
                     <span className="material-symbols-rounded text-[16px]">lock</span>
-                    Muhasebe tarafından teslim edildi — fiyat, fatura durumu ve teslim tipi değiştirilemez.
+                    Muhasebe tarafından teslim edildi — fiyat ve teslim tipi değiştirilemez.
                   </div>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <Field label="Fiyat (TL)">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Field label="Fiyat (KDV Hariç)">
                     <input className="inp disabled:bg-slate-100 disabled:text-slate-500" disabled={muhasebeKilit} value={fiyat} onChange={(e) => setFiyat(formatThousands(e.target.value))} placeholder="Örn. 25.000" inputMode="numeric" />
                     <p className="text-[11px] text-amber-600 font-semibold mt-1">KDV HARİÇ GİRİNİZ</p>
-                  </Field>
-                  <Field label="Fatura Durumu">
-                    <select className="inp disabled:bg-slate-100 disabled:text-slate-500" disabled={muhasebeKilit} value={faturali} onChange={(e) => setFaturali(e.target.value)}>
-                      <option value="faturali">Faturalı</option>
-                      <option value="faturasiz">Faturasız</option>
-                    </select>
-                    {faturali === "faturali" && <p className="text-[11px] text-slate-500 mt-1">%20 KDV eklenir</p>}
                   </Field>
                   <Field label="Teslim Tipi">
                     <select className="inp disabled:bg-slate-100 disabled:text-slate-500" disabled={muhasebeKilit} value={teslimTipi} onChange={(e) => setTeslimTipi(e.target.value)}>
@@ -1574,9 +1567,6 @@ export default function DataEntryWizard(props: Props) {
                     </select>
                   </Field>
                 </div>
-                {fiyatSayi > 0 && faturali === "faturali" && (
-                  <div className="text-xs text-slate-500">Toplam (KDV dahil): <b>{formatThousands(String(Math.round(fiyatSayi * 1.2)))} TL</b></div>
-                )}
                 {!muhasebeKilit && (
                   <div className="flex flex-wrap gap-2 pt-1">
                     {fiyatSayi > 0 ? (
