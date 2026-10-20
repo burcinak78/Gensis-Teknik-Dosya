@@ -104,7 +104,7 @@ const st = StyleSheet.create({
   ckbox: { width: 11, height: 11, borderWidth: 0.9, borderColor: "#000000", borderRadius: 2, marginRight: 8 },
 
   // Teknik & Komponent Listesi (Excel birebir, tek sayfa)
-  kPage: { fontFamily: "Roboto", fontSize: 8, color: "#000000", paddingTop: Math.round(1.5 * CM * 10) / 10, paddingLeft: ML, paddingRight: MR, paddingBottom: 30, lineHeight: 1.2 },
+  kPage: { fontFamily: "Roboto", fontSize: 8, color: "#000000", paddingTop: Math.round(3 * CM * 10) / 10, paddingLeft: ML, paddingRight: MR, paddingBottom: 30, lineHeight: 1.2 },
   kTitle: { textAlign: "center", fontWeight: "bold", fontSize: 12, color: "#000000", marginBottom: 20 },
   kInfoRow: { flexDirection: "row", paddingVertical: 1 },
   kLbl: { width: "26%", fontSize: 10, fontWeight: "bold", color: "#000000" },
