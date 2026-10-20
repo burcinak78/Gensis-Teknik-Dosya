@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { COUNTRIES } from "@/lib/countries";
+import { COUNTRIES, TR_PROVINCES } from "@/lib/countries";
 import { createNotifiedBody, updateNotifiedBody } from "../actions";
 
 export type OkNB = {
@@ -87,7 +87,14 @@ export default function OkFormModal({
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Şehir</label>
-              <input className={inp} value={f.city} onChange={(e) => set("city", e.target.value)} placeholder="Şehir" />
+              {f.country === "Türkiye" ? (
+                <select className={inp} value={f.city} onChange={(e) => set("city", e.target.value)}>
+                  <option value="">Seçiniz…</option>
+                  {TR_PROVINCES.map((il) => <option key={il} value={il}>{il}</option>)}
+                </select>
+              ) : (
+                <input className={inp} value={f.city} onChange={(e) => set("city", e.target.value)} placeholder="Şehir" />
+              )}
             </div>
           </div>
           {err && <div className="text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600">{err}</div>}
