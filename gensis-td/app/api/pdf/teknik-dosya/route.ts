@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
   // Kullanma ve Bakım Kılavuzu: asansör tipi + askı tipine göre hazır PDF
   const cIsHid = (ctx as any)?.asansor_tipi === "hidrolik";
   const cAski = String((ctx as any)?.aski_tipi || "");
-  const kilavuzFile = cIsHid ? "KK_HID.pdf" : (cAski.startsWith("1/1") ? "KK_E_MR.pdf" : "KK_E_MRL.pdf");
+  const kilavuzFile = cIsHid ? "KBT_H.pdf" : (cAski.startsWith("1/1") ? "KBT_E_1-1.pdf" : "KBT_E_1-2.pdf");
 
   // ---------- Yüklenmiş ekleri topla (hata olursa eksiz üret) ----------
   const admin = createAdminClient();
