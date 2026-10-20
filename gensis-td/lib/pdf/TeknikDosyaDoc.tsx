@@ -679,7 +679,8 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       ["Kabinin düşmesini veya kontrolsüz hareket etmesini engelleyen tertibatlar", eq.fren_blogu || {}],
       ["Aşırı hız sınırlayıcı tertibatlar", eq.hiz_regulatoru || {}],
       ["Kabin Tamponu", eq.tampon_kabin || eq.tampon || {}],
-      ["Ağırlık Tamponu", eq.tampon_agirlik || {}],
+      // Hidrolikte karşı ağırlık yoktur → Ağırlık Tamponu satırı gelmez
+      ...(c.isHid ? [] : ([["Ağırlık Tamponu", eq.tampon_agirlik || {}]] as [string, any][])),
       ["Elektronik aksamları içeren güvenlik şalterleri şeklindeki elektrikli güvenlik tertibatları", eq.kumanda || {}],
     ];
     // Durak kapısı kilitleme tertibatı: kata karşılık gelen seri no'lar (Teknik Komponent tablosuyla aynı mantık)

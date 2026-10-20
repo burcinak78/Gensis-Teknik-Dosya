@@ -364,7 +364,8 @@ export default function DataEntryWizard(props: Props) {
     c.code === "tampon"
       ? [
           { key: `${c.id}|kabin`, catId: c.id, slot: "kabin", code: c.code, label: "Kabin Tamponu" },
-          { key: `${c.id}|agirlik`, catId: c.id, slot: "agirlik", code: c.code, label: "Ağırlık Tamponu" },
+          // Hidrolikte karşı ağırlık yoktur → Ağırlık Tamponu gösterilmez
+          ...(isHid ? [] : [{ key: `${c.id}|agirlik`, catId: c.id, slot: "agirlik", code: c.code, label: "Ağırlık Tamponu" }]),
         ]
       : [{ key: `${c.id}|main`, catId: c.id, slot: "main", code: c.code, label: c.name }]
   );
