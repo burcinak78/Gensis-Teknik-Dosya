@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using GensisTd.Api.Auth;
 using GensisTd.Api.Data;
 using GensisTd.Api.Data.Entities;
+using GensisTd.Api.Projects;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -70,11 +71,7 @@ public static partial class ProjectWriteEndpoints
             if (project is null) return Results.NotFound();
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            // Accounting rows created for this TD go too, unless already posted (cariye işlendi).
-            if (!string.IsNullOrEmpty(project.TdNo))
-                await db.TakipProjelers
-                    .Where(t => t.TdNo == project.TdNo && (t.TakipMuhasebe == null || !t.TakipMuhasebe.CariyeIslendi))
-                    .ExecuteDeleteAsync(ct);
+            await TakipCleanup.RemoveUnpostedAsync(db, project, ct);
             db.Projects.Remove(project); // project_equipment, project_files cascade in the database
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -158,10 +155,15 @@ public static partial class ProjectWriteEndpoints
         // (existing data may contain duplicates), so the lock is what prevents new ones.
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(hashtext('projects.td_no'))", ct);
         var prefix = TdPrefix(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Istanbul).Year);
+        // Takip rows keep the TD number after their project is deleted (posted rows are never removed).
+        // Counting them too stops a deleted project's number from being handed out again and the new
+        // project picking up the old project's accounting rows (they are linked by td_no only).
         // Longest first, then text: keeps TD-26-10000 above TD-26-9999.
-        var last = await db.Projects.Where(p => p.TdNo != null && p.TdNo.StartsWith(prefix))
-            .OrderByDescending(p => p.TdNo!.Length).ThenByDescending(p => p.TdNo)
-            .Select(p => p.TdNo).FirstOrDefaultAsync(ct);
+        var last = await db.Projects.Select(p => p.TdNo)
+            .Concat(db.TakipProjelers.Select(t => t.TdNo))
+            .Where(td => td != null && td.StartsWith(prefix))
+            .OrderByDescending(td => td!.Length).ThenByDescending(td => td)
+            .FirstOrDefaultAsync(ct);
         return NextTdNo(prefix, last);
     }
 

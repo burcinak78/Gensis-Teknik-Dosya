@@ -59,6 +59,8 @@ public static class ProjectEndpoints
                 await q.CountAsync(p => p.Status == ProjectStatus.Delivered, ct));
         });
 
+        g.MapGet("/{id:guid}/render-context", RenderContextAsync);
+
         // Not visible and not existing look the same (404).
         g.MapGet("/{id:guid}", async (Guid id, Actor actor, AppDbContext db, CancellationToken ct) =>
         {
@@ -70,6 +72,20 @@ public static class ProjectEndpoints
                 p.MakineMuhendisId, p.BeyanYukuKg, p.KisiSayisi, p.BeyanHizi, p.KatAdedi, p.DurakAdedi, p.ImalYili,
                 ReadInput(p.InputData), p.Notes, p.CreatedAt, p.UpdatedAt));
         });
+    }
+
+    /// <summary>
+    /// Data for the teknik dosya documents (public.project_render_context). KRR-011: in Supabase the
+    /// function was SECURITY DEFINER and callable over RPC for any project id; here access is checked
+    /// first and the function itself runs as SECURITY INVOKER (migration HardenDbFunctions).
+    /// </summary>
+    public static async Task<IResult> RenderContextAsync(Guid id, Actor actor, AppDbContext db, CancellationToken ct)
+    {
+        if (!await db.Projects.VisibleTo(actor).AnyAsync(p => p.Id == id, ct)) return Results.NotFound();
+        var json = await db.Database
+            .SqlQuery<string>($"SELECT public.project_render_context({id})::text AS \"Value\"")
+            .SingleAsync(ct);
+        return Results.Content(json, "application/json");
     }
 
     /// <summary>First instant of the current month in Turkey, as UTC.</summary>
