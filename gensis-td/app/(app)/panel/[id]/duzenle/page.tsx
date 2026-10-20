@@ -18,6 +18,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     certificates,
     notifiedBodies,
     provinces,
+    ilgiliIdareler,
     capacity,
     lookups,
     engineers,
@@ -36,6 +37,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     supabase.from("certificates").select("id, cert_no, notified_body_id, valid_until"),
     supabase.from("notified_bodies").select("id, identity_no, name, address"),
     supabase.from("provinces").select("id, name").order("name"),
+    supabase.from("ilgili_idareler").select("id, name, province_id, suffix").order("name").limit(8000),
     supabase
       .from("capacity_table")
       .select("beyan_yuku_kg, kisi_sayisi, kabin_agirlik_kg, karsi_agirlik_kg")
@@ -109,6 +111,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
     montajAdresi: project.montaj_adresi ?? inp.montaj_adresi ?? "",
     provinceId: project.province_id ?? "",
     districtId: s(project.district_id),
+    ilgiliIdare: s(inp.ilgili_idare),
     districts,
     beyanYuku: project.beyan_yuku_kg ?? "",
     beyanHizi: s(project.beyan_hizi),
@@ -183,6 +186,7 @@ export default async function DuzenlePage({ params }: { params: { id: string } }
       certificates={certificates.data ?? []}
       notifiedBodies={notifiedBodies.data ?? []}
       provinces={provinces.data ?? []}
+      ilgiliIdareler={ilgiliIdareler.data ?? []}
       capacity={capacity.data ?? []}
       lookups={lookups.data ?? []}
       engineers={engineersWithImza}

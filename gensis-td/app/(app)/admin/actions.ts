@@ -681,13 +681,13 @@ export async function deleteEquipmentModel(id: string): Promise<Result> {
 }
 
 // ---------- İlgili İdareler (Belediye vb.) ----------
-export async function createIlgiliIdare(form: { name: string; address?: string }): Promise<Result> {
+export async function createIlgiliIdare(form: { name: string; address?: string; province_id?: number | null; suffix?: string }): Promise<Result> {
   try {
     await assertStaff();
     if (!form.name?.trim()) return { ok: false, error: "İlgili idare adı zorunlu." };
     const admin = createAdminClient();
     const { data, error } = await admin.from("ilgili_idareler")
-      .insert({ name: form.name.trim(), address: form.address?.trim() || null })
+      .insert({ name: form.name.trim(), address: form.address?.trim() || null, province_id: form.province_id ?? null, suffix: form.suffix || "belediye" })
       .select("id").single();
     if (error || !data) return { ok: false, error: error?.message ?? "İlgili idare eklenemedi." };
     revalidatePath("/admin/ilgili-idareler");
@@ -697,16 +697,17 @@ export async function createIlgiliIdare(form: { name: string; address?: string }
     return { ok: false, error: e.message };
   }
 }
-export async function updateIlgiliIdare(id: string, form: { name: string; address?: string }): Promise<Result> {
+export async function updateIlgiliIdare(id: string, form: { name: string; address?: string; province_id?: number | null; suffix?: string }): Promise<Result> {
   try {
     await assertStaff();
     if (!id) return { ok: false, error: "Kayıt bulunamadı." };
     if (!form.name?.trim()) return { ok: false, error: "İlgili idare adı zorunlu." };
     const admin = createAdminClient();
     const { error } = await admin.from("ilgili_idareler")
-      .update({ name: form.name.trim(), address: form.address?.trim() || null }).eq("id", id);
+      .update({ name: form.name.trim(), address: form.address?.trim() || null, province_id: form.province_id ?? null, suffix: form.suffix || "belediye" }).eq("id", id);
     if (error) return { ok: false, error: error.message };
     revalidatePath("/admin/ilgili-idareler");
+    revalidatePath("/proje-onay");
     return { ok: true, message: "İlgili idare güncellendi." };
   } catch (e: any) {
     return { ok: false, error: e.message };

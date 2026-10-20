@@ -30,7 +30,7 @@ export type InitialData = {
   id: string;
   companyId: string; dosyaNo: string; dosyaTarihi: string;
   binaAdi: string; montajAdresi: string;
-  provinceId: number | ""; districtId: string; districts: District[];
+  provinceId: number | ""; districtId: string; districts: District[]; ilgiliIdare?: string;
   beyanYuku: number | ""; beyanHizi: string; katAdedi: string; durakAdedi: string;
   girisSayisi: string; asansorSayisi?: string; tamponKabinSayisi?: string; tamponAgirlikSayisi?: string; imalYili: string; askiTipi: string; katKapisi: string;
   pafta: string; ada: string; parsel: string; yapiSahibi: string; yapiSahibiAdresi: string;
@@ -56,6 +56,7 @@ export type InitialData = {
 type Props = {
   companies: Company[]; categories: Category[]; brands: Brand[]; models: Model[];
   certificates: Certificate[]; notifiedBodies: NotifiedBody[]; provinces: Province[];
+  ilgiliIdareler?: { id: string; name: string; province_id: number | null; suffix: string | null }[];
   capacity: Capacity[]; lookups: Lookup[];
   engineers: Engineer[]; gensisCompanyId: string | null;
   companyDocuments?: CompanyDoc[];
@@ -183,6 +184,12 @@ export default function DataEntryWizard(props: Props) {
   const [provinceId, setProvinceId] = useState<number | "">(init?.provinceId ?? "");
   const [districtId, setDistrictId] = useState(init?.districtId ?? "");
   const [districts, setDistricts] = useState<District[]>(init?.districts ?? []);
+  // İlgili İdare: registry'den seçilir (il'e göre filtreli); id state'te, ad belgelerde kullanılır
+  const ilgiliIdareler = props.ilgiliIdareler ?? [];
+  const [ilgiliIdareId, setIlgiliIdareId] = useState<string>(
+    () => (init?.ilgiliIdare ? (ilgiliIdareler.find((x) => x.name === init.ilgiliIdare)?.id ?? "") : "")
+  );
+  const ilgiliIdareAdi = ilgiliIdareler.find((x) => x.id === ilgiliIdareId)?.name ?? "";
   const [beyanYuku, setBeyanYuku] = useState<number | "">(init?.beyanYuku ?? "");
   const [beyanHizi, setBeyanHizi] = useState(init?.beyanHizi ?? "");
   const [katAdedi, setKatAdedi] = useState(init?.katAdedi ?? "");
@@ -502,6 +509,7 @@ export default function DataEntryWizard(props: Props) {
     setProvinceId(id);
     setDistrictId("");
     setDistricts([]);
+    setIlgiliIdareId(""); // il değişince ilgili idare seçimini sıfırla
     if (id !== "") {
       const { data } = await supabase.from("districts").select("id, name").eq("province_id", id).order("name").limit(2000);
       setDistricts(data ?? []);
@@ -649,6 +657,7 @@ export default function DataEntryWizard(props: Props) {
         kabin_kilidi_yok: kabinYok,
         imza_makine: imzaMakine, imza_elektrik: imzaElektrik,
         asansor_tipi: asansorTipi,
+        ilgili_idare: ilgiliIdareAdi || null,
         piston_olculeri: pistonOlculeri, piston_yeri: pistonYeri, debi: debi, unite_bilgisi: uniteBilgisi,
         asansor_sinifi: asansorSinifi,
         kapi_genislik: kapiGenislik, kapi_yukseklik: kapiYukseklik,
@@ -1046,6 +1055,13 @@ export default function DataEntryWizard(props: Props) {
                   </select>
                 </Field>
               </div>
+              <Field label="İlgili İdare">
+                <select className="inp" value={ilgiliIdareId} onChange={(e) => setIlgiliIdareId(e.target.value)} disabled={provinceId === ""}>
+                  <option value="">{provinceId === "" ? "Önce il seçin" : "İlgili idare seçiniz…"}</option>
+                  {ilgiliIdareler.filter((x) => x.province_id === provinceId).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">Tescil, dilekçe ve taahhütnamelerde kullanılır. (Yönetim → İlgili İdareler)</p>
+              </Field>
               <div className="grid grid-cols-3 gap-4">
                 <Field label="Pafta *"><input className={"inp" + ec(pafta)} value={pafta} onChange={(e) => setPafta(e.target.value)} /></Field>
                 <Field label="Ada *"><input className={"inp" + ec(ada)} value={ada} onChange={(e) => setAda(e.target.value)} /></Field>

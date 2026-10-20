@@ -57,6 +57,22 @@ const st = StyleSheet.create({
 
 const v = (x: any) => (x !== undefined && x !== null && String(x).trim() !== "" ? String(x) : "");
 
+// İlgili idare adı (registry'den seçilen) + eski belediye fallback'i
+function idareAdi(d: any): string {
+  const sel = String(d?.ilgili_idare || "").trim();
+  if (sel) return sel;
+  const bel = String(d?.belediye || "").trim();
+  return bel ? `${bel} Belediyesi` : "";
+}
+// Dilekçe dative başlığı (BÜYÜK HARF): "…Belediyesi" → +Başkanlığı, "…Başkanlığı" → aynen, çıplak ad → +Belediye Başkanlığı
+function idareBasligi(d: any): string {
+  const n = idareAdi(d);
+  if (!n) return "…………";
+  const low = n.toLocaleLowerCase("tr");
+  const base = low.endsWith("belediyesi") ? `${n} Başkanlığı` : low.endsWith("başkanlığı") ? n : `${n} Belediye Başkanlığı`;
+  return base.toLocaleUpperCase("tr");
+}
+
 function FRow({ l, val }: { l: string; val?: any }) {
   return (
     <View style={st.fRow}>
@@ -105,8 +121,8 @@ function SigRow({ l, val }: { l: string; val?: any }) {
 
 function DilekcePage({ d }: { d: any }) {
   const firmaAdi = v(d.firma_adi) || v(d.firma?.unvan) || "—";
-  // Başlık: seçilmiş İlgili İdare + BAŞKANLIĞI'NA (BELEDİYESİ eklenmez)
-  const idare = (v(d.ilgili_idare) || v(d.belediye) || "…………").toLocaleUpperCase("tr");
+  // Başlık: son eke göre (Belediyesi→+Başkanlığı, Başkanlığı→aynen)
+  const idareBas = idareBasligi(d);
   const il = (v(d.il) || "…………").toLocaleUpperCase("tr");
   const tarih = "…..../…..…/20…"; // otomatik gelmez
   const adet = v(d.adet) || "1";
@@ -118,7 +134,7 @@ function DilekcePage({ d }: { d: any }) {
       {/* Tarihten itibaren içerik sayfa yüksekliğine göre ortalanır */}
       <View style={{ flexGrow: 1, justifyContent: "center" }}>
         <Text style={st.tarih}>{tarih}</Text>
-        <Text style={st.belediye}>{idare} BAŞKANLIĞI'NA,</Text>
+        <Text style={st.belediye}>{idareBas}'NA,</Text>
         <Text style={st.il}>{il}</Text>
         <Text style={st.arz}>
           Aşağıda özellikleri verilmiş olan {adet} adet asansör için proje onayının tarafımıza verilmesini arz ederiz.
@@ -169,7 +185,7 @@ function TaahhutPage({ d, disc }: { d: any; disc: "makine" | "elektrik" }) {
         <TRow l="Telefonu" val={m?.telefon} />
         <TSection>MÜELLİFLİĞİ ÜSTLENİLEN PROJE</TSection>
         <TRow l="İl / İlçe" val={[d.il, d.belediye].filter(Boolean).join(" / ")} />
-        <TRow l="İlgili İdare" val={v(d.ilgili_idare) || (d.belediye ? `${v(d.belediye)} Belediyesi` : "")} />
+        <TRow l="İlgili İdare" val={idareAdi(d)} />
         <TRow l="Pafta / Ada / Parsel No" val={[d.pafta, d.ada, d.parsel].filter(Boolean).join(" / ")} />
         <TRow l="Yapı Adresi" val={d.montaj_adresi} />
         <TRow l="Yapı Sahibi" val={d.yapi_sahibi} />

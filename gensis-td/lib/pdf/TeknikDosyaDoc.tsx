@@ -181,7 +181,7 @@ function taahhutPage(c: any, disc: "makine" | "elektrik") {
         <TRow l="Telefonu" val={m?.telefon} />
         <TSection>MÜELLİFLİĞİ ÜSTLENİLEN PROJE</TSection>
         <TRow l="İl / İlçe" val={[c.d.il, c.d.belediye].filter(Boolean).join(" / ")} />
-        <TRow l="İlgili İdare" val={c.d.belediye ? `${v(c.d.belediye)} Belediyesi` : ""} />
+        <TRow l="İlgili İdare" val={idareAdi(c)} />
         <TRow l="Pafta / Ada / Parsel No" val={[c.inp.pafta, c.inp.ada, c.inp.parsel].filter(Boolean).join(" / ")} />
         <TRow l="Yapı Adresi" val={c.d.montaj_adresi} />
         <TRow l="Yapı Sahibi" val={c.inp.yapi_sahibi} />
@@ -446,6 +446,21 @@ const bsP = { textAlign: "justify" as const, fontSize: 8.6, lineHeight: 1.35, ma
 
 const v = (x: any) => (x !== undefined && x !== null && String(x).trim() !== "" ? String(x) : "—");
 
+// İlgili idare adı: Yönetim→İlgili İdareler'den seçilen (inp.ilgili_idare); yoksa eski davranış (belediye + " Belediyesi")
+function idareAdi(c: any): string {
+  const sel = String(c?.inp?.ilgili_idare || "").trim();
+  if (sel) return sel;
+  const bel = String(c?.d?.belediye || "").trim();
+  return bel ? `${bel} Belediyesi` : "";
+}
+// Dilekçe/başvuru dative başlığı (BÜYÜK HARF): "…Belediyesi" ise sonuna "Başkanlığı" eklenir, "…Başkanlığı" ise eklenmez
+function idareBasligi(c: any): string {
+  const n = idareAdi(c);
+  if (!n) return "…………";
+  const base = n.toLocaleLowerCase("tr").endsWith("belediyesi") ? `${n} Başkanlığı` : n;
+  return base.toLocaleUpperCase("tr");
+}
+
 function R({ l, val, plain }: { l: string; val?: any; plain?: boolean }) {
   // plain: değer kalın değil (normal punto)
   return (
@@ -632,7 +647,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <View style={{ flexGrow: 1, justifyContent: "center" }}>
         <View style={st.topRow}><Text> </Text><Text>…./…./20…</Text></View>
         <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 4 }}>
-          {v(c.d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI'NA
+          {idareBasligi(c)}'NA
         </Text>
         <Text style={{ textAlign: "center", color: "#000000", marginBottom: 18 }}>{v(c.d.il)}</Text>
         <Text style={{ textAlign: "justify", marginBottom: 14, textIndent: 28 }}>
@@ -723,7 +738,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
         <View style={st.fBox}>
           <FRow l="TESCİL TARİHİ" val="" />
           <FRow l="TESCİL KAYIT NUMARASI" val="" />
-          <FRow l="TESCİLİ YAPAN İLGİLİ İDARENİN ADI VE ADRESİ" val={c.d.belediye ? `${String(v(c.d.belediye)).toLocaleUpperCase("tr")} BELEDİYESİ` : ""} max={2} />
+          <FRow l="TESCİLİ YAPAN İLGİLİ İDARENİN ADI VE ADRESİ" val={idareAdi(c).toLocaleUpperCase("tr")} max={2} />
           <FSection>ASANSÖR MONTE EDENE DAİR BİLGİLER</FSection>
           <FRow l="ASANSÖR MONTE EDENİN ADI" val={c.firma.unvan} />
           <FRow l="ASANSÖR MONTE EDENİN ADRESİ" val={c.firma.adres} max={2} />
@@ -1106,7 +1121,7 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
       <Text style={{ textAlign: "center", fontWeight: "bold", color: NAVY, fontSize: 12, marginBottom: 2 }}>MOTOR BEYANNAMESİ</Text>
       <View style={{ height: 48 }} />
       <Text style={{ textAlign: "center", color: "#000000", marginBottom: 16 }}>
-        {v(c.d.belediye).toUpperCase()} BELEDİYE BAŞKANLIĞI'NA
+        {idareBasligi(c)}'NA
       </Text>
       <Text style={[st.p, { textIndent: 28 }]}>
         {v(c.d.montaj_adresi)} adresinde, {v(c.inp.pafta)} pafta {v(c.inp.ada)} ada {v(c.inp.parsel)} parsel

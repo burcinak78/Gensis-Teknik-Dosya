@@ -15,6 +15,7 @@ export default async function YeniPage() {
     certificates,
     notifiedBodies,
     provinces,
+    ilgiliIdareler,
     capacity,
     lookups,
     engineers,
@@ -32,6 +33,7 @@ export default async function YeniPage() {
     supabase.from("certificates").select("id, cert_no, notified_body_id, valid_until"),
     supabase.from("notified_bodies").select("id, identity_no, name, address"),
     supabase.from("provinces").select("id, name").order("name"),
+    supabase.from("ilgili_idareler").select("id, name, province_id, suffix").order("name").limit(8000),
     supabase
       .from("capacity_table")
       .select("beyan_yuku_kg, kisi_sayisi, kabin_agirlik_kg, karsi_agirlik_kg")
@@ -59,6 +61,7 @@ export default async function YeniPage() {
       certificates={certificates.data ?? []}
       notifiedBodies={notifiedBodies.data ?? []}
       provinces={provinces.data ?? []}
+      ilgiliIdareler={ilgiliIdareler.data ?? []}
       capacity={capacity.data ?? []}
       lookups={lookups.data ?? []}
       engineers={engineersWithImza}

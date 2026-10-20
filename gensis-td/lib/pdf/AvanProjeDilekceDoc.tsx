@@ -43,7 +43,12 @@ function Row({ l, val }: { l: string; val?: any }) {
 export function AvanProjeDilekceDoc({ data }: { data: any }) {
   const d = data || {};
   const firmaAdi = v(d.firma_adi) || v(d.firma_unvan) || "—";
-  const belediye = (v(d.belediye) || "…………").toLocaleUpperCase("tr");
+  // İlgili idare seçilmişse son eke göre; değilse eski belediye davranışı
+  const idareSel = String(d.ilgili_idare || "").trim();
+  const low = idareSel.toLocaleLowerCase("tr");
+  const idareBasligi = idareSel
+    ? (low.endsWith("belediyesi") ? `${idareSel} Başkanlığı` : low.endsWith("başkanlığı") ? idareSel : `${idareSel} Belediye Başkanlığı`).toLocaleUpperCase("tr")
+    : `${(v(d.belediye) || "…………").toLocaleUpperCase("tr")} BELEDİYE BAŞKANLIĞI`;
   const il = (v(d.il) || "…………").toLocaleUpperCase("tr");
   const tarih = v(d.tarih) || "…..../…..…/ " + new Date().getFullYear();
   const adet = v(d.adet) || "1";
@@ -57,7 +62,7 @@ export function AvanProjeDilekceDoc({ data }: { data: any }) {
         <Text style={s.firma}>{firmaAdi}</Text>
         <Text style={s.tarih}>{tarih}</Text>
 
-        <Text style={s.belediye}>{belediye} BELEDİYE BAŞKANLIĞI'NA,</Text>
+        <Text style={s.belediye}>{idareBasligi}'NA,</Text>
         <Text style={s.il}>{il}</Text>
 
         <Text style={s.arz}>
