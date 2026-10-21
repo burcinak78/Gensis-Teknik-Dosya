@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import {
   createTakipProje, updateTakipProje, createRevision, completeTakipProje,
   deleteTakipDoc, deleteTakipProje, type TakipPayload,
-} from "./actions";
-import { createCompany } from "@/app/(app)/admin/actions";
-import { uploadTakipFile } from "@/lib/takipUpload";
+  uploadTakipFile,
+} from "./api";
+import { createCompany } from "@/app/(app)/admin/api";
+import { loadDistricts } from "@/app/(app)/yeni/api";
+import { api } from "@/lib/api/client";
+import { toSnake } from "@/lib/api/case";
 
 type Company = { id: string; short_name: string; legal_name: string | null; city: string | null; category?: string | null };
 type Province = { id: number; name: string };
@@ -62,7 +64,6 @@ export default function YeniProjeForm({
   nextNo?: number | null; edit?: EditData;
 }) {
   const router = useRouter();
-  const supabase = createClient();
   const isEdit = !!edit;
   const kilitli = !!edit?.kilitli; // muhasebe teslim edildi → fiyat/fatura/teslim/tamamlanma kilitli
   const [companies, setCompanies] = useState<Company[]>(companiesInit);
@@ -99,8 +100,7 @@ export default function YeniProjeForm({
   // Yeni müşteri Yönetim'de açıldıktan sonra bu sekmeye dönünce firma listesini tazele
   useEffect(() => {
     async function refresh() {
-      const { data } = await supabase.from("companies").select("id, short_name, legal_name, city, category").order("short_name").limit(2000);
-      if (data) setCompanies(data as any);
+      try { setCompanies(toSnake(await api("/api/catalog/companies/names"))); } catch { /* keep the current list */ }
     }
     const onFocus = () => refresh();
     window.addEventListener("focus", onFocus);
@@ -126,8 +126,7 @@ export default function YeniProjeForm({
   async function onProvince(v: string) {
     set("province_id", v); set("district_id", ""); setDistricts([]);
     if (v) {
-      const { data } = await supabase.from("districts").select("id, name").eq("province_id", Number(v)).order("name").limit(2000);
-      setDistricts(data ?? []);
+      setDistricts(await loadDistricts(Number(v)));
     }
   }
 
@@ -181,7 +180,7 @@ export default function YeniProjeForm({
     setBusy(true);
     for (let i = 0; i < compStaged.length; i++) {
       setProgress(`Tamamlanan proje yükleniyor… (${i + 1}/${compStaged.length})`);
-      const up = await uploadTakipFile(supabase, edit.id, "tamamlanan_proje", compStaged[i]);
+      const up = await uploadTakipFile(edit.id, "tamamlanan_proje", compStaged[i]);
       if (!up.ok) { setBusy(false); setProgress(""); return setErr(up.error); }
     }
     setProgress("");
@@ -230,7 +229,7 @@ export default function YeniProjeForm({
     for (const [kind, arr] of all) {
       for (const file of arr) {
         setProgress(`Dosyalar yükleniyor… (${++done}/${total})`);
-        const up = await uploadTakipFile(supabase, targetId, kind, file);
+        const up = await uploadTakipFile(targetId, kind, file);
         if (!up.ok) failed.push(`${file.name}: ${up.error}`);
       }
     }
@@ -510,7 +509,7 @@ export default function YeniProjeForm({
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Projeyi Yükle (tamamlanan proje) · yalnızca DWG *</label>
                     {compExisting.map((d) => (
                       <div key={d.id} className="flex items-center justify-between text-xs mb-1">
-                        <a href={`/api/belge/takip?id=${d.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-navy font-semibold hover:underline truncate"><span className="material-symbols-rounded text-[15px]">description</span>{d.original_name ?? "dosya"}</a>
+                        <a href={`/api/files/takip/${d.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-navy font-semibold hover:underline truncate"><span className="material-symbols-rounded text-[15px]">description</span>{d.original_name ?? "dosya"}</a>
                         <button type="button" onClick={() => compDeleteExisting(d.id)} className="text-red-500 hover:underline">Sil</button>
                       </div>
                     ))}
@@ -669,7 +668,7 @@ function DocSlot({
       </div>
       {existing.map((d) => (
         <div key={d.id} className="flex items-center justify-between text-xs">
-          <a href={`/api/belge/takip?id=${d.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-navy font-semibold hover:underline truncate">
+          <a href={`/api/files/takip/${d.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-navy font-semibold hover:underline truncate">
             <span className="material-symbols-rounded text-[15px]">description</span>{d.original_name ?? "dosya"}
           </a>
           <button type="button" onClick={() => onDeleteExisting(d.id)} className="text-red-500 hover:underline">Sil</button>

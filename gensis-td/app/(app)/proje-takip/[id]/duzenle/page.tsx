@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { apiGet } from "@/lib/api/server";
+import { getTakip, loadTakipReference } from "../../data";
 import YeniProjeForm from "../../YeniProjeForm";
 
 export const dynamic = "force-dynamic";
@@ -9,24 +9,13 @@ const SLOT_KINDS = ["mimari_proje", "elektrik_projesi", "statik_projesi", "olcu_
 
 export default async function DuzenlePage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const supabase = createClient();
-  const admin = createAdminClient();
-
-  const { data: p } = await admin.from("takip_projeler").select("*").eq("id", params.id).maybeSingle();
+  const [p, ref] = await Promise.all([getTakip(params.id), loadTakipReference()]);
   if (!p) notFound();
+  const docs = p.docs;
 
-  const [{ data: companies }, { data: provinces }, { data: sorumlular }, { data: docs }] = await Promise.all([
-    supabase.from("companies").select("id, short_name, legal_name, city, category").order("short_name").limit(2000),
-    supabase.from("provinces").select("id, name").order("name"),
-    admin.from("profiles").select("id, full_name, role").in("role", ["admin", "gensis"]).order("full_name").limit(1000),
-    admin.from("takip_dokumanlar").select("id, kind, original_name").eq("takip_id", params.id),
-  ]);
-
-  let initialDistricts: { id: string; name: string }[] = [];
-  if (p.province_id != null) {
-    const { data: d } = await supabase.from("districts").select("id, name").eq("province_id", p.province_id).order("name").limit(2000);
-    initialDistricts = d ?? [];
-  }
+  const initialDistricts = p.province_id != null
+    ? (await apiGet<{ id: string; name: string }[]>(`/api/catalog/provinces/${p.province_id}/districts`)) ?? []
+    : [];
 
   const st = (v: any) => (v == null ? "" : String(v));
   const values = {
@@ -52,14 +41,13 @@ export default async function DuzenlePage(props: { params: Promise<{ id: string 
   const tamamlananDocs = (docs ?? []).filter((d: any) => d.kind === "tamamlanan_proje");
 
   // Muhasebe teslim edildi mi → fiyat/fatura/teslim/tamamlanma kilidi
-  const { data: tm } = await admin.from("takip_muhasebe").select("cariye_islendi").eq("takip_id", p.id).maybeSingle();
-  const kilitli = tm?.cariye_islendi === true;
+  const kilitli = p.muhasebe?.cariye_islendi === true;
 
   return (
     <YeniProjeForm
-      companies={(companies ?? []) as any}
-      provinces={(provinces ?? []) as any}
-      sorumlular={(sorumlular ?? []) as any}
+      companies={ref.companies}
+      provinces={ref.provinces}
+      sorumlular={ref.sorumlular}
       edit={{
         id: p.id, proje_no: p.proje_no, values, initialDistricts, docs: slotDocs as any,
         durum: p.durum, tamamlanma_tarihi: p.tamamlanma_tarihi, teslim_tipi: p.teslim_tipi, hard_copy_adedi: p.hard_copy_adedi,

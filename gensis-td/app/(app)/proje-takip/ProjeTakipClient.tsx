@@ -3,11 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { uploadTakipFile } from "@/lib/takipUpload";
 import {
   deleteTakipDoc, saveBekliyorAciklama, completeTakipProje,
-} from "./actions";
+  uploadTakipFile,
+} from "./api";
 
 type Company = { id: string; short_name: string; legal_name: string | null; city: string | null; category?: string | null };
 type Province = { id: number; name: string };
@@ -253,7 +252,6 @@ function DurumModal({
   const [staged, setStaged] = useState<File[]>([]);
   const [existingDocs, setExistingDocs] = useState<Doc[]>(row.docs.filter((d) => d.kind === "tamamlanan_proje"));
   const router = useRouter();
-  const supabase = createClient();
 
   const completed = row.durum === "TAMAMLANDI";
   const isBekliyor = row.durum === "BEKLIYOR";
@@ -295,7 +293,7 @@ function DurumModal({
     // Önce bekleyen dosyaları doğrudan Supabase Storage'a yükle (Vercel 4.5MB sınırına takılmaz)
     for (let i = 0; i < staged.length; i++) {
       setProgress(`Dosyalar yükleniyor… (${i + 1}/${staged.length})`);
-      const up = await uploadTakipFile(supabase, row.id, "tamamlanan_proje", staged[i]);
+      const up = await uploadTakipFile(row.id, "tamamlanan_proje", staged[i]);
       if (!up.ok) { setBusy(false); setProgress(""); return setErr(`${staged[i].name}: ${up.error}`); }
     }
     setProgress("");

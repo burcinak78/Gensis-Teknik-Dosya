@@ -26,6 +26,22 @@ async function putFile(uploadUrlPath: string, docType: string, file: File | null
   return up.key;
 }
 
+const companyBody = (form: Record<string, string>) => JSON.stringify({
+  shortName: form.short_name, legalName: form.legal_name, address: form.address, phone: form.phone,
+  mobilePhone: form.mobile_phone, city: form.city, authorizedPerson: form.authorized_person,
+  registeredBrand: form.registered_brand, industryRegNo: form.industry_reg_no, email: form.email,
+  ceModule: form.ce_module, category: form.category, sector: form.sector,
+});
+
+export async function createCompany(form: Record<string, string>): Promise<Result> {
+  try {
+    const r = await api<WriteResult>("/api/companies", { method: "POST", body: companyBody(form) });
+    return done(r, "", "Müşteri eklendi.");
+  } catch (e) {
+    return fail(e, "Müşteri eklenemedi.");
+  }
+}
+
 export async function updateCompany(id: string, form: Record<string, string>): Promise<Result> {
   try {
     const r = await api<WriteResult>(`/api/companies/${id}`, {
@@ -107,7 +123,6 @@ export async function uploadEngineerDocument(fd: FormData): Promise<Result> {
 
 // Staff-only management actions; they move with the Yönetim screens.
 const notYet = async (): Promise<Result> => ({ ok: false, error: "Bu yönetim işlemi yeni sisteme henüz taşınmadı." });
-export const createCompany = (_form: Record<string, string>) => notYet();
 export const deleteCompany = (_id: string) => notYet();
 export const deleteCompanyDocument = (_id: string) => notYet();
 export const deleteEngineer = (_id: string) => notYet();
