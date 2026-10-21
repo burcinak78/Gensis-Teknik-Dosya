@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createUser } from "../actions";
+import { createUser } from "../api";
 
 const ROLLER = [
   { v: "admin", label: "Admin — her türlü veriyi yönetir" },

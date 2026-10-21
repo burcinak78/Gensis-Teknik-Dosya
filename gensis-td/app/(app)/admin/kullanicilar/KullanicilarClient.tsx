@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createUser, updateUser, deleteUser } from "../actions";
+import { createUser, updateUser, deleteUser } from "../api";
 
 type User = {
   id: string; full_name: string | null; role: string; is_active: boolean;

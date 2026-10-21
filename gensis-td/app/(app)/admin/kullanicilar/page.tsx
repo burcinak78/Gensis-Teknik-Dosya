@@ -1,44 +1,28 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { apiGet, requireMe } from "@/lib/api/server";
+import { toSnake } from "@/lib/api/case";
 import KullanicilarClient from "./KullanicilarClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function KullanicilarPage() {
-  const supabase = createClient();
-  // Kullanıcı yönetimi yalnız admin'e açık; gensis (Kullanıcı) erişemez
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: me } = user ? await supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null } as any;
-  if (me?.role !== "admin") redirect("/admin/musteriler");
+  // Only admins manage users; Gensis staff land on Müşteriler, as before.
+  const me = await requireMe(["admin", "gensis"]);
+  if (me.role !== "admin") redirect("/admin/musteriler");
 
-  const [{ data: profiles }, { data: companies }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("id, full_name, role, is_active, company_id, companies(short_name)")
-      .order("created_at", { ascending: false })
-      .limit(1000),
-    supabase.from("companies").select("id, short_name").order("short_name").limit(1000),
+  const [users, companies, catalog] = await Promise.all([
+    apiGet<Record<string, any>[]>("/api/users"),
+    apiGet("/api/catalog/companies/names"),
+    apiGet<{ gensisCompanyId: string | null }>("/api/catalog/engineers"),
   ]);
-
-  // E-postalar profiles'da tutulmuyor; auth'tan çekip eşleştir
-  const emailMap: Record<string, string> = {};
-  try {
-    const admin = createAdminClient();
-    const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    for (const u of data?.users ?? []) emailMap[u.id] = u.email ?? "";
-  } catch {
-    /* e-posta getirilemezse liste yine çalışır */
-  }
-
-  const gensis = (companies ?? []).find((c) => c.short_name.toLocaleLowerCase("tr").includes("gensis"));
-  const users = (profiles ?? []).map((p: any) => ({ ...p, email: emailMap[p.id] ?? "" }));
 
   return (
     <KullanicilarClient
-      users={users as any}
-      companies={companies ?? []}
-      defaultCompanyId={gensis?.id ?? ""}
+      users={toSnake<any[]>(users ?? []).map(({ company_short_name, ...u }) => ({
+        ...u, companies: company_short_name ? { short_name: company_short_name } : null,
+      }))}
+      companies={toSnake<any[]>(companies ?? [])}
+      defaultCompanyId={catalog?.gensisCompanyId ?? ""}
     />
   );
 }

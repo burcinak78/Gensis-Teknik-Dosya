@@ -169,3 +169,35 @@ export async function rejectPendingChange(id: string, note?: string): Promise<Re
     return fail(e, "Reddedilemedi.");
   }
 }
+
+// User management (admin only in the API).
+export async function createUser(form: { email: string; password: string; full_name: string; role: string; company_id: string }): Promise<Result> {
+  try {
+    const r = await api<{ id: string; message: string }>("/api/users", {
+      method: "POST",
+      body: JSON.stringify({ email: form.email, password: form.password, fullName: form.full_name, role: form.role || null, companyId: orNull(form.company_id) }),
+    });
+    return { ok: true, message: r.message, id: r.id };
+  } catch (e) {
+    return fail(e, "Kullanıcı oluşturulamadı.");
+  }
+}
+
+export async function updateUser(form: {
+  id: string; full_name: string; role: string; company_id: string; is_active: string; password?: string;
+}): Promise<Result> {
+  try {
+    const r = await api<{ message: string }>(`/api/users/${form.id}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        fullName: form.full_name, role: form.role || null, companyId: orNull(form.company_id),
+        isActive: form.is_active === "true", password: form.password || null,
+      }),
+    });
+    return { ok: true, message: r.message };
+  } catch (e) {
+    return fail(e, "Kullanıcı güncellenemedi.");
+  }
+}
+
+export const deleteUser = (id: string) => remove(`/api/users/${id}`, "Kullanıcı silinemedi.");
