@@ -89,5 +89,6 @@ app.MapAuthEndpoints();
 app.MapCatalogEndpoints();
 app.MapProjectEndpoints();
 app.MapProjectWriteEndpoints();
+app.MapFileEndpoints();
 
 app.Run();
