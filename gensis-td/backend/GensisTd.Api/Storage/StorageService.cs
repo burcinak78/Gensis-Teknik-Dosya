@@ -86,6 +86,9 @@ public class StorageService
         }
     }
 
+    public Task CopyAsync(string bucket, string fromKey, string toKey, CancellationToken ct = default) =>
+        _internal.CopyObjectAsync(bucket, fromKey, bucket, toKey, ct);
+
     public Task DeleteAsync(string bucket, string key, CancellationToken ct = default) =>
         _internal.DeleteObjectAsync(bucket, key, ct);
 

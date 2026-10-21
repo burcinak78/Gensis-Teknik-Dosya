@@ -96,5 +96,6 @@ app.MapPdfSourceEndpoints();
 app.MapProjectMuhasebeEndpoints();
 app.MapCompanyWriteEndpoints();
 app.MapEngineerWriteEndpoints();
+app.MapPendingChangeEndpoints();
 
 app.Run();
