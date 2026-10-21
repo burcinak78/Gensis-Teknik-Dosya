@@ -112,3 +112,22 @@ export const deleteCompany = (_id: string) => notYet();
 export const deleteCompanyDocument = (_id: string) => notYet();
 export const deleteEngineer = (_id: string) => notYet();
 export const createNotifiedBody = (_form: Record<string, unknown>) => notYet();
+
+// Onaylar queue (staff only; the API re-checks the change against current data before applying it).
+export async function approvePendingChange(id: string): Promise<Result> {
+  try {
+    const r = await api<{ message: string }>(`/api/pending-changes/${id}/approve`, { method: "POST" });
+    return { ok: true, message: r.message };
+  } catch (e) {
+    return fail(e, "Onaylanamadı.");
+  }
+}
+
+export async function rejectPendingChange(id: string, note?: string): Promise<Result> {
+  try {
+    const r = await api<{ message: string }>(`/api/pending-changes/${id}/reject`, { method: "POST", body: JSON.stringify({ note: note ?? null }) });
+    return { ok: true, message: r.message };
+  } catch (e) {
+    return fail(e, "Reddedilemedi.");
+  }
+}

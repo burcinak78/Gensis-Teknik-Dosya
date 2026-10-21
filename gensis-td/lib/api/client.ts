@@ -15,7 +15,7 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
       const body = await res.json();
       // ValidationProblem: show the first field message (Turkish, from the API) rather than the generic title.
       const first = body?.errors && (Object.values(body.errors) as string[][]).flat()[0];
-      message = first ?? body?.title ?? message;
+      message = first ?? body?.error ?? body?.title ?? message;
     } catch {
       /* no JSON body */
     }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { approvePendingChange, rejectPendingChange } from "../admin/actions";
+import { approvePendingChange, rejectPendingChange } from "../admin/api";
 
 type Item = {
   id: string;
