@@ -218,7 +218,7 @@ export default function YeniProjeForm({
     };
   }
 
-  // Bekleyen dosyaları hedef kayda yükle — doğrudan Supabase Storage'a (Vercel 4.5MB sınırına takılmaz)
+  // Bekleyen dosyaları hedef kayda yükle — imzalı adresle doğrudan depoya (sunucu gövde sınırına takılmaz)
   // Sadece geçerli slot türlerini yükle (proje tipi değişince kalan eski türler atlanır)
   async function uploadStaged(targetId: string): Promise<string[]> {
     const validKinds = new Set(slots.map((s) => s.kind));

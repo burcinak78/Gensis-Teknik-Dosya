@@ -309,7 +309,7 @@ function teknikKomponentPage(c: any) {
     if (nz.length > 1) return nz.map((s: string, i: number) => ({ ad: `${i + 1}.`, seri: s }));
     return [{ ad: "", seri: nz[0] || vb(e?.seri_no) }];
   };
-  // Hidrolik valfleri kategori ADINA göre bul (kod Supabase'te tanımlı; ada göre eşleştir)
+  // Hidrolik valfleri kategori ADINA göre bul (kod veritabanında tanımlı; ada göre eşleştir)
   const cats: any[] = c.equipCats || [];
   const findEqByName = (patterns: string[]) => {
     const cat = cats.find((k: any) => { const n = String(k?.name || "").toLocaleLowerCase("tr"); return patterns.some((p) => n.includes(p)); });

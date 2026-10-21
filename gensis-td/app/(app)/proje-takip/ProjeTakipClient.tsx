@@ -290,7 +290,7 @@ function DurumModal({
     if (!teslimTipi) return setErr("Teslim tipi seçiniz.");
     if (teslimTipi === "hard_copy" && (!adet || Number(adet) < 1)) return setErr("Hard Copy adedi giriniz.");
     setBusy(true);
-    // Önce bekleyen dosyaları doğrudan Supabase Storage'a yükle (Vercel 4.5MB sınırına takılmaz)
+    // Önce bekleyen dosyaları imzalı adresle doğrudan depoya yükle (sunucu gövde sınırına takılmaz)
     for (let i = 0; i < staged.length; i++) {
       setProgress(`Dosyalar yükleniyor… (${i + 1}/${staged.length})`);
       const up = await uploadTakipFile(row.id, "tamamlanan_proje", staged[i]);

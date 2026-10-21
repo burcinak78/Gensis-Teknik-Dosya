@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import React from "react";
 import { Font, renderToBuffer } from "@react-pdf/renderer";
+import { PUBLIC_DIR } from "@/lib/pdf/assets";
 import { getMe } from "@/lib/api/server";
 import { getProjeOnay } from "@/app/(app)/proje-onay/data";
 import { AvanProjeDilekceDoc } from "@/lib/pdf/AvanProjeDilekceDoc";
@@ -54,9 +55,7 @@ export async function GET(req: NextRequest) {
     durak_sayisi: row.durak_sayisi,
   };
 
-  const proto = req.headers.get("x-forwarded-proto") ?? "https";
-  const host = req.headers.get("host");
-  registerFonts(`${proto}://${host}`);
+  registerFonts(PUBLIC_DIR);
   const buffer = await renderToBuffer(React.createElement(AvanProjeDilekceDoc, { data }) as any);
   return new Response(new Uint8Array(buffer), {
     headers: {
@@ -77,9 +76,7 @@ export async function POST(req: NextRequest) {
     return new Response("Geçersiz veri.", { status: 400 });
   }
 
-  const proto = req.headers.get("x-forwarded-proto") ?? "https";
-  const host = req.headers.get("host");
-  registerFonts(`${proto}://${host}`);
+  registerFonts(PUBLIC_DIR);
 
   const buffer = await renderToBuffer(
     React.createElement(AvanProjeDilekceDoc, { data: body }) as any

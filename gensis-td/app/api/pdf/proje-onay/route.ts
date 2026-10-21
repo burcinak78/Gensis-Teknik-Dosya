@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import React from "react";
 import { Font, renderToBuffer } from "@react-pdf/renderer";
+import { PUBLIC_DIR } from "@/lib/pdf/assets";
 import { getProjeOnay, getProjeOnayFile } from "@/app/(app)/proje-onay/data";
 import { ProjeOnayDoc } from "@/lib/pdf/ProjeOnayDoc";
 import { imzaToPngDataUri } from "@/lib/pdf/imzaUri";
@@ -88,9 +89,7 @@ export async function GET(req: NextRequest) {
     }
   } catch { /* logo alınamazsa kısa ad kalır */ }
 
-  const proto = req.headers.get("x-forwarded-proto") ?? "https";
-  const host = req.headers.get("host");
-  registerFonts(`${proto}://${host}`);
+  registerFonts(PUBLIC_DIR);
   const buffer = await renderToBuffer(React.createElement(ProjeOnayDoc, { data, docs }) as any);
 
   const fn = docParam === "hepsi" ? "Proje_Onay_Dosyasi" : docParam;

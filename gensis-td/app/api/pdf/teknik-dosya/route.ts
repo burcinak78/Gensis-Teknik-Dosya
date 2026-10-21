@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import React from "react";
 import { Font, renderToBuffer } from "@react-pdf/renderer";
+import { PUBLIC_DIR, readAsset } from "@/lib/pdf/assets";
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { apiFetch } from "@/lib/api/server";
@@ -51,9 +52,8 @@ export async function GET(req: NextRequest) {
   const src = (await srcRes.json()) as PdfSource;
   const ctx: any = src.context;
 
-  const proto = req.headers.get("x-forwarded-proto") ?? "https";
-  const host = req.headers.get("host");
-  const assetBase = `${proto}://${host}`;
+  // Fonts, CE mark and ready-made PDFs come from public/ on disk.
+  const assetBase = PUBLIC_DIR;
   registerFonts(assetBase);
 
   const belgeler = req.nextUrl.searchParams.getAll("belge");
@@ -298,17 +298,17 @@ export async function GET(req: NextRequest) {
   let robotoBoldBytes: Uint8Array | null = null;
   async function addKilavuz() {
     try {
-      const res = await fetch(`${assetBase}/kilavuz/${kilavuzFile}`);
-      if (!res.ok) return;
-      const doc = await PDFDocument.load(new Uint8Array(await res.arrayBuffer()), { ignoreEncryption: true });
+      const kilavuzBytes = await readAsset(`kilavuz/${kilavuzFile}`);
+      if (!kilavuzBytes) return;
+      const doc = await PDFDocument.load(kilavuzBytes, { ignoreEncryption: true });
       // Footer: 1. satır Ticari Ünvan (kalın), 2. satır Adres · Telefon · E-posta — sola dayalı, siyah
       const cf = (ctx as any)?.firma || {};
       const fUnvan = String(cf.unvan || cf.kisa_ad || "").trim();
       const fAlt = [cf.adres, cf.telefon, cf.email].filter(Boolean).map((x: any) => String(x).trim()).join(" · ");
       if (fUnvan || fAlt) {
         try {
-          if (!robotoBytes) { const fr = await fetch(`${assetBase}/fonts/Roboto-Regular.ttf`); if (fr.ok) robotoBytes = new Uint8Array(await fr.arrayBuffer()); }
-          if (!robotoBoldBytes) { const fb = await fetch(`${assetBase}/fonts/Roboto-Bold.ttf`); if (fb.ok) robotoBoldBytes = new Uint8Array(await fb.arrayBuffer()); }
+          if (!robotoBytes) robotoBytes = await readAsset("fonts/Roboto-Regular.ttf");
+          if (!robotoBoldBytes) robotoBoldBytes = await readAsset("fonts/Roboto-Bold.ttf");
           if (robotoBytes) {
             doc.registerFontkit(fontkit);
             const font = await doc.embedFont(robotoBytes);
@@ -351,12 +351,12 @@ export async function GET(req: NextRequest) {
   // Son Kontrol Formu: hazır PDF (public) — 1. sayfa başlık altına bilgi tablosu + sol üst firma kısa adı header
   async function addSonKontrol() {
     try {
-      const res = await fetch(`${assetBase}/kilavuz/SON_KONTROL_FORMU.pdf`);
-      if (!res.ok) { await addDoc("son_kontrol_formu"); return; }
-      const doc = await PDFDocument.load(new Uint8Array(await res.arrayBuffer()), { ignoreEncryption: true });
+      const formBytes = await readAsset("kilavuz/SON_KONTROL_FORMU.pdf");
+      if (!formBytes) { await addDoc("son_kontrol_formu"); return; }
+      const doc = await PDFDocument.load(formBytes, { ignoreEncryption: true });
       doc.registerFontkit(fontkit);
-      if (!robotoBytes) { const fr = await fetch(`${assetBase}/fonts/Roboto-Regular.ttf`); if (fr.ok) robotoBytes = new Uint8Array(await fr.arrayBuffer()); }
-      if (!robotoBoldBytes) { const fb = await fetch(`${assetBase}/fonts/Roboto-Bold.ttf`); if (fb.ok) robotoBoldBytes = new Uint8Array(await fb.arrayBuffer()); }
+      if (!robotoBytes) robotoBytes = await readAsset("fonts/Roboto-Regular.ttf");
+      if (!robotoBoldBytes) robotoBoldBytes = await readAsset("fonts/Roboto-Bold.ttf");
       const font = robotoBytes ? await doc.embedFont(robotoBytes) : null;
       const fontB = robotoBoldBytes ? await doc.embedFont(robotoBoldBytes) : font;
       if (font && fontB) {
