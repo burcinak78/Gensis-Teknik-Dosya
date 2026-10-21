@@ -9,7 +9,8 @@ const STATUS_TR: Record<string, string> = {
   draft: "Taslak", generating: "Üretiliyor", generated: "Üretildi", delivered: "Teslim edildi", canceled: "İptal",
 };
 
-export default async function ProjeDetay({ params }: { params: { id: string } }) {
+export default async function ProjeDetay(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = createClient();
   const { data: proje } = await supabase
     .from("projects")

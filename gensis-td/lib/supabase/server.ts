@@ -1,11 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, type UnsafeUnwrappedCookies } from "next/headers";
 
 type CookieToSet = { name: string; value: string; options?: Record<string, unknown> };
 
 // Sunucu tarafı Supabase istemcisi (server component / server action / route handler)
 export function createClient() {
-  const cookieStore = cookies();
+  // Next 15 still allows sync access (with a warning); this client goes away with the move to the C# API.
+  const cookieStore = cookies() as unknown as UnsafeUnwrappedCookies;
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

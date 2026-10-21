@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 
 const s = (v: any) => (v == null ? "" : String(v));
 
-export default async function DuzenlePage({ params }: { params: { id: string } }) {
+export default async function DuzenlePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = createClient();
 
   const [

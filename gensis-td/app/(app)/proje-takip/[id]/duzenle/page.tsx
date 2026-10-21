@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 
 const SLOT_KINDS = ["mimari_proje", "elektrik_projesi", "statik_projesi", "olcu_formu", "yapi_ruhsati", "diger"];
 
-export default async function DuzenlePage({ params }: { params: { id: string } }) {
+export default async function DuzenlePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = createClient();
   const admin = createAdminClient();
 

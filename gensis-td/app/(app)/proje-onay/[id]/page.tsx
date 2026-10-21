@@ -13,7 +13,8 @@ function Row({ k, v }: { k: string; v?: any }) {
   );
 }
 
-export default async function ProjeOnayDetayPage({ params }: { params: { id: string } }) {
+export default async function ProjeOnayDetayPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = createClient();
   const { data: r } = await supabase
     .from("proje_onay")

@@ -6,7 +6,8 @@ export const dynamic = "force-dynamic";
 
 const s = (v: any) => (v == null ? "" : String(v));
 
-export default async function DuzenleProjeOnayPage({ params }: { params: { id: string } }) {
+export default async function DuzenleProjeOnayPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = createClient();
   const [companies, provinces, capacity, engineers, idareler, rowRes] = await Promise.all([
     supabase.from("companies").select("id, short_name, legal_name").order("short_name").limit(2000),
