@@ -3,6 +3,7 @@ using GensisTd.Api.Data;
 using GensisTd.Api.Endpoints;
 using GensisTd.Api.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -22,6 +23,20 @@ if (string.IsNullOrEmpty(jwtSecret) || jwtSecret.Length < 32)
     throw new InvalidOperationException("Auth__JwtSecret must be at least 32 characters");
 
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<LoginThrottle>();
+
+// The client IP comes from the nginx proxy (which takes it from Cloudflare's CF-Connecting-IP).
+// Only trust X-Forwarded-For from private networks: the proxy container, never the internet.
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor;
+    o.ForwardLimit = 1;
+    o.KnownProxies.Clear();
+    o.KnownIPNetworks.Clear();
+    foreach (var net in new[] { "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8" })
+        o.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(net));
+});
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
@@ -66,6 +81,7 @@ await app.Services.GetRequiredService<StorageService>().EnsureBucketsAsync(app.L
 if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
+app.UseForwardedHeaders();
 app.UseAuthentication();
 app.UseActor();
 app.UseAuthorization();

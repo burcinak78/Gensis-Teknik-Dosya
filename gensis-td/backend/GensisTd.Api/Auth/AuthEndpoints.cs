@@ -19,9 +19,20 @@ public static class AuthEndpoints
     {
         var g = app.MapGroup("/api/auth");
 
-        g.MapPost("/login", async (LoginRequest req, AppDbContext db, TokenService tokens, IOptions<AuthOptions> opts, HttpContext http) =>
+        g.MapPost("/login", async (LoginRequest req, AppDbContext db, TokenService tokens, IOptions<AuthOptions> opts,
+            LoginThrottle throttle, HttpContext http) =>
         {
+            if (string.IsNullOrWhiteSpace(req.Email) || req.Email.Length > 320 || string.IsNullOrEmpty(req.Password))
+                return Results.BadRequest();
+
             var email = req.Email.Trim().ToLowerInvariant();
+            var ip = http.Connection.RemoteIpAddress?.ToString();
+            if (throttle.TryAcquire(email, ip) is { } wait)
+            {
+                http.Response.Headers.RetryAfter = ((int)Math.Ceiling(wait.TotalSeconds)).ToString();
+                return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+            }
+
             var user = await db.Users.Include(u => u.Profile).SingleOrDefaultAsync(u => u.Email == email);
             // Same response for unknown email, wrong password and deactivated account.
             // Verify even when the user is missing so response time does not reveal which emails exist.
@@ -29,6 +40,7 @@ public static class AuthEndpoints
             if (!passwordOk || user?.Profile is not { IsActive: true } profile)
                 return Results.Unauthorized();
 
+            throttle.Succeeded(email, ip);
             user.LastSignInAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
 
