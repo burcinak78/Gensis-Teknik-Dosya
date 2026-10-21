@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createNote, snoozeNote, deleteNote } from "./actions";
+import { createNote, snoozeNote, deleteNote } from "./api";
 
 type Not = { id: string; icerik: string; sayac_baslangic: string; created_at: string };
 

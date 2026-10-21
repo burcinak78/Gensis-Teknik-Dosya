@@ -1,15 +1,17 @@
-import { requireMe } from "@/lib/api/server";
+import { apiGet, requireMe } from "@/lib/api/server";
 import SignOutButton from "@/components/SignOutButton";
 import SideNav from "@/components/SideNav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await requireMe();
   const rol = me.role;
-  // Menü sayaçları (bildirim, onay, takip, muhasebe) C# API'de uçları yazılınca geri gelecek.
-  const bildirimCount = 0;
-  const onayCount = 0;
-  const takipCount = 0;
-  const muhasebeCount = 0;
+  // Menü sayaçları: rol kuralları API'de (onay/takip personel, muhasebe admin+muhasebeci).
+  // Sayaç alınamazsa menü yine çalışır.
+  const counters = await apiGet<{ bildirim: number; onay: number; takip: number; muhasebe: number }>("/api/me/counters").catch(() => null);
+  const bildirimCount = counters?.bildirim ?? 0;
+  const onayCount = counters?.onay ?? 0;
+  const takipCount = counters?.takip ?? 0;
+  const muhasebeCount = counters?.muhasebe ?? 0;
   const rolTr = rol === "admin" ? "Admin" : rol === "gensis" ? "Kullanıcı" : rol === "muhasebeci" ? "Muhasebe/Finans" : "Müşteri";
   const adSoyad = me.fullName ?? me.email;
   const bas = adSoyad.trim().slice(0, 2).toUpperCase() || "DL";
