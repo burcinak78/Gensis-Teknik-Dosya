@@ -25,6 +25,7 @@ public static class CatalogEndpoints
     public record ProvinceDto(short Id, string Name);
     public record NotifiedBodyDto(Guid Id, string? IdentityNo, string Name, string? ShortName, string? Address);
     public record IlgiliIdareDto(Guid Id, string Name, short? ProvinceId, string Suffix, string? Address);
+    public record IlgiliIdareInput(string? Name, string? Address, short? ProvinceId, string? Suffix);
     public record CapacityDto(int BeyanYukuKg, int? KisiSayisi, int? KabinAgirlikKg, int? KarsiAgirlikKg);
     public record LookupDto(string ListKey, string Value, int SortOrder, bool IsActive);
     public record CompanyDocumentDto(
@@ -96,6 +97,23 @@ public static class CatalogEndpoints
         g.MapGet("/ilgili-idareler", (AppDbContext db, CancellationToken ct) =>
             db.IlgiliIdarelers.AsNoTracking().OrderBy(i => EF.Functions.Collate(i.Name, Collations.Turkish))
                 .Select(i => new IlgiliIdareDto(i.Id, i.Name, i.ProvinceId, i.Suffix, i.Address)).ToListAsync(ct));
+
+        // New ilgili idare from the proje onay wizard (admin/actions.ts createIlgiliIdare): staff only.
+        g.MapPost("/ilgili-idareler", async (IlgiliIdareInput input, AppDbContext db, CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(input.Name))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["İlgili idare adı zorunlu."] });
+            if (input.ProvinceId is { } pid && !await db.Provinces.AnyAsync(p => p.Id == pid, ct))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["provinceId"] = ["İl bulunamadı."] });
+            var idare = new Data.Entities.IlgiliIdareler
+            {
+                Id = Guid.NewGuid(), Name = input.Name.Trim(), Address = string.IsNullOrWhiteSpace(input.Address) ? null : input.Address.Trim(),
+                ProvinceId = input.ProvinceId, Suffix = string.IsNullOrWhiteSpace(input.Suffix) ? "belediye" : input.Suffix.Trim(),
+            };
+            db.IlgiliIdarelers.Add(idare);
+            await db.SaveChangesAsync(ct);
+            return Results.Created($"/api/catalog/ilgili-idareler/{idare.Id}", new { idare.Id });
+        }).RequireAuthorization(Policies.Staff);
 
         g.MapGet("/capacity", (AppDbContext db, CancellationToken ct) =>
             db.CapacityTables.AsNoTracking().OrderBy(c => c.BeyanYukuKg)

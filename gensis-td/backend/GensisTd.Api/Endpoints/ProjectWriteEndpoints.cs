@@ -37,7 +37,7 @@ public static partial class ProjectWriteEndpoints
             if (Validate(input) is { } invalid) return invalid;
             // RLS p_projects_insert: staff, or a member of the project's company.
             if (!actor.CanAccessCompany(input.CompanyId)) return Results.Forbid();
-            if (await ValidateEngineersAsync(input, db, gensis.Id, ct) is { } badEngineer) return badEngineer;
+            if (await EngineerRule.ValidateAsync(db, input.CompanyId, input.MakineMuhendisId, input.ElektrikMuhendisId, gensis.Id, ct) is { } badEngineer) return badEngineer;
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             var project = new Project { Id = Guid.NewGuid(), CreatedBy = actor.UserId, TdNo = await NextTdNoAsync(db, ct) };
@@ -56,7 +56,7 @@ public static partial class ProjectWriteEndpoints
             if (project is null) return Results.NotFound();
             // RLS WITH CHECK: the project may not be moved to a company the user does not belong to.
             if (!actor.CanAccessCompany(input.CompanyId)) return Results.Forbid();
-            if (await ValidateEngineersAsync(input, db, gensis.Id, ct) is { } badEngineer) return badEngineer;
+            if (await EngineerRule.ValidateAsync(db, input.CompanyId, input.MakineMuhendisId, input.ElektrikMuhendisId, gensis.Id, ct) is { } badEngineer) return badEngineer;
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             Apply(project, input);
@@ -99,25 +99,6 @@ public static partial class ProjectWriteEndpoints
         return errors.Count == 0 ? null : Results.ValidationProblem(errors);
     }
 
-    /// <summary>
-    /// A project's engineers are the project company's own or Gensis's (Gensis engineers work on every
-    /// customer's files and are the wizard's default). This holds for staff too. KRR-021: it also keeps a
-    /// customer from attaching another company's engineer and reading that engineer's documents through
-    /// the project's PDF sources.
-    /// </summary>
-    private static async Task<IResult?> ValidateEngineersAsync(ProjectInput input, AppDbContext db, Guid? gensisId, CancellationToken ct)
-    {
-        var ids = new[] { input.MakineMuhendisId, input.ElektrikMuhendisId }.OfType<Guid>().Distinct().ToList();
-        if (ids.Count == 0) return null;
-        var candidates = db.Engineers.Where(e => ids.Contains(e.Id));
-        candidates = gensisId is { } gid
-            ? candidates.Where(e => e.CompanyId == input.CompanyId || e.CompanyId == gid)
-            : candidates.Where(e => e.CompanyId == input.CompanyId);
-        return await candidates.CountAsync(ct) == ids.Count
-            ? null
-            : Results.ValidationProblem(new Dictionary<string, string[]> { ["engineer"] = ["Mühendis, projenin firmasına ya da Gensis'e kayıtlı olmalı."] });
-    }
-
     private static void Apply(Project p, ProjectInput i)
     {
         p.CompanyId = i.CompanyId;
@@ -158,7 +139,8 @@ public static partial class ProjectWriteEndpoints
         });
 
     /// <summary>Unknown company/engineer/district/... ids come back as 400 instead of 500.</summary>
-    private static async Task<IResult?> SaveAsync(AppDbContext db, CancellationToken ct)
+    /// <summary>Saves; a broken reference (FK) answers 400 instead of 500.</summary>
+    internal static async Task<IResult?> SaveAsync(AppDbContext db, CancellationToken ct)
     {
         try
         {
