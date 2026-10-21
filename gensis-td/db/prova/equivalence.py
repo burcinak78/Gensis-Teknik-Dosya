@@ -644,17 +644,14 @@ def check_migration(copy):
 # (check prefix, kind prefix, roles or None, reason). Matched items go to the "bilinçli farklar" list for the
 # user's approval; everything else is a difference to fix. Keep reasons short; the plan is in PM-Talepleri.
 KNOWN = [
-    ("katalog: firmalar", "eski tarafta var", ("customer", "muhasebeci"),
-     "KRR-014: personel olmayan yalnız kendi firmasını görür (muhasebecinin firması yok; bu ekranlar menüsünde yok)"),
+    ("katalog: firmalar", "eski tarafta var", ("customer",), "KRR-014: müşteri yalnız kendi firmasını görür"),
     ("sayfa erişimi /api/catalog/companies/names", "erişim farkı", ("customer",),
      "KRR-014: firma adları listesi yalnız ofis rollerine; müşteri ekranları kullanmıyor"),
-    ("katalog: mühendisler", "eski tarafta var", ("customer", "muhasebeci"),
-     "KRR-014/023: müşteri kendi firması + Gensis mühendislerini görür; muhasebecinin firması yok"),
-    ("mühendis seçimi", "", ("muhasebeci",),
-     "Muhasebeci sihirbazda mühendis seçemez; canlıda da proje kaydedemiyordu (RLS: personel ya da firma üyesi), menüsünde yok"),
+    ("katalog: mühendisler", "eski tarafta var", ("customer",),
+     "KRR-014/023: müşteri kendi firması + Gensis mühendislerini görür"),
     ("proje → muhasebe bağı", "alan farkı", None,
-     "KRR-013: projenin takip satırı yalnız aynı firma ya da firmasız satır. Veri: bir TD No başka firmanın cariye "
-     "işlenmiş takip satırına bağlı; kullanıcı kontrol etmeli"),
+     "KRR-013: projenin takip satırı yalnız aynı firma ya da firmasız satır. Tetikleyen TD-26-0001 deneme kaydı "
+     "(kullanıcı 2026-10-21)"),
     ("katalog: firmalar", "sıra farkı", None, "Türkçe sıralama (tr-x-icu); canlı collation'ı ile kontrol"),
     ("katalog: iller", "sıra farkı", None, "Türkçe sıralama (tr-x-icu); canlı collation'ı ile kontrol"),
     ("katalog: ilçeler", "sıra farkı", None, "Türkçe sıralama (tr-x-icu); canlı collation'ı ile kontrol"),
