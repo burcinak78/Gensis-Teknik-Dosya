@@ -37,6 +37,7 @@ public static partial class ProjectWriteEndpoints
             if (Validate(input) is { } invalid) return invalid;
             // RLS p_projects_insert: staff, or a member of the project's company.
             if (!actor.CanAccessCompany(input.CompanyId)) return Results.Forbid();
+            if (await ValidateEngineersAsync(input, actor, db, ct) is { } badEngineer) return badEngineer;
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             var project = new Project { Id = Guid.NewGuid(), CreatedBy = actor.UserId, TdNo = await NextTdNoAsync(db, ct) };
@@ -55,6 +56,7 @@ public static partial class ProjectWriteEndpoints
             if (project is null) return Results.NotFound();
             // RLS WITH CHECK: the project may not be moved to a company the user does not belong to.
             if (!actor.CanAccessCompany(input.CompanyId)) return Results.Forbid();
+            if (await ValidateEngineersAsync(input, actor, db, ct) is { } badEngineer) return badEngineer;
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             Apply(project, input);
@@ -95,6 +97,22 @@ public static partial class ProjectWriteEndpoints
         if (slots.Count != slots.Distinct().Count())
             errors["equipment"] = ["Aynı kategori ve slot iki kez seçilmiş."];
         return errors.Count == 0 ? null : Results.ValidationProblem(errors);
+    }
+
+    /// <summary>
+    /// KRR-021: the engineers must be ones the user can pick (own company's or Gensis's, see
+    /// /api/catalog/engineers). Otherwise a customer could attach another company's engineer and then
+    /// read that engineer's documents through the project's PDF sources.
+    /// </summary>
+    private static async Task<IResult?> ValidateEngineersAsync(ProjectInput input, Actor actor, AppDbContext db, CancellationToken ct)
+    {
+        var ids = new[] { input.MakineMuhendisId, input.ElektrikMuhendisId }.OfType<Guid>().Distinct().ToList();
+        if (ids.Count == 0 || actor.IsStaff) return null;
+        var gensisId = await CatalogEndpoints.GensisCompanyIdAsync(db, ct);
+        var allowed = await db.Engineers.VisibleTo(actor, gensisId).CountAsync(e => ids.Contains(e.Id), ct);
+        return allowed == ids.Count
+            ? null
+            : Results.ValidationProblem(new Dictionary<string, string[]> { ["engineer"] = ["Seçilen mühendis bu firma için kullanılamaz."] });
     }
 
     private static void Apply(Project p, ProjectInput i)
