@@ -70,7 +70,7 @@ public static class PdfSourceEndpoints
         });
 
         g.MapGet("/file", async (Guid id, string? bucket, string? path, Actor actor, AppDbContext db, StorageService storage,
-            CancellationToken ct) =>
+            HttpContext http, CancellationToken ct) =>
         {
             if (string.IsNullOrEmpty(path) || bucket is not (FileEndpoints.DocumentsBucket or FileEndpoints.CertificatesBucket))
                 return Results.NotFound();
@@ -81,7 +81,11 @@ public static class PdfSourceEndpoints
                 return Results.NotFound();
 
             var obj = await storage.OpenReadAsync(bucket, path, ct);
-            return obj is { } o ? Results.Stream(o.Body, o.ContentType) : Results.NotFound();
+            if (obj is not { } o) return Results.NotFound();
+            // KRR-020: the stored Content-Type is whatever the uploader declared. Served from the app's own
+            // origin it must never render, so always a nosniff download; the PDF route only needs the bytes.
+            http.Response.Headers.XContentTypeOptions = "nosniff";
+            return Results.Stream(o.Body, "application/octet-stream", Path.GetFileName(path));
         });
     }
 
