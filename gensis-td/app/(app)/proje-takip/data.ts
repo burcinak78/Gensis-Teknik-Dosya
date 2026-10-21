@@ -1,9 +1,11 @@
 // Proje Takip data from the C# API (office roles only there), converted to the column names the screens use.
-import { apiGet } from "@/lib/api/server";
+import { apiGet, requireMe } from "@/lib/api/server";
 import { toSnake } from "@/lib/api/case";
 
 /** Companies (names only), provinces and the Gensis staff who can be put in charge of a job. */
 export async function loadTakipReference() {
+  // Layout and page render in parallel: check the role here too so customers are redirected before any API call.
+  await requireMe(["admin", "gensis", "muhasebeci"]);
   const [companies, provinces, sorumlular] = await Promise.all([
     apiGet("/api/catalog/companies/names"),
     apiGet<{ id: number; name: string }[]>("/api/catalog/provinces"),

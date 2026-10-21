@@ -121,11 +121,22 @@ export async function uploadEngineerDocument(fd: FormData): Promise<Result> {
   }
 }
 
+// Staff-only deletes (the API refuses a company with files and Gensis's own company).
+async function remove(path: string, fallback: string): Promise<Result> {
+  try {
+    const r = await api<{ message: string }>(path, { method: "DELETE" });
+    return { ok: true, message: r.message };
+  } catch (e) {
+    return fail(e, fallback);
+  }
+}
+export const deleteCompany = (id: string) => remove(`/api/companies/${id}`, "Müşteri silinemedi.");
+export const deleteCompanyDocument = (id: string) => remove(`/api/companies/documents/${id}`, "Belge silinemedi.");
+export const deleteEngineer = (id: string) => remove(`/api/engineers/${id}`, "Mühendis silinemedi.");
+export const deleteEngineerDocument = (id: string) => remove(`/api/engineers/documents/${id}`, "Belge silinemedi.");
+
 // Staff-only management actions; they move with the Yönetim screens.
 const notYet = async (): Promise<Result> => ({ ok: false, error: "Bu yönetim işlemi yeni sisteme henüz taşınmadı." });
-export const deleteCompany = (_id: string) => notYet();
-export const deleteCompanyDocument = (_id: string) => notYet();
-export const deleteEngineer = (_id: string) => notYet();
 export const createNotifiedBody = (_form: Record<string, unknown>) => notYet();
 
 // New ilgili idare from the proje onay wizard (staff only in the API).

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteEngineer } from "../actions";
+import { deleteEngineer } from "../api";
 
 export default function DeleteEngineerButton({ id, name }: { id: string; name: string }) {
   const router = useRouter();

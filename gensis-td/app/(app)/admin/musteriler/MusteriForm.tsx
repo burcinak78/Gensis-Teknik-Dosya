@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createCompany } from "../actions";
+import { createCompany } from "../api";
 
 const FIELDS: [string, string, boolean][] = [
   ["short_name", "Kısa Ad *", true],
