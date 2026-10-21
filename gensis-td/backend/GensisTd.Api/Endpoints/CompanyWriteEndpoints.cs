@@ -34,6 +34,18 @@ public static class CompanyWriteEndpoints
 
     public static void MapCompanyWriteEndpoints(this WebApplication app)
     {
+        // New company (admin/actions.ts createCompany): staff only, used by Müşteriler and the Proje Takip form.
+        app.MapPost("/api/companies", async (CompanyInput input, AppDbContext db, CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(input.ShortName) || string.IsNullOrWhiteSpace(input.LegalName))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["shortName"] = ["Kısa ad ve ünvan zorunlu."] });
+            var company = new Company { Id = Guid.NewGuid() };
+            ApplyCompanyEdit(company, Columns(input));
+            db.Companies.Add(company);
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new WriteResult(false, company.Id));
+        }).RequireAuthorization(Policies.Staff);
+
         var g = app.MapGroup("/api/companies/{id:guid}").RequireAuthorization();
 
         g.MapPut("/", async (Guid id, CompanyInput input, Actor actor, AppDbContext db, CancellationToken ct) =>
@@ -43,16 +55,7 @@ public static class CompanyWriteEndpoints
             var company = await db.Companies.VisibleTo(actor).SingleOrDefaultAsync(c => c.Id == id, ct);
             if (company is null) return Results.NotFound();
 
-            // Same columns and payload keys as the live action, so approval applies them unchanged.
-            var cols = new Dictionary<string, object?>
-            {
-                ["short_name"] = input.ShortName!.Trim(), ["legal_name"] = input.LegalName!.Trim(),
-                ["address"] = Clean(input.Address), ["phone"] = Clean(input.Phone), ["mobile_phone"] = Clean(input.MobilePhone),
-                ["city"] = Clean(input.City), ["authorized_person"] = Clean(input.AuthorizedPerson),
-                ["registered_brand"] = Clean(input.RegisteredBrand), ["industry_reg_no"] = Clean(input.IndustryRegNo),
-                ["email"] = Clean(input.Email), ["ce_module"] = Clean(input.CeModule),
-                ["category"] = Clean(input.Category) ?? "asansor", ["sector"] = Clean(input.Sector),
-            };
+            var cols = Columns(input);
             if (!actor.IsStaff)
             {
                 var change = Pending(actor, "company_edit", id, cols);
@@ -125,6 +128,17 @@ public static class CompanyWriteEndpoints
             return Results.Ok(new WriteResult(false, doc.Id));
         });
     }
+
+    // Same columns and payload keys as the live action, so approval applies them unchanged.
+    private static Dictionary<string, object?> Columns(CompanyInput input) => new()
+    {
+        ["short_name"] = input.ShortName!.Trim(), ["legal_name"] = input.LegalName!.Trim(),
+        ["address"] = Clean(input.Address), ["phone"] = Clean(input.Phone), ["mobile_phone"] = Clean(input.MobilePhone),
+        ["city"] = Clean(input.City), ["authorized_person"] = Clean(input.AuthorizedPerson),
+        ["registered_brand"] = Clean(input.RegisteredBrand), ["industry_reg_no"] = Clean(input.IndustryRegNo),
+        ["email"] = Clean(input.Email), ["ce_module"] = Clean(input.CeModule),
+        ["category"] = Clean(input.Category) ?? "asansor", ["sector"] = Clean(input.Sector),
+    };
 
     public static PendingChange Pending(Actor actor, string kind, Guid? companyId, Dictionary<string, object?> payload) => new()
     {

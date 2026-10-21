@@ -98,5 +98,6 @@ app.MapCompanyWriteEndpoints();
 app.MapEngineerWriteEndpoints();
 app.MapPendingChangeEndpoints();
 app.MapProjeOnayEndpoints();
+app.MapTakipEndpoints();
 
 app.Run();

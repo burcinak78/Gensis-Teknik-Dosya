@@ -112,7 +112,8 @@ public static class ProjectMuhasebeEndpoints
     }
 
     // Same as public.next_takip_no() without calling the SECURITY DEFINER function (the app role cannot).
-    private static async Task<int> NextTakipNoAsync(AppDbContext db, CancellationToken ct) =>
+    // Never handed out twice: a deleted takip record does not give its number back (user decision).
+    internal static async Task<int> NextTakipNoAsync(AppDbContext db, CancellationToken ct) =>
         (await db.Database.SqlQuery<int>($"""
             INSERT INTO public.takip_counter (id, next_no) VALUES (1, 1002)
             ON CONFLICT (id) DO UPDATE SET next_no = public.takip_counter.next_no + 1
