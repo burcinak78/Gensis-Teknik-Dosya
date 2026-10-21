@@ -113,6 +113,19 @@ public class AccessFilterTests
     }
 
     [Fact]
+    public void Companies_accountant_reads_all_but_writes_none()
+    {
+        var a = new Company { Id = CompanyA, ShortName = "A" };
+        var b = new Company { Id = CompanyB, ShortName = "B" };
+        var companies = new[] { a, b }.AsQueryable();
+        Assert.Equal(2, companies.ReadableBy(Accountant).Count());
+        Assert.Equal(2, companies.ReadableBy(Gensis).Count());
+        Assert.Equal([a], companies.ReadableBy(CustomerA).ToArray());
+        Assert.Empty(companies.ReadableBy(NoCompany));
+        Assert.Empty(companies.VisibleTo(Accountant));
+    }
+
+    [Fact]
     public void Company_module_certs_customers_see_only_own_company()
     {
         var a = new CompanyModuleCert { Id = Guid.NewGuid(), CompanyId = CompanyA };
@@ -133,10 +146,11 @@ public class AccessFilterTests
         var unassigned = new Engineer { Id = Guid.NewGuid(), FullName = "None", CompanyId = null };
         var engineers = new[] { own, other, gensis, unassigned }.AsQueryable();
 
-        Assert.Equal(4, engineers.VisibleTo(Admin, gensisCompany).Count());
-        Assert.Equal([own, gensis], engineers.VisibleTo(CustomerA, gensisCompany).ToArray());
-        Assert.Empty(engineers.VisibleTo(NoCompany, gensisCompany));
+        Assert.Equal(4, engineers.ReadableBy(Admin, gensisCompany).Count());
+        Assert.Equal(4, engineers.ReadableBy(Accountant, gensisCompany).Count());
+        Assert.Equal([own, gensis], engineers.ReadableBy(CustomerA, gensisCompany).ToArray());
+        Assert.Empty(engineers.ReadableBy(NoCompany, gensisCompany));
         // No Gensis company found: a null id must not match engineers without a company.
-        Assert.Equal([own], engineers.VisibleTo(CustomerA, null).ToArray());
+        Assert.Equal([own], engineers.ReadableBy(CustomerA, null).ToArray());
     }
 }

@@ -50,12 +50,12 @@ public static class CatalogEndpoints
         var g = app.MapGroup("/api/catalog").RequireAuthorization();
 
         g.MapGet("/companies", (Actor actor, AppDbContext db, CancellationToken ct) =>
-            db.Companies.AsNoTracking().VisibleTo(actor).OrderBy(c => EF.Functions.Collate(c.ShortName, Collations.Turkish))
+            db.Companies.AsNoTracking().ReadableBy(actor).OrderBy(c => EF.Functions.Collate(c.ShortName, Collations.Turkish))
                 .Select(ToCompanyDto).ToListAsync(ct));
 
         // Another company's id answers 404, same as a missing one.
         g.MapGet("/companies/{id:guid}", async (Guid id, Actor actor, AppDbContext db, CancellationToken ct) =>
-            await db.Companies.AsNoTracking().VisibleTo(actor).Where(c => c.Id == id).Select(ToCompanyDto).SingleOrDefaultAsync(ct)
+            await db.Companies.AsNoTracking().ReadableBy(actor).Where(c => c.Id == id).Select(ToCompanyDto).SingleOrDefaultAsync(ct)
                 is { } company ? Results.Ok(company) : Results.NotFound());
 
         g.MapGet("/companies/names", (AppDbContext db, CancellationToken ct) =>
@@ -66,7 +66,7 @@ public static class CatalogEndpoints
         g.MapGet("/engineers", async (Actor actor, AppDbContext db, GensisCompany gensis, CancellationToken ct) =>
         {
             var gensisId = gensis.Id;
-            var engineers = await db.Engineers.AsNoTracking().VisibleTo(actor, gensisId)
+            var engineers = await db.Engineers.AsNoTracking().ReadableBy(actor, gensisId)
                 .OrderBy(e => EF.Functions.Collate(e.FullName, Collations.Turkish))
                 .Select(e => new EngineerDto(e.Id, e.FullName, e.Discipline, e.ChamberRegNo, e.CompanyId)).ToListAsync(ct);
             return new EngineersDto(gensisId, engineers);

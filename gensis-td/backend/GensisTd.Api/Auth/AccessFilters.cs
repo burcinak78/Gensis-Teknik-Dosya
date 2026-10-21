@@ -50,13 +50,18 @@ public static class AccessFilters
     public static IQueryable<Company> VisibleTo(this IQueryable<Company> q, Actor a) =>
         a.IsStaff ? q : a.CompanyId is { } cid ? q.Where(x => x.Id == cid) : q.Where(_ => false);
 
+    // Reading only: the accountant read every company on live, by design (user, 2026-10-21). Writes use VisibleTo.
+    public static IQueryable<Company> ReadableBy(this IQueryable<Company> q, Actor a) =>
+        a.IsOffice ? q : q.VisibleTo(a);
+
     public static IQueryable<CompanyModuleCert> VisibleTo(this IQueryable<CompanyModuleCert> q, Actor a) =>
         a.IsStaff ? q : a.CompanyId is { } cid ? q.Where(x => x.CompanyId == cid) : q.Where(_ => false);
 
     // KRR-014: own company's engineers plus Gensis's, which the project wizard offers to every customer.
+    // The accountant reads all, as on live (by design). Reading only.
     // A null Gensis id must not become `company_id IS NULL`, so it only joins the filter when known.
-    public static IQueryable<Engineer> VisibleTo(this IQueryable<Engineer> q, Actor a, Guid? gensisCompanyId) =>
-        a.IsStaff ? q
+    public static IQueryable<Engineer> ReadableBy(this IQueryable<Engineer> q, Actor a, Guid? gensisCompanyId) =>
+        a.IsOffice ? q
         : a.CompanyId is not { } cid ? q.Where(_ => false)
         : gensisCompanyId is { } gid ? q.Where(x => x.CompanyId == cid || x.CompanyId == gid)
         : q.Where(x => x.CompanyId == cid);
