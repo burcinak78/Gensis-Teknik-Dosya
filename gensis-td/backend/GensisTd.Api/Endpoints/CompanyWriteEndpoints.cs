@@ -74,7 +74,10 @@ public static class CompanyWriteEndpoints
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.ElektrikMuhendisId, (Guid?)null), ct);
             await db.Engineers.Where(e => engineerIds.Contains(e.Id)).ExecuteDeleteAsync(ct);
             await db.PendingChanges.Where(p => p.CompanyId == id).ExecuteDeleteAsync(ct);
-            // The company's users lose it and are deactivated, so they can no longer sign in (user decision).
+            // The company's users lose it and are deactivated, so they can no longer sign in (user decision);
+            // their open sessions end too (KRR-024).
+            await db.Users.Where(u => u.Profile != null && u.Profile.CompanyId == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(u => u.TokenVersion, u => u.TokenVersion + 1), ct);
             await db.Profiles.Where(p => p.CompanyId == id).ExecuteUpdateAsync(s => s
                 .SetProperty(p => p.CompanyId, (Guid?)null).SetProperty(p => p.IsActive, false), ct);
             try

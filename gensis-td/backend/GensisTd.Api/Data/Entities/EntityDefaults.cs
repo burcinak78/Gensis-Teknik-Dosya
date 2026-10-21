@@ -53,3 +53,6 @@ public partial class TemplateField
 }
 
 public partial class VProjectOverview { public ProjectStatus? Status { get; set; } }
+
+// KRR-024: bumped when the password changes or the user is deactivated; sessions carry it and stop working.
+public partial class User { public int TokenVersion { get; set; } }

@@ -2436,6 +2436,12 @@ namespace GensisTd.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("password_hash");
 
+                    b.Property<int>("TokenVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("token_version")
+                        .HasDefaultValueSql("0");
+
                     b.HasKey("Id")
                         .HasName("users_pkey");
 

@@ -13,7 +13,7 @@ namespace GensisTd.Api.Endpoints;
 /// </summary>
 public static class UserEndpoints
 {
-    public const int MinPasswordLength = 6; // Supabase Auth's default minimum, which the live screens relied on
+    public const int MinPasswordLength = 10; // user decision (KRR-024); existing passwords keep working
 
     public record UserRow(Guid Id, string Email, string? FullName, AppRole Role, bool IsActive, Guid? CompanyId, string? CompanyShortName,
         DateTime? LastSignInAt);
@@ -61,6 +61,11 @@ public static class UserEndpoints
             if (user?.Profile is not { } profile) return Results.NotFound();
             if (await CompanyFor(input.Role.Value, input.CompanyId, db, gensis, ct) is not { } company) return BadCompany();
 
+            if (await WouldLeaveNoAdminAsync(db, id, input.Role.Value, input.IsActive, ct))
+                return Results.Conflict(new { error = "Son aktif admin pasif yapılamaz ve rolü değiştirilemez." });
+
+            // A new password or deactivation ends the user's open sessions (KRR-024).
+            if (!string.IsNullOrEmpty(input.Password) || (profile.IsActive && !input.IsActive)) user.TokenVersion++;
             profile.FullName = Clean(input.FullName);
             profile.Role = input.Role.Value;
             profile.CompanyId = company.Id;
@@ -78,6 +83,8 @@ public static class UserEndpoints
         {
             if (id == actor.UserId) return Results.Conflict(new { error = "Kendi hesabınızı silemezsiniz." });
             if (!await db.Users.AnyAsync(u => u.Id == id, ct)) return Results.NotFound();
+            if (await WouldLeaveNoAdminAsync(db, id, AppRole.Customer, false, ct))
+                return Results.Conflict(new { error = "Son aktif admin silinemez." });
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             await db.TakipProjelers.Where(t => t.ProjeSorumlusuId == id).ExecuteUpdateAsync(s => s.SetProperty(t => t.ProjeSorumlusuId, (Guid?)null), ct);
             await db.TakipProjelers.Where(t => t.CreatedBy == id).ExecuteUpdateAsync(s => s.SetProperty(t => t.CreatedBy, (Guid?)null), ct);
@@ -95,6 +102,14 @@ public static class UserEndpoints
             await tx.CommitAsync(ct);
             return Results.Ok(new { message = "Kullanıcı silindi." });
         });
+    }
+
+    /// <summary>True when the change (new role / active state) would leave no active admin (user decision).</summary>
+    private static async Task<bool> WouldLeaveNoAdminAsync(AppDbContext db, Guid userId, AppRole newRole, bool newActive, CancellationToken ct)
+    {
+        if (newRole == AppRole.Admin && newActive) return false;
+        var isActiveAdmin = await db.Profiles.AnyAsync(p => p.Id == userId && p.Role == AppRole.Admin && p.IsActive, ct);
+        return isActiveAdmin && !await db.Profiles.AnyAsync(p => p.Id != userId && p.Role == AppRole.Admin && p.IsActive, ct);
     }
 
     private sealed record CompanyChoice(Guid? Id);

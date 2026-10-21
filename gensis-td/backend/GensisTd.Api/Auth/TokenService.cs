@@ -13,6 +13,9 @@ public class TokenService(IOptions<AuthOptions> options)
 
     public static SymmetricSecurityKey SigningKey(string secret) => new(Encoding.UTF8.GetBytes(secret));
 
+    /// <summary>Session claim holding <see cref="User.TokenVersion"/> (KRR-024).</summary>
+    public const string VersionClaim = "tv";
+
     public (string Token, DateTimeOffset Expires) Issue(User user)
     {
         var o = options.Value;
@@ -20,7 +23,11 @@ public class TokenService(IOptions<AuthOptions> options)
         var token = new JwtSecurityToken(
             issuer: Issuer,
             audience: Issuer,
-            claims: [new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()), new Claim(JwtRegisteredClaimNames.Email, user.Email)],
+            claims:
+            [
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()), new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(VersionClaim, user.TokenVersion.ToString(), ClaimValueTypes.Integer32),
+            ],
             expires: expires.UtcDateTime,
             signingCredentials: new SigningCredentials(SigningKey(o.JwtSecret), SecurityAlgorithms.HmacSha256));
         return (new JwtSecurityTokenHandler().WriteToken(token), expires);

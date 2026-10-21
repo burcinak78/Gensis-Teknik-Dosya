@@ -6,9 +6,10 @@ using NpgsqlTypes;
 namespace GensisTd.Api.Auth;
 
 /// <summary>
-/// Loads the profile behind the session token on every request. A missing or deactivated profile
-/// makes the request anonymous, so deactivation and role changes apply immediately instead of
-/// when the 12-hour token expires. Role claims are added for policy checks.
+/// Loads the profile behind the session token on every request. A missing or deactivated profile,
+/// or a token issued before the user's last password change or deactivation (token version, KRR-024),
+/// makes the request anonymous, so these changes apply immediately instead of when the 12-hour token
+/// expires. Role claims are added for policy checks.
 /// </summary>
 public static class ActorMiddleware
 {
@@ -19,10 +20,12 @@ public static class ActorMiddleware
             var db = http.RequestServices.GetRequiredService<AppDbContext>();
             var profile = await db.Profiles.AsNoTracking()
                 .Where(p => p.Id == userId)
-                .Select(p => new { p.Role, p.CompanyId, p.IsActive })
+                .Select(p => new { p.Role, p.CompanyId, p.IsActive, p.IdNavigation.TokenVersion })
                 .SingleOrDefaultAsync(http.RequestAborted);
+            // Tokens from before versioning have no claim and count as version 0.
+            var tokenVersion = int.TryParse(http.User.FindFirstValue(TokenService.VersionClaim), out var v) ? v : 0;
 
-            if (profile is { IsActive: true })
+            if (profile is { IsActive: true } && profile.TokenVersion == tokenVersion)
             {
                 var actor = new Actor(userId, profile.Role, profile.CompanyId);
                 http.Items[typeof(Actor)] = actor;

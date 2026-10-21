@@ -34,6 +34,8 @@ public partial class AppDbContext
             e.Property(x => x.LastNo).HasColumnName("last_no");
         });
 
+        b.Entity<User>().Property(x => x.TokenVersion).HasColumnName("token_version").HasDefaultValueSql("0");
+
         b.Entity<PendingChange>(e =>
         {
             e.ToTable("pending_changes", t =>
