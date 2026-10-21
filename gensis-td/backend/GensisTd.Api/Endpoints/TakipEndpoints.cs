@@ -245,7 +245,7 @@ public static class TakipEndpoints
         });
     }
 
-    private static IQueryable<TakipRow> Rows(IQueryable<TakipProjeler> q) => q.Select(t => new TakipRow(
+    internal static IQueryable<TakipRow> Rows(IQueryable<TakipProjeler> q) => q.Select(t => new TakipRow(
         t.Id, t.ProjeNo, t.ProjeTipi, t.SiparisTarihi, t.CompanyId, t.AdaParsel, t.IsAdi, t.AsansorSayisi, t.AsansorTipi, t.ProvinceId,
         t.DistrictId, t.IlAdi, t.IlceAdi, t.Fiyat, t.FaturaTipi, t.ToplamTutar, t.ProjeSorumlusuId, t.TahminiTamamlanma, t.Durum,
         t.BekliyorAciklama, t.TamamlanmaTarihi, t.TeslimTipi, t.HardCopyAdedi, t.MuhasebeyeGonderildi, t.MuhasebeDurumu, t.CreatedBy,

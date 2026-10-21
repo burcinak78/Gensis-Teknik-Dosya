@@ -9,12 +9,15 @@ public static class Policies
     public const string Admin = "admin";
     public const string Staff = "staff";
     public const string Office = "office";
+    /// <summary>admin + muhasebeci: may record invoices and deliveries (Muhasebe screen).</summary>
+    public const string Accounting = "accounting";
 
     public static void AddGensisPolicies(this AuthorizationBuilder auth)
     {
         auth.AddPolicy(Admin, p => p.RequireRole(Roles(AppRole.Admin)));
         auth.AddPolicy(Staff, p => p.RequireRole(Roles(AppRole.Admin, AppRole.Gensis)));
         auth.AddPolicy(Office, p => p.RequireRole(Roles(AppRole.Admin, AppRole.Gensis, AppRole.Muhasebeci)));
+        auth.AddPolicy(Accounting, p => p.RequireRole(Roles(AppRole.Admin, AppRole.Muhasebeci)));
     }
 
     private static string[] Roles(params AppRole[] roles) => roles.Select(ActorMiddleware.RoleName).ToArray();
