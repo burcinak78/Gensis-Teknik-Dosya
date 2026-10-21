@@ -13,26 +13,42 @@ services:
     depends_on:
       - backend
 
+  # One-shot: migrations, app DB role, first admin. The only service with the DB owner password.
+  migrate:
+    build: ./backend
+    image: gensis-td-backend:local
+    command: ["migrate"]
+    restart: "no"
+    environment:
+      ConnectionStrings__Default: "Host=db;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};GSS Encryption Mode=Disable"
+      DB_APP_USER: ${DB_APP_USER}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Restricted DB role and MinIO key only (KRR-016).
   backend:
     build: ./backend
+    image: gensis-td-backend:local
     restart: unless-stopped
     environment:
-      ConnectionStrings__Default: "Host=db;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD}"
+      ConnectionStrings__Default: "Host=db;Database=${DB_NAME};Username=${DB_APP_USER};Password=${DB_APP_PASSWORD};GSS Encryption Mode=Disable"
       Auth__JwtSecret: ${JWT_SECRET}
       Auth__SecureCookie: ${SECURE_COOKIE:-true}
       Storage__Endpoint: http://storage:9000
       Storage__PublicUrl: ${STORAGE_PUBLIC_URL}
-      Storage__AccessKey: ${MINIO_ROOT_USER}
-      Storage__SecretKey: ${MINIO_ROOT_PASSWORD}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      Storage__AccessKey: ${MINIO_APP_USER}
+      Storage__SecretKey: ${MINIO_APP_PASSWORD}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-10202}:8080"
     depends_on:
-      db:
-        condition: service_healthy
-      storage:
-        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
 
   db:
     image: postgres:17-alpine  # same major as Supabase (17.x)
@@ -62,6 +78,22 @@ services:
     # S3 API only; the console port is not published.
     ports:
       - "127.0.0.1:${STORAGE_PORT:-10203}:9000"
+
+  # One-shot: buckets and the backend's restricted key. Same image, which ships mc.
+  storage-init:
+    image: cgr.dev/chainguard/minio@sha256:32c504bea4574d8f29d719b37bc0dad920ecf3e22b81dc5cea0bb105af2ce10f
+    entrypoint: ["/bin/bash", "/init/init.sh"]
+    restart: "no"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_APP_USER: ${MINIO_APP_USER}
+      MINIO_APP_PASSWORD: ${MINIO_APP_PASSWORD}
+    volumes:
+      - ./deploy/storage:/init:ro
+    depends_on:
+      - storage
+
 volumes:
   db-data:
   storage-data:

@@ -1,0 +1,109 @@
+# server01:/opt/apps/gensis-td — dev deploy (template: DURAK-DEV infra/templates/docker-compose.yml).
+# The contents of this deploy/ folder are copied next to .env; relative paths (./proxy, ./storage) resolve here:
+#   /opt/apps/gensis-td/{docker-compose.server.yml, .env, proxy/nginx.conf, storage/init.sh, storage/app-policy.json}
+#   docker compose -f docker-compose.server.yml pull && docker compose -f docker-compose.server.yml up -d
+# Each service gets only the variables it needs (no env_file), so the backend never sees owner/root secrets (KRR-016).
+name: gensis-td
+
+x-backend-image: &backend-image ${REGISTRY:-repo.nomateknoloji.com}/gensis-td/gensis-td_backend:${IMAGE_TAG:-latest}
+
+services:
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PROXY_PORT:-10201}:80"
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+
+  # Enabled once the frontend talks to the C# API (ClickUp z8qgvc6xbh). Until then / returns 502.
+  frontend:
+    image: ${REGISTRY:-repo.nomateknoloji.com}/gensis-td/gensis-td_frontend:${IMAGE_TAG:-latest}
+    profiles: ["frontend"]
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  # One-shot on every deploy: migrations, app DB role, first admin. The only service with the DB owner password.
+  migrate:
+    image: *backend-image
+    command: ["migrate"]
+    restart: "no"
+    environment:
+      ConnectionStrings__Default: "Host=db;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};GSS Encryption Mode=Disable"
+      DB_APP_USER: ${DB_APP_USER}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    image: *backend-image
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__Default: "Host=db;Database=${DB_NAME};Username=${DB_APP_USER};Password=${DB_APP_PASSWORD};GSS Encryption Mode=Disable"
+      Auth__JwtSecret: ${JWT_SECRET}
+      Auth__SecureCookie: ${SECURE_COOKIE:-true}
+      Storage__Endpoint: http://storage:9000
+      Storage__PublicUrl: ${STORAGE_PUBLIC_URL}
+      Storage__AccessKey: ${MINIO_APP_USER}
+      Storage__SecretKey: ${MINIO_APP_PASSWORD}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-10202}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # not exposed to the host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      retries: 5
+
+  storage:
+    # Official MinIO images are no longer published; Chainguard builds it from source.
+    image: cgr.dev/chainguard/minio@sha256:32c504bea4574d8f29d719b37bc0dad920ecf3e22b81dc5cea0bb105af2ce10f
+    restart: unless-stopped
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - storage-data:/data
+    # S3 API only (presigned links via STORAGE_PUBLIC_URL); the console port is not published.
+    ports:
+      - "127.0.0.1:${STORAGE_PORT:-10203}:9000"
+
+  # One-shot on every deploy: buckets and the backend's restricted key.
+  storage-init:
+    image: cgr.dev/chainguard/minio@sha256:32c504bea4574d8f29d719b37bc0dad920ecf3e22b81dc5cea0bb105af2ce10f
+    entrypoint: ["/bin/bash", "/init/init.sh"]
+    restart: "no"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_APP_USER: ${MINIO_APP_USER}
+      MINIO_APP_PASSWORD: ${MINIO_APP_PASSWORD}
+    volumes:
+      - ./storage:/init:ro
+    depends_on:
+      - storage
+
+volumes:
+  db-data:
+  storage-data:

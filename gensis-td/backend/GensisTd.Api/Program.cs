@@ -16,6 +16,14 @@ builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("Default")
         ?? throw new InvalidOperationException("ConnectionStrings__Default is not set"), AppDbContext.MapEnums));
 
+// `migrate`: apply migrations, set up the app role and seed the first admin, then exit (owner credentials).
+if (args.Contains("migrate"))
+{
+    var migrator = builder.Build();
+    await DbMigrator.RunAsync(migrator.Services, migrator.Configuration, migrator.Logger);
+    return;
+}
+
 var authSection = builder.Configuration.GetSection("Auth");
 builder.Services.Configure<AuthOptions>(authSection);
 var jwtSecret = authSection["JwtSecret"];
@@ -65,17 +73,6 @@ builder.Services.AddSingleton<StorageService>();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-    // Npgsql caches database types on first connect; reload so enums created by the migration are known.
-    var conn = (Npgsql.NpgsqlConnection)db.Database.GetDbConnection();
-    await conn.OpenAsync();
-    await conn.ReloadTypesAsync();
-    await conn.CloseAsync();
-    await AdminSeeder.SeedAsync(db, app.Configuration, app.Logger);
-}
 await app.Services.GetRequiredService<StorageService>().EnsureBucketsAsync(app.Logger);
 
 if (app.Environment.IsDevelopment())
