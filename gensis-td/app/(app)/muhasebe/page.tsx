@@ -1,33 +1,26 @@
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { apiGet, requireMe } from "@/lib/api/server";
+import { toSnake } from "@/lib/api/case";
 import MuhasebeClient from "./MuhasebeClient";
 
 export const dynamic = "force-dynamic";
 
+type AccountingRow = { row: Record<string, unknown>; muhasebe: Record<string, unknown> | null };
+
 export default async function MuhasebePage() {
-  const supabase = createClient();
-  const admin = createAdminClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: prof } = user ? await supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null } as any;
-  const readOnly = prof?.role === "gensis"; // Kullanıcı: salt-okunur
+  const me = await requireMe(["admin", "muhasebeci", "gensis"]);
+  const readOnly = me.role === "gensis"; // Kullanıcı: salt-okunur
 
-  const [{ data: projeler }, { data: muhasebe }, { data: companies }, { data: sorumlular }] = await Promise.all([
-    admin.from("takip_projeler").select("*").order("proje_no", { ascending: false }).order("created_at", { ascending: true }).limit(5000),
-    admin.from("takip_muhasebe").select("*").limit(5000),
-    supabase.from("companies").select("id, short_name").order("short_name").limit(2000),
-    admin.from("profiles").select("id, full_name").in("role", ["admin", "gensis"]).limit(1000),
+  const [rows, companies, sorumlular] = await Promise.all([
+    apiGet<AccountingRow[]>("/api/muhasebe"),
+    apiGet("/api/catalog/companies/names"),
+    apiGet("/api/takip/sorumlular"),
   ]);
-
-  const muhByTakip: Record<string, any> = {};
-  for (const m of muhasebe ?? []) muhByTakip[m.takip_id] = m;
-
-  const rows = (projeler ?? []).map((p: any) => ({ ...p, muhasebe: muhByTakip[p.id] ?? null }));
 
   return (
     <MuhasebeClient
-      rows={rows as any}
-      companies={(companies ?? []) as any}
-      sorumlular={(sorumlular ?? []) as any}
+      rows={(rows ?? []).map((r) => ({ ...toSnake<Record<string, any>>(r.row), muhasebe: toSnake(r.muhasebe) })) as any}
+      companies={toSnake<any[]>(companies ?? [])}
+      sorumlular={toSnake<any[]>(sorumlular ?? [])}
       readOnly={readOnly}
     />
   );
