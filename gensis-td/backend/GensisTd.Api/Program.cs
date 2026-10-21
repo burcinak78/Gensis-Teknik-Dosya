@@ -101,5 +101,6 @@ app.MapProjeOnayEndpoints();
 app.MapTakipEndpoints();
 app.MapMuhasebeEndpoints();
 app.MapUserEndpoints();
+app.MapCatalogAdminEndpoints();
 
 app.Run();

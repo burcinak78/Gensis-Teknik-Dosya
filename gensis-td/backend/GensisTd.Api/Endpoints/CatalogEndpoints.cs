@@ -23,7 +23,7 @@ public static class CatalogEndpoints
     public record EngineersDto(Guid? GensisCompanyId, List<EngineerDto> Engineers);
 
     public record ProvinceDto(short Id, string Name);
-    public record NotifiedBodyDto(Guid Id, string? IdentityNo, string Name, string? ShortName, string? Address);
+    public record NotifiedBodyDto(Guid Id, string? IdentityNo, string Name, string? ShortName, string? Address, string? City, string? Country);
     public record IlgiliIdareDto(Guid Id, string Name, short? ProvinceId, string Suffix, string? Address);
     public record IlgiliIdareInput(string? Name, string? Address, short? ProvinceId, string? Suffix);
     public record CapacityDto(int BeyanYukuKg, int? KisiSayisi, int? KabinAgirlikKg, int? KarsiAgirlikKg);
@@ -43,7 +43,7 @@ public static class CatalogEndpoints
 
     public record CertificateDto(
         Guid Id, string CertNo, Guid? NotifiedBodyId, DateOnly? IssueDate, DateOnly? ValidUntil,
-        string? BelgeTipi, Guid? CategoryId, string? FirmaAdi);
+        string? BelgeTipi, Guid? CategoryId, string? FirmaAdi, string? CurrentFileName);
 
     public static void MapCatalogEndpoints(this WebApplication app)
     {
@@ -92,7 +92,7 @@ public static class CatalogEndpoints
 
         g.MapGet("/notified-bodies", (AppDbContext db, CancellationToken ct) =>
             db.NotifiedBodies.AsNoTracking().OrderBy(n => EF.Functions.Collate(n.Name, Collations.Turkish))
-                .Select(n => new NotifiedBodyDto(n.Id, n.IdentityNo, n.Name, n.ShortName, n.Address)).ToListAsync(ct));
+                .Select(n => new NotifiedBodyDto(n.Id, n.IdentityNo, n.Name, n.ShortName, n.Address, n.City, n.Country)).ToListAsync(ct));
 
         g.MapGet("/ilgili-idareler", (AppDbContext db, CancellationToken ct) =>
             db.IlgiliIdarelers.AsNoTracking().OrderBy(i => EF.Functions.Collate(i.Name, Collations.Turkish))
@@ -136,7 +136,8 @@ public static class CatalogEndpoints
 
         g.MapGet("/certificates", (AppDbContext db, CancellationToken ct) =>
             db.Certificates.AsNoTracking().OrderBy(c => c.CertNo)
-                .Select(c => new CertificateDto(c.Id, c.CertNo, c.NotifiedBodyId, c.IssueDate, c.ValidUntil, c.BelgeTipi, c.CategoryId, c.FirmaAdi))
+                .Select(c => new CertificateDto(c.Id, c.CertNo, c.NotifiedBodyId, c.IssueDate, c.ValidUntil, c.BelgeTipi, c.CategoryId, c.FirmaAdi,
+                    db.CertificateFiles.Where(f => f.CertificateId == c.Id && f.IsCurrent).Select(f => f.OriginalName).FirstOrDefault()))
                 .ToListAsync(ct));
     }
 
