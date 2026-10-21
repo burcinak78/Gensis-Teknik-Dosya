@@ -45,7 +45,7 @@ export default function KullaniciForm({ companies }: { companies: { id: string; 
         </div>
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">Geçici Şifre *</label>
-          <input value={f.password} onChange={(e) => set("password", e.target.value)} className={inp} placeholder="En az 6 karakter" />
+          <input value={f.password} onChange={(e) => set("password", e.target.value)} className={inp} placeholder="En az 10 karakter" />
         </div>
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">Rol *</label>

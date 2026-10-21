@@ -187,10 +187,10 @@ function UserModal({
     // Şifre kuralları
     if (!isEdit) {
       if (!pw) return setErr("Şifre zorunlu.");
-      if (pw.length < 6) return setErr("Şifre en az 6 karakter olmalı.");
+      if (pw.length < 10) return setErr("Şifre en az 10 karakter olmalı.");
       if (pw !== pw2) return setErr("Şifreler eşleşmiyor.");
     } else if (pw || pw2) {
-      if (pw.length < 6) return setErr("Yeni şifre en az 6 karakter olmalı.");
+      if (pw.length < 10) return setErr("Yeni şifre en az 10 karakter olmalı.");
       if (pw !== pw2) return setErr("Şifreler eşleşmiyor.");
     }
     setBusy(true);
@@ -231,7 +231,7 @@ function UserModal({
           <p className="text-xs font-bold text-slate-600">{isEdit ? "Yeni Şifre Ata (boş bırakırsanız değişmez)" : "Şifre"}</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label={isEdit ? "Yeni Şifre" : "Şifre *"}>
-              <PasswordInput value={pw} onChange={setPw} placeholder={isEdit ? "Değiştirmek için giriniz" : "En az 6 karakter"} />
+              <PasswordInput value={pw} onChange={setPw} placeholder={isEdit ? "Değiştirmek için giriniz" : "En az 10 karakter"} />
             </Field>
             <Field label={isEdit ? "Yeni Şifre (Tekrar)" : "Şifre (Tekrar) *"}>
               <PasswordInput value={pw2} onChange={setPw2} placeholder="Tekrar giriniz" />
