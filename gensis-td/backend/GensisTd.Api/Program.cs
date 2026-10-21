@@ -90,5 +90,6 @@ app.MapCatalogEndpoints();
 app.MapProjectEndpoints();
 app.MapProjectWriteEndpoints();
 app.MapFileEndpoints();
+app.MapProjectFileEndpoints();
 
 app.Run();

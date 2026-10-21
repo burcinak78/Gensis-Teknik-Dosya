@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using GensisTd.Api.Auth;
 using GensisTd.Api.Data;
+using GensisTd.Api.Storage;
 using GensisTd.Api.Data.Entities;
 using GensisTd.Api.Projects;
 using Microsoft.EntityFrameworkCore;
@@ -65,16 +66,20 @@ public static partial class ProjectWriteEndpoints
             return Results.Ok(new { id });
         });
 
-        g.MapDelete("/{id:guid}", async (Guid id, Actor actor, AppDbContext db, CancellationToken ct) =>
+        g.MapDelete("/{id:guid}", async (Guid id, Actor actor, AppDbContext db, StorageService storage, ILoggerFactory logs,
+            CancellationToken ct) =>
         {
             var project = await db.Projects.VisibleTo(actor).SingleOrDefaultAsync(p => p.Id == id, ct);
             if (project is null) return Results.NotFound();
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // Read before the cascade removes the rows; the objects go once the delete is committed.
+            var paths = await db.ProjectFiles.Where(f => f.ProjectId == id).Select(f => f.StoragePath).ToListAsync(ct);
             await TakipCleanup.RemoveUnpostedAsync(db, project, ct);
             db.Projects.Remove(project); // project_equipment, project_files cascade in the database
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
+            await storage.DeleteQuietlyAsync(FileEndpoints.DocumentsBucket, paths, logs.CreateLogger(nameof(ProjectWriteEndpoints)));
             return Results.NoContent();
         });
     }
