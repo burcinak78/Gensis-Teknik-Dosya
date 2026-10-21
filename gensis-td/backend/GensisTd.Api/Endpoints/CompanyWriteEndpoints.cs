@@ -74,7 +74,9 @@ public static class CompanyWriteEndpoints
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.ElektrikMuhendisId, (Guid?)null), ct);
             await db.Engineers.Where(e => engineerIds.Contains(e.Id)).ExecuteDeleteAsync(ct);
             await db.PendingChanges.Where(p => p.CompanyId == id).ExecuteDeleteAsync(ct);
-            await db.Profiles.Where(p => p.CompanyId == id).ExecuteUpdateAsync(s => s.SetProperty(p => p.CompanyId, (Guid?)null), ct);
+            // The company's users lose it and are deactivated, so they can no longer sign in (user decision).
+            await db.Profiles.Where(p => p.CompanyId == id).ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.CompanyId, (Guid?)null).SetProperty(p => p.IsActive, false), ct);
             try
             {
                 await db.Companies.Where(c => c.Id == id).ExecuteDeleteAsync(ct);

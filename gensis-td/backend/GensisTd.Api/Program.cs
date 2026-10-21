@@ -100,5 +100,6 @@ app.MapPendingChangeEndpoints();
 app.MapProjeOnayEndpoints();
 app.MapTakipEndpoints();
 app.MapMuhasebeEndpoints();
+app.MapUserEndpoints();
 
 app.Run();
