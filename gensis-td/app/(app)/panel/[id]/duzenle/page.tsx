@@ -1,105 +1,60 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { apiGet } from "@/lib/api/server";
 import DataEntryWizard, { type InitialData } from "../../../yeni/DataEntryWizard";
+import { loadWizardReference } from "../../../yeni/reference";
 
 export const dynamic = "force-dynamic";
 
 const s = (v: any) => (v == null ? "" : String(v));
 
+type ProjectApi = {
+  id: string; companyId: string; dosyaNo: string; dosyaTarihi: string | null; tdNo: string | null; binaAdi: string | null;
+  montajAdresi: string | null; provinceId: number | null; districtId: string | null; elektrikMuhendisId: string | null;
+  makineMuhendisId: string | null; beyanYukuKg: number | null; kisiSayisi: number | null; beyanHizi: number | null;
+  katAdedi: number | null; durakAdedi: number | null; imalYili: number | null; inputData: Record<string, any>;
+};
+type EquipmentApi = { categoryId: string; slot: string; brandId: string | null; modelId: string | null; seriNo: string | null; seriList: unknown };
+
 export default async function DuzenlePage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const supabase = createClient();
+  const pid = encodeURIComponent(params.id);
 
-  const [
-    companies,
-    categories,
-    brands,
-    models,
-    certificates,
-    notifiedBodies,
-    provinces,
-    ilgiliIdareler,
-    capacity,
-    lookups,
-    engineers,
-    companyDocsRes,
-    projectRes,
-    equipRes,
-    filesRes,
-  ] = await Promise.all([
-    supabase
-      .from("companies")
-      .select("id, short_name, legal_name, address, phone, fax, city, authorized_person, registered_brand, industry_reg_no")
-      .order("short_name"),
-    supabase.from("equipment_categories").select("id, code, name, sort_order, drive_type").order("sort_order"),
-    supabase.from("equipment_brands").select("id, category_id, name").order("name"),
-    supabase.from("equipment_models").select("id, brand_id, name, certificate_id").order("name"),
-    supabase.from("certificates").select("id, cert_no, notified_body_id, valid_until"),
-    supabase.from("notified_bodies").select("id, identity_no, name, address"),
-    supabase.from("provinces").select("id, name").order("name"),
-    supabase.from("ilgili_idareler").select("id, name, province_id, suffix").order("name").limit(8000),
-    supabase
-      .from("capacity_table")
-      .select("beyan_yuku_kg, kisi_sayisi, kabin_agirlik_kg, karsi_agirlik_kg")
-      .order("beyan_yuku_kg"),
-    supabase.from("lookup_values").select("list_key, value, sort_order").order("sort_order"),
-    supabase.from("engineers").select("id, full_name, discipline, chamber_reg_no, company_id").order("full_name").limit(2000),
-    supabase.from("company_documents").select("id, company_id, doc_type, belge_no, issue_date, valid_until, notified_body_id, original_name").limit(5000),
-    supabase.from("projects").select("*").eq("id", params.id).single(),
-    supabase
-      .from("project_equipment")
-      .select("category_id, slot, brand_id, model_id, seri_no, seri_list")
-      .eq("project_id", params.id),
-    supabase.from("project_files").select("id, kind, original_name").eq("project_id", params.id).order("uploaded_at"),
+  const [ref, p, equipRows, files, muhasebe] = await Promise.all([
+    loadWizardReference(),
+    apiGet<ProjectApi>(`/api/projects/${pid}`),
+    apiGet<EquipmentApi[]>(`/api/projects/${pid}/equipment`),
+    apiGet<{ id: string; kind: string; originalName: string | null }[]>(`/api/projects/${pid}/files`),
+    // Muhasebe teslim edildi mi (cariye işlendi) → Dosya Tamamlama kilitli
+    apiGet<{ sent: boolean; posted: boolean }>(`/api/projects/${pid}/muhasebe`),
   ]);
+  if (!p) notFound();
 
-  const project = projectRes.data as any;
-  if (!project) notFound();
-
-  // Mühendis belgeleri (imza eşlemesi + geçerlilik uyarısı için)
-  const { data: engDocs } = await supabase.from("engineer_documents").select("id, engineer_id, doc_type, valid_until").limit(5000);
-  const imzaByEng = new Map((engDocs ?? []).filter((d: any) => d.doc_type === "imza").map((d: any) => [d.engineer_id, d.id]));
-  const engineersWithImza = (engineers.data ?? []).map((e: any) => ({ ...e, imzaDocId: imzaByEng.get(e.id) ?? null }));
-  const engineerDocuments = (engDocs ?? []).map((d: any) => ({ engineer_id: d.engineer_id, doc_type: d.doc_type, valid_until: d.valid_until }));
+  // Aşağıdaki eşleme Supabase satır adlarını (snake_case) kullanıyor.
+  const project = {
+    id: p.id, company_id: p.companyId, dosya_no: p.dosyaNo, dosya_tarihi: p.dosyaTarihi, td_no: p.tdNo, bina_adi: p.binaAdi,
+    montaj_adresi: p.montajAdresi, province_id: p.provinceId, district_id: p.districtId,
+    elektrik_muhendis_id: p.elektrikMuhendisId, makine_muhendis_id: p.makineMuhendisId,
+    beyan_yuku_kg: p.beyanYukuKg, kisi_sayisi: p.kisiSayisi, beyan_hizi: p.beyanHizi, kat_adedi: p.katAdedi,
+    durak_adedi: p.durakAdedi, imal_yili: p.imalYili, input_data: p.inputData,
+  };
 
   // Seçili ile ait ilçeleri önden yükle (select için)
-  let districts: { id: string; name: string }[] = [];
-  if (project.province_id != null) {
-    const { data } = await supabase
-      .from("districts")
-      .select("id, name")
-      .eq("province_id", project.province_id)
-      .order("name")
-      .limit(2000);
-    districts = data ?? [];
-  }
+  const districts = project.province_id != null
+    ? (await apiGet<{ id: string; name: string }[]>(`/api/catalog/provinces/${project.province_id}/districts`)) ?? []
+    : [];
 
   const inp = (project.input_data ?? {}) as Record<string, any>;
-
-  // Muhasebe teslim edildi mi? (TD'nin takip_projeler kaydı + takip_muhasebe.cariye_islendi)
-  // Not: Herhangi bir hata (td_no kolonu yoksa, servis anahtarı vb.) sayfayı bozmasın.
-  let muhasebeKilit = false;
-  try {
-    if (project.td_no) {
-      const admin = createAdminClient();
-      const { data: tp } = await admin.from("takip_projeler").select("id").eq("td_no", project.td_no).limit(1).maybeSingle();
-      if (tp?.id) {
-        const { data: tm } = await admin.from("takip_muhasebe").select("cariye_islendi").eq("takip_id", tp.id).maybeSingle();
-        muhasebeKilit = tm?.cariye_islendi === true;
-      }
-    }
-  } catch { /* muhasebe durumu okunamazsa kilit uygulanmaz */ }
+  const muhasebeKilit = muhasebe?.posted === true;
 
   // Ekipmanları wizard formatına çevir (kategori başına tek slot)
   // anahtar: "<kategoriId>|<slot>" (tampon kabin/agirlik ayrımı için)
   const equip: InitialData["equip"] = {};
-  for (const e of (equipRes.data ?? []) as any[]) {
-    equip[`${e.category_id}|${e.slot || "main"}`] = {
-      brandId: e.brand_id ?? undefined,
-      modelId: e.model_id ?? undefined,
-      seriNo: e.seri_no ?? undefined,
-      seriList: Array.isArray(e.seri_list) ? e.seri_list.map((x: any) => (x == null ? "" : String(x))) : undefined,
+  for (const e of equipRows ?? []) {
+    equip[`${e.categoryId}|${e.slot || "main"}`] = {
+      brandId: e.brandId ?? undefined,
+      modelId: e.modelId ?? undefined,
+      seriNo: e.seriNo ?? undefined,
+      seriList: Array.isArray(e.seriList) ? e.seriList.map((x: any) => (x == null ? "" : String(x))) : undefined,
     };
   }
 
@@ -169,32 +124,11 @@ export default async function DuzenlePage(props: { params: Promise<{ id: string 
     fiyat: s(inp.fiyat),
     teslimDurumu: s(inp.teslim_durumu) || "taslak",
     teslimTarihi: s(inp.teslim_tarihi),
-    files: (filesRes.data ?? []) as any,
+    files: (files ?? []).map((f) => ({ id: f.id, kind: f.kind, original_name: f.originalName })),
     makineMuhId: project.makine_muhendis_id ?? "",
     elektrikMuhId: project.elektrik_muhendis_id ?? "",
     equip,
   };
 
-  const companyList = companies.data ?? [];
-  const gensis = companyList.find((c) => (c.short_name ?? "").toLocaleLowerCase("tr").includes("gensis"));
-
-  return (
-    <DataEntryWizard
-      companies={companyList}
-      categories={categories.data ?? []}
-      brands={brands.data ?? []}
-      models={models.data ?? []}
-      certificates={certificates.data ?? []}
-      notifiedBodies={notifiedBodies.data ?? []}
-      provinces={provinces.data ?? []}
-      ilgiliIdareler={ilgiliIdareler.data ?? []}
-      capacity={capacity.data ?? []}
-      lookups={lookups.data ?? []}
-      engineers={engineersWithImza}
-      gensisCompanyId={gensis?.id ?? null}
-      companyDocuments={companyDocsRes.data ?? []}
-      engineerDocuments={engineerDocuments}
-      initial={initial}
-    />
-  );
+  return <DataEntryWizard {...ref} initial={initial} />;
 }

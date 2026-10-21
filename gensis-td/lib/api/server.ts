@@ -32,17 +32,13 @@ export async function apiGet<T>(path: string): Promise<T | null> {
   return (await res.json()) as T;
 }
 
-/** The API sends enum names ("Draft"); the UI uses the database names ("draft"). */
-export const dbName = (value: string | null | undefined) => (value ? value.toLowerCase() : "");
-
 /** The signed-in user, or null. Cached per request so layouts and pages share one /me call. */
 export const getMe = cache(async (): Promise<Me | null> => {
   const res = await apiFetch("/api/auth/me");
   if (res.status === 401) return null;
   if (!res.ok) throw new Error(`/api/auth/me failed: ${res.status}`);
-  const u = await res.json();
-  // The API sends enum names ("Admin"); the UI uses the database names ("admin").
-  return { ...u, role: dbName(u.role) as Role };
+  // Enums arrive with their database names ("admin", "draft"), as with Supabase.
+  return (await res.json()) as Me;
 });
 
 /** Redirects to the login page without a session, and to /panel when the role is not allowed. */

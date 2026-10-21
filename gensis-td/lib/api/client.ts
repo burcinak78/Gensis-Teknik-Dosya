@@ -13,7 +13,9 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
     let message = res.statusText;
     try {
       const body = await res.json();
-      message = body?.title ?? message;
+      // ValidationProblem: show the first field message (Turkish, from the API) rather than the generic title.
+      const first = body?.errors && (Object.values(body.errors) as string[][]).flat()[0];
+      message = first ?? body?.title ?? message;
     } catch {
       /* no JSON body */
     }

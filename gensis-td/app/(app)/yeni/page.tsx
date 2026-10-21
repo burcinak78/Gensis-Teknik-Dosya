@@ -1,73 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
 import DataEntryWizard from "./DataEntryWizard";
+import { loadWizardReference } from "./reference";
 
 export const dynamic = "force-dynamic";
 
 export default async function YeniPage() {
-  const supabase = createClient();
-
-  // Referans verileri paralel çek (districts on-demand yüklenir — 1000 satır sınırı için)
-  const [
-    companies,
-    categories,
-    brands,
-    models,
-    certificates,
-    notifiedBodies,
-    provinces,
-    ilgiliIdareler,
-    capacity,
-    lookups,
-    engineers,
-    companyDocuments,
-  ] = await Promise.all([
-    supabase
-      .from("companies")
-      .select(
-        "id, short_name, legal_name, address, phone, fax, city, authorized_person, registered_brand, industry_reg_no"
-      )
-      .order("short_name"),
-    supabase.from("equipment_categories").select("id, code, name, sort_order, drive_type").order("sort_order"),
-    supabase.from("equipment_brands").select("id, category_id, name").order("name"),
-    supabase.from("equipment_models").select("id, brand_id, name, certificate_id").order("name"),
-    supabase.from("certificates").select("id, cert_no, notified_body_id, valid_until"),
-    supabase.from("notified_bodies").select("id, identity_no, name, address"),
-    supabase.from("provinces").select("id, name").order("name"),
-    supabase.from("ilgili_idareler").select("id, name, province_id, suffix").order("name").limit(8000),
-    supabase
-      .from("capacity_table")
-      .select("beyan_yuku_kg, kisi_sayisi, kabin_agirlik_kg, karsi_agirlik_kg")
-      .order("beyan_yuku_kg"),
-    supabase.from("lookup_values").select("list_key, value, sort_order").order("sort_order"),
-    supabase.from("engineers").select("id, full_name, discipline, chamber_reg_no, company_id").order("full_name").limit(2000),
-    supabase.from("company_documents").select("id, company_id, doc_type, belge_no, issue_date, valid_until, notified_body_id, original_name").limit(5000),
-  ]);
-
-  // Mühendis belgeleri (imza eşlemesi + geçerlilik uyarısı için)
-  const { data: engDocs } = await supabase.from("engineer_documents").select("id, engineer_id, doc_type, valid_until").limit(5000);
-  const imzaByEng = new Map((engDocs ?? []).filter((d: any) => d.doc_type === "imza").map((d: any) => [d.engineer_id, d.id]));
-  const engineersWithImza = (engineers.data ?? []).map((e: any) => ({ ...e, imzaDocId: imzaByEng.get(e.id) ?? null }));
-  const engineerDocuments = (engDocs ?? []).map((d: any) => ({ engineer_id: d.engineer_id, doc_type: d.doc_type, valid_until: d.valid_until }));
-
-  const companyList = companies.data ?? [];
-  const gensis = companyList.find((c) => (c.short_name ?? "").toLocaleLowerCase("tr").includes("gensis"));
-
-  return (
-    <DataEntryWizard
-      companies={companyList}
-      categories={categories.data ?? []}
-      brands={brands.data ?? []}
-      models={models.data ?? []}
-      certificates={certificates.data ?? []}
-      notifiedBodies={notifiedBodies.data ?? []}
-      provinces={provinces.data ?? []}
-      ilgiliIdareler={ilgiliIdareler.data ?? []}
-      capacity={capacity.data ?? []}
-      lookups={lookups.data ?? []}
-      engineers={engineersWithImza}
-      gensisCompanyId={gensis?.id ?? null}
-      companyDocuments={companyDocuments.data ?? []}
-      engineerDocuments={engineerDocuments}
-    />
-  );
+  // Referans verileri API'den (ilçeler il seçilince yüklenir)
+  const ref = await loadWizardReference();
+  return <DataEntryWizard {...ref} />;
 }

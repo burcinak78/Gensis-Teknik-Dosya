@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { apiGet, dbName } from "@/lib/api/server";
+import { apiGet } from "@/lib/api/server";
 import PanelTable from "./PanelTable";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function PanelPage() {
   const total = stats?.total ?? 0, thisMonth = stats?.thisMonth ?? 0, draft = stats?.draft ?? 0, delivered = stats?.delivered ?? 0;
 
   const projeler = (list ?? []).map((p) => ({
-    id: p.id, dosya_no: p.dosyaNo, td_no: p.tdNo, status: dbName(p.status), bina_adi: p.binaAdi,
+    id: p.id, dosya_no: p.dosyaNo, td_no: p.tdNo, status: p.status, bina_adi: p.binaAdi,
     beyan_yuku_kg: p.beyanYukuKg, kat_adedi: p.katAdedi, created_at: p.createdAt,
     ada_parsel: p.adaParsel, seri_no: p.seriNo,
     companies: p.companyShortName ? { short_name: p.companyShortName } : null,

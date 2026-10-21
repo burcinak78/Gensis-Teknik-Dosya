@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { apiGet, dbName } from "@/lib/api/server";
+import { apiGet } from "@/lib/api/server";
 import BelgeListesi from "./BelgeListesi";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default async function ProjeDetay(props: { params: Promise<{ id: string }
     kisiSayisi: number | null; katAdedi: number | null; companyShortName: string | null;
   }>(`/api/projects/${encodeURIComponent(params.id)}`);
   if (!p) notFound();
-  const status = dbName(p.status);
+  const status = p.status;
 
   return (
     <div className="px-8 py-6 gs-fade">

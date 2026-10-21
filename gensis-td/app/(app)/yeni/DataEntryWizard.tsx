@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { saveDraftProject, updateDraftProject, uploadProjectFile, deleteProjectFile, sendProjectToMuhasebe, removeProjectFromMuhasebe, type DraftPayload } from "./actions";
-import { uploadEngineerDocument } from "../admin/actions";
+import { saveDraftProject, updateDraftProject, uploadProjectFile, deleteProjectFile, sendProjectToMuhasebe, removeProjectFromMuhasebe, loadDistricts, uploadEngineerDocument, type DraftPayload } from "./api";
 
 type Company = {
   id: string; short_name: string; legal_name: string; address: string | null;
@@ -170,7 +168,6 @@ function buildFloors(start: string, count: number): string[] {
 
 export default function DataEntryWizard(props: Props) {
   const router = useRouter();
-  const supabase = createClient();
 
   const init = props.initial;
   const isEdit = !!init?.id;
@@ -277,7 +274,8 @@ export default function DataEntryWizard(props: Props) {
   const removeStaged = (kind: string, i: number) => setPending((p) => ({ ...p, [kind]: (p[kind] ?? []).filter((_, j) => j !== i) }));
   async function silExisting(id: string) {
     if (!confirm("Bu dosya silinsin mi?")) return;
-    const r = await deleteProjectFile(id);
+    if (!currentId) return;
+    const r = await deleteProjectFile(currentId, id);
     if (r.ok) setExistingFiles((s) => s.filter((f) => f.id !== id));
     else alert("Silinemedi: " + (r.error ?? ""));
   }
@@ -511,8 +509,7 @@ export default function DataEntryWizard(props: Props) {
     setDistricts([]);
     setIlgiliIdareId(""); // il değişince ilgili idare seçimini sıfırla
     if (id !== "") {
-      const { data } = await supabase.from("districts").select("id, name").eq("province_id", id).order("name").limit(2000);
-      setDistricts(data ?? []);
+      setDistricts(await loadDistricts(id));
     }
   }
 
@@ -837,13 +834,13 @@ export default function DataEntryWizard(props: Props) {
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
               <h2 className="font-bold text-sm">Belge Önizleme</h2>
               <div className="flex items-center gap-3">
-                <a href={`/api/belge/musteri?id=${belgeModal}`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand hover:underline inline-flex items-center gap-1">
+                <a href={`/api/files/company/${belgeModal}`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand hover:underline inline-flex items-center gap-1">
                   <span className="material-symbols-rounded text-[16px]">open_in_new</span>Yeni sekmede aç
                 </a>
                 <button onClick={() => setBelgeModal(null)} className="material-symbols-rounded text-slate-400 hover:text-slate-700">close</button>
               </div>
             </div>
-            <iframe src={`/api/belge/musteri?id=${belgeModal}`} className="flex-1 w-full rounded-b-2xl" title="Belge" />
+            <iframe src={`/api/files/company/${belgeModal}`} className="flex-1 w-full rounded-b-2xl" title="Belge" />
           </div>
         </div>
       )}
@@ -1662,7 +1659,7 @@ function MuhImza({ engineerId, imzaDocId, checked, onToggle }: { engineerId: str
       {imzaDocId ? (
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <img src={`/api/belge/muhendis?id=${imzaDocId}`} alt="İmza" className="h-10 max-w-[140px] object-contain border border-slate-100 rounded bg-white p-0.5" />
+            <img src={`/api/files/engineer/${imzaDocId}`} alt="İmza" className="h-10 max-w-[140px] object-contain border border-slate-100 rounded bg-white p-0.5" />
             <span className="text-[11px] text-green-600 font-semibold inline-flex items-center gap-0.5"><span className="material-symbols-rounded text-[14px]">check_circle</span>İmza yüklü</span>
           </div>
           {onToggle && (
@@ -1694,7 +1691,7 @@ function FileZone({
       <div className="text-sm font-semibold text-slate-800">{label}</div>
       {existing.map((f) => (
         <div key={f.id} className="flex items-center justify-between text-xs">
-          <a href={`/api/belge/proje?id=${f.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
+          <a href={`/api/files/project/${f.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
             <span className="material-symbols-rounded text-[15px]">description</span>{f.original_name ?? "dosya"}
           </a>
           <button type="button" onClick={() => onDelete(f.id)} className="text-red-500 hover:underline">Sil</button>
