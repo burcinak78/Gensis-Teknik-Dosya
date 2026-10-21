@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createCertificate } from "../actions";
+import { createCertificate } from "../api";
 
 type NB = { id: string; identity_no: string | null; name: string };
 type ModelOpt = { id: string; label: string };

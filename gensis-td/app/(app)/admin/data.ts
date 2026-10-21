@@ -38,3 +38,30 @@ export async function loadEngineersScreen() {
     gensisCompanyId: catalog?.gensisCompanyId ?? "",
   };
 }
+
+type Equipment = {
+  categories: { id: string; code: string; name: string; sortOrder: number; driveType: string }[];
+  brands: { id: string; categoryId: string; name: string }[];
+  models: { id: string; brandId: string; name: string; certificateId: string | null }[];
+  modelCertificates: { modelId: string; certificateId: string }[];
+};
+
+/** Equipment, certificates and notified bodies for the Ekipmanlar / Sertifikalar screens. */
+export async function loadCatalogScreen() {
+  const me = await requireMe(["admin", "gensis"]);
+  const [equipment, certificates, notifiedBodies] = await Promise.all([
+    apiGet<Equipment>("/api/catalog/equipment"),
+    apiGet<Record<string, any>[]>("/api/catalog/certificates"),
+    apiGet("/api/catalog/notified-bodies"),
+  ]);
+  const eq = equipment ?? { categories: [], brands: [], models: [], modelCertificates: [] };
+  return {
+    isAdmin: me.role === "admin",
+    categories: toSnake<any[]>(eq.categories),
+    brands: toSnake<any[]>(eq.brands),
+    models: toSnake<any[]>(eq.models),
+    modelCerts: toSnake<any[]>(eq.modelCertificates),
+    certificates: toSnake<any[]>(certificates ?? []),
+    notifiedBodies: toSnake<any[]>(notifiedBodies ?? []),
+  };
+}

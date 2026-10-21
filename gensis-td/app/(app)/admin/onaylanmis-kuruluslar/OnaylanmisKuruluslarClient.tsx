@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import OkFormModal, { OkNB } from "./OkFormModal";
-import { deleteNotifiedBody } from "../actions";
+import { deleteNotifiedBody } from "../api";
 
 const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
 const fInp = "w-full text-xs px-2 py-1 border border-slate-200 rounded focus:outline-none focus:border-brand";

@@ -135,9 +135,6 @@ export const deleteCompanyDocument = (id: string) => remove(`/api/companies/docu
 export const deleteEngineer = (id: string) => remove(`/api/engineers/${id}`, "Mühendis silinemedi.");
 export const deleteEngineerDocument = (id: string) => remove(`/api/engineers/documents/${id}`, "Belge silinemedi.");
 
-// Staff-only management actions; they move with the Yönetim screens.
-const notYet = async (): Promise<Result> => ({ ok: false, error: "Bu yönetim işlemi yeni sisteme henüz taşınmadı." });
-export const createNotifiedBody = (_form: Record<string, unknown>) => notYet();
 
 // New ilgili idare from the proje onay wizard (staff only in the API).
 export async function createIlgiliIdare(form: { name: string; address?: string; province_id?: number | null; suffix?: string }): Promise<Result> {
@@ -201,3 +198,83 @@ export async function updateUser(form: {
 }
 
 export const deleteUser = (id: string) => remove(`/api/users/${id}`, "Kullanıcı silinemedi.");
+
+// ---- Catalog management (staff only in the API) ----
+async function post<T>(path: string, method: "POST" | "PUT", body: unknown, fallback: string): Promise<Result & { data?: T }> {
+  try {
+    const r = await api<T & { id?: string; message?: string }>(path, { method, body: JSON.stringify(body) });
+    return { ok: true, message: r.message, id: r.id, data: r };
+  } catch (e) {
+    return fail(e, fallback);
+  }
+}
+
+export const createEquipmentBrand = (form: { category_id: string; name: string }) =>
+  post("/api/catalog/equipment/brands", "POST", { categoryId: form.category_id, name: form.name }, "Marka eklenemedi.");
+
+export const createEquipmentModel = (form: {
+  category_id: string; brand_id: string; new_brand: string; model_name: string; certificate_id?: string; cert_ids?: string[];
+}) => post("/api/catalog/equipment/models", "POST", {
+  categoryId: form.category_id, brandId: orNull(form.brand_id), newBrand: form.new_brand, modelName: form.model_name,
+  certificateId: orNull(form.certificate_id), certIds: (form.cert_ids ?? []).filter(Boolean),
+}, "Model eklenemedi.");
+
+export const updateEquipmentModel = (form: { id: string; name: string; certificate_id?: string; cert_ids?: string[] }) =>
+  post(`/api/catalog/equipment/models/${form.id}`, "PUT", {
+    name: form.name, certificateId: orNull(form.certificate_id), certIds: (form.cert_ids ?? []).filter(Boolean),
+  }, "Model güncellenemedi.");
+
+export const deleteEquipmentModel = (id: string) => remove(`/api/catalog/equipment/models/${id}`, "Model silinemedi.");
+
+const certificateBody = (fd: FormData) => ({
+  certNo: String(fd.get("cert_no") || "").trim(), notifiedBodyId: orNull(fd.get("notified_body_id")),
+  issueDate: orNull(fd.get("issue_date")), validUntil: orNull(fd.get("valid_until")), belgeTipi: orNull(fd.get("belge_tipi")),
+  categoryId: orNull(fd.get("category_id")), firmaAdi: orNull(fd.get("firma_adi")), modelId: orNull(fd.get("model_id")),
+});
+
+/** Uploads the PDF (if any) as the certificate's new current version. */
+async function uploadCertificateFile(certId: string, file: File | null): Promise<void> {
+  if (!file || file.size === 0) return;
+  const up = await api<{ key: string; url: string; contentType: string }>(`/api/catalog/certificates/${certId}/files/upload-url`, {
+    method: "POST", body: JSON.stringify({ fileName: file.name }),
+  });
+  const put = await fetch(up.url, { method: "PUT", headers: { "content-type": up.contentType }, body: file });
+  if (!put.ok) throw new Error("Dosya yüklenemedi.");
+  await api(`/api/catalog/certificates/${certId}/files`, { method: "POST", body: JSON.stringify({ key: up.key, originalName: file.name }) });
+}
+
+export async function createCertificate(fd: FormData): Promise<Result> {
+  if (!String(fd.get("cert_no") || "").trim()) return { ok: false, error: "Sertifika no zorunlu." };
+  try {
+    const r = await api<{ id: string; message: string }>("/api/catalog/certificates", { method: "POST", body: JSON.stringify(certificateBody(fd)) });
+    await uploadCertificateFile(r.id, fd.get("file") as File | null);
+    return { ok: true, message: r.message, id: r.id };
+  } catch (e) {
+    return fail(e, "Sertifika kaydedilemedi.");
+  }
+}
+
+export async function updateCertificate(fd: FormData): Promise<Result> {
+  const id = String(fd.get("id") || "");
+  if (!id) return { ok: false, error: "Sertifika bulunamadı." };
+  try {
+    const r = await api<{ id: string; message: string }>(`/api/catalog/certificates/${id}`, { method: "PUT", body: JSON.stringify(certificateBody(fd)) });
+    await uploadCertificateFile(id, fd.get("file") as File | null);
+    return { ok: true, message: r.message, id };
+  } catch (e) {
+    return fail(e, "Sertifika güncellenemedi.");
+  }
+}
+
+export const deleteCertificate = (id: string) => remove(`/api/catalog/certificates/${id}`, "Sertifika silinemedi.");
+
+type IdareForm = { name: string; address?: string; province_id?: number | null; suffix?: string };
+export const updateIlgiliIdare = (id: string, form: IdareForm) =>
+  post(`/api/catalog/ilgili-idareler/${id}`, "PUT", { name: form.name, address: form.address, provinceId: form.province_id ?? null, suffix: form.suffix }, "İlgili idare güncellenemedi.");
+export const deleteIlgiliIdare = (id: string) => remove(`/api/catalog/ilgili-idareler/${id}`, "İlgili idare silinemedi.");
+
+type NbForm = { name: string; identity_no?: string; address?: string; short_name?: string; city?: string; country?: string };
+const nbBody = (f: NbForm) => ({ name: f.name, identityNo: f.identity_no, address: f.address, shortName: f.short_name, city: f.city, country: f.country });
+export const createNotifiedBody = (form: NbForm) => post("/api/catalog/notified-bodies", "POST", nbBody(form), "Kuruluş eklenemedi.");
+export const updateNotifiedBody = (id: string, form: NbForm) => post(`/api/catalog/notified-bodies/${id}`, "PUT", nbBody(form), "Kuruluş güncellenemedi.");
+export const deleteNotifiedBody = (id: string) => remove(`/api/catalog/notified-bodies/${id}`, "Kuruluş silinemedi.");

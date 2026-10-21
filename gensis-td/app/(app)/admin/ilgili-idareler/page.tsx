@@ -1,13 +1,14 @@
-import { createClient } from "@/lib/supabase/server";
+import { apiGet, requireMe } from "@/lib/api/server";
+import { toSnake } from "@/lib/api/case";
 import IlgiliIdarelerClient from "./IlgiliIdarelerClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function IlgiliIdarelerPage() {
-  const supabase = createClient();
-  const [{ data: rows }, { data: provinces }] = await Promise.all([
-    supabase.from("ilgili_idareler").select("id, name, address, province_id, suffix").order("name").limit(8000),
-    supabase.from("provinces").select("id, name").order("name"),
+  await requireMe(["admin", "gensis"]);
+  const [rows, provinces] = await Promise.all([
+    apiGet("/api/catalog/ilgili-idareler"),
+    apiGet<{ id: number; name: string }[]>("/api/catalog/provinces"),
   ]);
-  return <IlgiliIdarelerClient rows={(rows ?? []) as any} provinces={(provinces ?? []) as any} />;
+  return <IlgiliIdarelerClient rows={toSnake<any[]>(rows ?? [])} provinces={provinces ?? []} />;
 }

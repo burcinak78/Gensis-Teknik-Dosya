@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   createCertificate, updateCertificate, deleteCertificate,
   createEquipmentModel, updateEquipmentModel, deleteEquipmentModel, createEquipmentBrand,
-} from "../actions";
+} from "../api";
 import OkFormModal, { OkNB } from "../onaylanmis-kuruluslar/OkFormModal";
 
 type Cat = { id: string; name: string };
@@ -255,7 +255,7 @@ function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, firmaOp
           <datalist id="cert-firma-list">{firmaOptions.map((o) => <option key={o} value={o} />)}</datalist>
         </Field>
         <Field label="Sertifika Dosyası (PDF) *">
-          {existingFile && <a href={`/api/belge/sertifika?id=${cert!.id}`} target="_blank" rel="noreferrer" className="block text-xs text-navy font-semibold hover:underline mb-1">📎 {existingFile}</a>}
+          {existingFile && <a href={`/api/files/certificate/${cert!.id}`} target="_blank" rel="noreferrer" className="block text-xs text-navy font-semibold hover:underline mb-1">📎 {existingFile}</a>}
           <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-xs w-full file:mr-2 file:font-semibold file:border-0 file:bg-brand-light file:text-brand file:px-2 file:py-1 file:rounded-md" />
           {file && <div className="mt-1 text-xs text-slate-500">Yeni: {file.name}</div>}
         </Field>

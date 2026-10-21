@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createEquipmentModel } from "../actions";
+import { createEquipmentModel } from "../api";
 
 type Cat = { id: string; name: string };
 type Brand = { id: string; category_id: string; name: string };

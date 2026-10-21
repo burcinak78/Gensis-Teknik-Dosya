@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createEquipmentModel, updateEquipmentModel, createCertificate, createNotifiedBody } from "../actions";
+import { createEquipmentModel, updateEquipmentModel, createCertificate, createNotifiedBody } from "../api";
 
 type Cat = { id: string; name: string };
 type Brand = { id: string; category_id: string; name: string };
@@ -240,7 +240,7 @@ export default function EkipmanClient({
 
           {curCertId && fileByCert.get(curCertId) && (
             <div className="mb-3 text-xs">
-              <a href={`/api/belge/sertifika?id=${curCertId}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
+              <a href={`/api/files/certificate/${curCertId}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
                 <span className="material-symbols-rounded text-[15px]">description</span>{fileByCert.get(curCertId)}
               </a>
             </div>

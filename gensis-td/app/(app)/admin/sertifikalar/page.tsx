@@ -1,17 +1,17 @@
-import { createClient } from "@/lib/supabase/server";
+import { loadCatalogScreen } from "../data";
 import SertifikaForm from "./SertifikaForm";
 import SertifikaClient, { type CertGroup, type CertItem } from "./SertifikaClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function SertifikalarPage() {
-  const supabase = createClient();
-  const [{ data: categories }, { data: models }, { data: certs }, { data: nb }] = await Promise.all([
-    supabase.from("equipment_categories").select("id, name").order("sort_order"),
-    supabase.from("equipment_models").select("id, name, certificate_id, equipment_brands(name, category_id)").limit(5000),
-    supabase.from("certificates").select("id, cert_no").order("cert_no").limit(3000),
-    supabase.from("notified_bodies").select("id, identity_no, name").order("name"),
-  ]);
+  const d = await loadCatalogScreen();
+  const categories = d.categories;
+  const brandById = new Map(d.brands.map((b: any) => [b.id, b]));
+  // Models with their brand (name, category), as the Supabase join returned them.
+  const models = d.models.map((m: any) => ({ ...m, equipment_brands: brandById.get(m.brand_id) ?? null }));
+  const certs = d.certificates;
+  const nb = d.notifiedBodies;
 
   const cats = categories ?? [];
   const ms = (models ?? []) as any[];

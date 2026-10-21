@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { COUNTRIES, TR_PROVINCES } from "@/lib/countries";
-import { createNotifiedBody, updateNotifiedBody } from "../actions";
+import { createNotifiedBody, updateNotifiedBody } from "../api";
 
 export type OkNB = {
   id: string;

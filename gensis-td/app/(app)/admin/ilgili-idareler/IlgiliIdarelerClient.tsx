@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createIlgiliIdare, updateIlgiliIdare, deleteIlgiliIdare } from "../actions";
+import { createIlgiliIdare, updateIlgiliIdare, deleteIlgiliIdare } from "../api";
 
 type Prov = { id: number; name: string };
 type Idare = { id: string; name: string; address: string | null; province_id: number | null; suffix: string | null };
