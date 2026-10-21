@@ -18,9 +18,13 @@ done
 mc admin policy create gtd gensis-td-app /init/app-policy.json
 # Adding an existing user updates its secret.
 mc admin user add gtd "$MINIO_APP_USER" "$MINIO_APP_PASSWORD"
-# The image has no grep; match in bash.
-info=$(mc admin user info gtd "$MINIO_APP_USER")
-if [[ $info != *gensis-td-app* ]]; then
+# Attach only if not attached yet (attaching twice is an error). Look at the PolicyName line only:
+# the AccessKey line can contain the same name. The image has no grep; match in bash.
+attached=no
+while IFS= read -r line; do
+  [[ $line == PolicyName:*gensis-td-app* ]] && attached=yes
+done <<< "$(mc admin user info gtd "$MINIO_APP_USER")"
+if [[ $attached == no ]]; then
   mc admin policy attach gtd gensis-td-app --user "$MINIO_APP_USER"
 fi
 echo "storage init done"
