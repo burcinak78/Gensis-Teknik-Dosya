@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
 const MODULES = [
   { code: "M-01", title: "Teknik Dosya Üretimi", desc: "Verilerden imzaya hazır CE teknik dosyası ve PDF çıktısı." },
@@ -20,13 +19,11 @@ const HEAD = "'Changa',sans-serif";
 
 export default function GirisPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [yearly, setYearly] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -35,9 +32,14 @@ export default function GirisPage() {
     setLoading(true);
     setError(null);
     setNotice(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    }).catch(() => null);
     setLoading(false);
-    if (error) { setError("Giriş başarısız: " + error.message); return; }
+    if (res?.status === 429) { setError("Çok fazla hatalı deneme. Lütfen birkaç dakika sonra tekrar deneyin."); return; }
+    if (!res?.ok) { setError(res?.status === 401 ? "Giriş başarısız: e-posta veya şifre hatalı." : "Giriş başarısız: sunucuya ulaşılamadı."); return; }
     router.push("/");
     router.refresh();
   }
@@ -45,14 +47,8 @@ export default function GirisPage() {
   async function handleReset() {
     setError(null);
     setNotice(null);
-    if (!email.trim()) { setError("Şifre sıfırlamak için önce e-posta adresinizi girin."); return; }
-    setResetting(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/sifre-yenile`,
-    });
-    setResetting(false);
-    if (error) { setError("Sıfırlama bağlantısı gönderilemedi: " + error.message); return; }
-    setNotice("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Gelen kutunuzu kontrol edin.");
+    // E-posta ile sıfırlama yeni sistemde henüz yok (e-posta gönderimi gerekiyor).
+    setNotice("Şifrenizi sıfırlamak için Gensis yöneticinize başvurun.");
   }
 
   const p1 = yearly ? "1.190" : "1.490";
@@ -141,7 +137,7 @@ export default function GirisPage() {
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#3A4250" }}>
                   <span style={{ display: "flex", justifyContent: "space-between" }}><span>Şifre</span>
-                    <button type="button" onClick={handleReset} disabled={resetting} style={{ border: 0, background: "transparent", fontWeight: 500, color: "#005CFF", cursor: "pointer", fontSize: 13, padding: 0 }}>{resetting ? "Gönderiliyor…" : "Şifremi unuttum"}</button>
+                    <button type="button" onClick={handleReset} style={{ border: 0, background: "transparent", fontWeight: 500, color: "#005CFF", cursor: "pointer", fontSize: 13, padding: 0 }}>Şifremi unuttum</button>
                   </span>
                   <span style={{ display: "flex", position: "relative" }}>
                     <input className="lp-input" type={showPw ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={{ flex: 1, minWidth: 0, font: "inherit", fontWeight: 400, fontSize: 15, padding: "12px 70px 12px 14px", border: "1.5px solid #C9D3E3", borderRadius: 4, background: "#F6F8FB", color: "#111418" }} />

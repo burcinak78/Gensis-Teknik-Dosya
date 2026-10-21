@@ -1,42 +1,17 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { bildirimSayisi } from "@/lib/bildirimSayisi";
-import { onaySayisi } from "@/lib/onaySayisi";
-import { takipBildirimSayisi, muhasebeBekleyenSayisi } from "@/lib/takipSayisi";
+import { requireMe } from "@/lib/api/server";
 import SignOutButton from "@/components/SignOutButton";
 import SideNav from "@/components/SideNav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/giris");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role, company_id")
-    .eq("id", user.id)
-    .single();
-
-  const rol = profile?.role ?? "customer";
-  const isStaff = rol === "admin" || rol === "gensis";
-  let bildirimCount = 0;
-  let onayCount = 0;
-  let takipCount = 0;
-  let muhasebeCount = 0;
-  try {
-    const admin = createAdminClient();
-    bildirimCount = await bildirimSayisi(admin, rol, profile?.company_id ?? null);
-    if (isStaff) onayCount = await onaySayisi(admin);
-    if (isStaff) takipCount = await takipBildirimSayisi(admin, user.id);
-    if (rol === "admin" || rol === "muhasebeci") muhasebeCount = await muhasebeBekleyenSayisi(admin);
-  } catch {
-    /* sayaç alınamazsa menü yine çalışır */
-  }
+  const me = await requireMe();
+  const rol = me.role;
+  // Menü sayaçları (bildirim, onay, takip, muhasebe) C# API'de uçları yazılınca geri gelecek.
+  const bildirimCount = 0;
+  const onayCount = 0;
+  const takipCount = 0;
+  const muhasebeCount = 0;
   const rolTr = rol === "admin" ? "Admin" : rol === "gensis" ? "Kullanıcı" : rol === "muhasebeci" ? "Muhasebe/Finans" : "Müşteri";
-  const adSoyad = profile?.full_name ?? user.email ?? "";
+  const adSoyad = me.fullName ?? me.email;
   const bas = adSoyad.trim().slice(0, 2).toUpperCase() || "DL";
 
   return (

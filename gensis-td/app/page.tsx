@@ -1,12 +1,8 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getMe } from "@/lib/api/server";
 
 export default async function Home() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/giris");
-  const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  redirect(prof?.role === "muhasebeci" ? "/muhasebe" : "/panel");
+  const me = await getMe();
+  if (!me) redirect("/giris");
+  redirect(me.role === "muhasebeci" ? "/muhasebe" : "/panel");
 }
