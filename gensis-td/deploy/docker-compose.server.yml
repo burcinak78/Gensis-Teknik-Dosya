@@ -18,11 +18,14 @@ services:
     depends_on:
       - backend
 
-  # Enabled once the frontend talks to the C# API (ClickUp z8qgvc6xbh). Until then / returns 502.
+  # Next.js (pages, PDF routes); not published to the host, the proxy reaches it at frontend:3000.
+  # Behind the "frontend" profile until its image is in the registry (STATON enables it).
   frontend:
     image: ${REGISTRY:-repo.nomateknoloji.com}/gensis-td/gensis-td_frontend:${IMAGE_TAG:-latest}
     profiles: ["frontend"]
     restart: unless-stopped
+    environment:
+      BACKEND_INTERNAL_URL: http://backend:8080
     depends_on:
       - backend
 

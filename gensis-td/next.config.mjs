@@ -1,6 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Self-contained server (.next/standalone) for the Docker image.
+  output: "standalone",
+  // pdfkit (under @react-pdf) loads its standard fonts and data with dynamic requires that file tracing
+  // cannot see, so the PDF routes ship them explicitly.
+  outputFileTracingIncludes: {
+    "/api/pdf/**": ["./node_modules/pdfkit/js/**/*"],
+  },
   experimental: {
     // Sertifika PDF yüklemeleri için server action gövde limiti
     serverActions: { bodySizeLimit: "15mb" },

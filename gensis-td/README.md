@@ -1,69 +1,42 @@
-# Gensis Teknik Dosya — Web Uygulaması (İlk Sürüm)
+# Gensis Teknik Dosya
 
-Next.js 14 (App Router) + Supabase. Bu ilk dilim: **giriş** + **korumalı panel** + **canlı verili Veri Girişi ekranı** (firma / ekipman / il-belediye Supabase'den gelir, taslak proje kaydedilir).
+Asansör teknik dosyası, proje onay ve proje takip/muhasebe uygulaması.
 
-## Ne var?
+## Yapı
 
-- `app/giris` — e-posta/şifre ile giriş
-- `app/(app)/panel` — teknik dosya listesi
-- `app/(app)/yeni` — 5 adımlı Veri Girişi sihirbazı (firma seçince otomatik dolan alanlar, kademeli ekipman + sertifika, taslak kaydetme)
-- `lib/supabase/*` — Supabase istemci/sunucu/middleware (oturum yönetimi)
-- Row Level Security veritabanı tarafında; kullanıcılar sadece yetkili oldukları veriyi görür.
+| Servis | Teknoloji | Klasör |
+|---|---|---|
+| frontend | Next.js 15 (App Router), PDF üretimi (react-pdf, pdf-lib) | kök (`app/`, `components/`, `lib/`) |
+| backend | ASP.NET Core 10 minimal API + EF Core (PostgreSQL) | `backend/` |
+| db | PostgreSQL 17 | compose |
+| storage | MinIO (S3) — `documents`, `certificates` | compose |
+| proxy | nginx: `/api/pdf/` → frontend, diğer `/api/` → backend, `/` → frontend | `deploy/proxy/` |
 
-## Önkoşul
+- Oturum: backend httpOnly çerez (`gtd_session`); frontend sunucu tarafında çerezi backend'e iletir (`lib/api/server.ts`), tarayıcıda `/api` çağırır (`lib/api/client.ts`).
+- Yetki kuralları backend'de (`backend/GensisTd.Api/Auth/`); dosyalar tarayıcıdan imzalı adresle doğrudan MinIO'ya yüklenir.
+- Tek seferlik servisler: `migrate` (migration, uygulama DB rolü, ilk admin) ve `storage-init` (bucket'lar, backend'in kısıtlı anahtarı).
 
-Supabase şeması yüklü olmalı (`01`–`05` SQL dosyaları) ve en az bir **admin** kullanıcı oluşturulmuş olmalı.
-
-## 1) Yerelde çalıştırma (opsiyonel)
-
-```bash
-npm install
-cp .env.local.example .env.local     # sonra içini doldur
-npm run dev                          # http://localhost:3000
-```
-
-`.env.local` içine Supabase **Project Settings > API**'dan:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...   (anon public key)
-```
-
-## 2) GitHub'a yükleme
+## Lokal çalıştırma
 
 ```bash
-git init
-git add .
-git commit -m "İlk sürüm: giriş + veri girişi"
-git branch -M main
-git remote add origin https://github.com/KULLANICI/gensis-td.git
-git push -u origin main
+cp .env.example .env      # değerleri doldur
+docker compose up -d --build
 ```
 
-> `node_modules`, `.next` ve `.env.local` `.gitignore` sayesinde gitmez — doğru.
+Uygulama: http://localhost:10201 (proxy). İlk admin `.env`'deki `ADMIN_EMAIL` / `ADMIN_PASSWORD` ile, kullanıcı tablosu boşken oluşur.
 
-## 3) Vercel'e deploy (Balcomb gibi)
+Frontend'i compose'suz geliştirmek için (backend compose'da çalışırken):
 
-1. Vercel'de **Add New > Project** → GitHub reposunu seç (Import).
-2. Framework otomatik **Next.js** algılanır, ayar değiştirmeye gerek yok.
-3. **Environment Variables** bölümüne iki değişkeni ekle (yereldekiyle aynı):
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-4. **Deploy**. Bitince Vercel bir `*.vercel.app` adresi verir.
-5. **Cloudflare**'deki domaini Vercel projesine bağla (Balcomb'daki akış).
+```bash
+BACKEND_INTERNAL_URL=http://localhost:10202 API_PROXY_URL=http://localhost:10202 npx next dev
+```
 
-## 4) Supabase Auth ayarı
+## Testler
 
-Supabase panelinde **Authentication > URL Configuration**:
-- **Site URL**: Vercel/Cloudflare adresin (ör. `https://teknikdosya.senindomainin.com`)
-- E-posta/şifre girişi için ekstra yönlendirme gerekmez.
+```bash
+docker run --rm -v "$PWD/backend":/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test GensisTd.Api.Tests
+```
 
-## 5) İlk giriş
+## Deploy
 
-`05_bootstrap_admin.sql` ile oluşturduğun admin e-posta/şifresiyle `/giris`'ten gir. Panelde "+ Yeni Teknik Dosya" ile veri girişini dene: firma seç → bilgiler otomatik gelsin, ekipmanda marka→model seç → sertifika bağlansın, son adımda taslağı kaydet.
-
-## Notlar
-
-- Bu sürüm **taslak kaydeder**; PDF üretimi ve belge şablonları sonraki dilim.
-- Ekipmanlar şimdilik tek slot (tampon çift slot sonra eklenecek).
-- Middleware giriş yapmamış kullanıcıyı `/giris`'e yönlendirir.
+`server01-migration` dalına push → TeamCity: test, image build (`linux/amd64`), registry, server01 (`deploy/docker-compose.server.yml`). Image'lar: kökteki `Dockerfile` (frontend), `backend/Dockerfile`.

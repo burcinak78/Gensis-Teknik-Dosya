@@ -1,0 +1,15 @@
+# Frontend build context: everything except the backend, local env and build output.
+backend
+deploy
+db
+node_modules
+.next
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+**/.DS_Store
+**/.fuse_hidden*
+docker-compose.yml
+Dockerfile
+README.md
