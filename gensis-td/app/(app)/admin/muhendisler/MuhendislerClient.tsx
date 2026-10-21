@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createEngineer, updateEngineer, deleteEngineer, uploadEngineerDocument } from "../actions";
+import { createEngineer, updateEngineer, deleteEngineer, uploadEngineerDocument } from "../api";
 
 type Engineer = {
   id: string; full_name: string; discipline: string; chamber_reg_no: string | null; company_id: string | null;
@@ -278,7 +278,7 @@ export default function MuhendislerClient({
         <p className="text-[11px] text-slate-400 mb-2">Mühendisin imzası; teknik dosya ve proje onay belgelerinde kullanılabilir.</p>
         {editId && docsByEng[editId]?.["imza"]?.original_name && (
           <div className="mb-2 flex items-center gap-3">
-            <img src={`/api/belge/muhendis?id=${docsByEng[editId]!["imza"].id}`} alt="İmza" className="h-14 max-w-[180px] object-contain border border-slate-100 rounded bg-white p-1" />
+            <img src={`/api/files/engineer/${docsByEng[editId]!["imza"].id}`} alt="İmza" className="h-14 max-w-[180px] object-contain border border-slate-100 rounded bg-white p-1" />
             <span className="text-xs text-slate-500">Yüklü: {docsByEng[editId]!["imza"].original_name}</span>
           </div>
         )}
@@ -430,7 +430,7 @@ function BelgeSatiri({
       </div>
       {existingDoc?.original_name && (
         <div className="mb-2 text-xs">
-          <a href={`/api/belge/muhendis?id=${existingDoc.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
+          <a href={`/api/files/engineer/${existingDoc.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
             <span className="material-symbols-rounded text-[15px]">description</span>{existingDoc.original_name}
           </a>
         </div>

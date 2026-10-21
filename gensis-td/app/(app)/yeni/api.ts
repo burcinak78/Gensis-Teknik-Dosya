@@ -132,7 +132,5 @@ export async function loadDistricts(provinceId: number): Promise<{ id: string; n
   }
 }
 
-// Engineer documents (imza) go through the engineer/approval screens, not moved to the API yet.
-export async function uploadEngineerDocument(_fd: FormData): Promise<{ ok: boolean; message?: string; error?: string }> {
-  return { ok: false, error: "İmza yükleme yeni sistemde henüz yok; Gensis yöneticinize başvurun." };
-}
+// Signature upload: same endpoint as the engineer screens (customers' uploads go to approval).
+export { uploadEngineerDocument } from "../admin/api";

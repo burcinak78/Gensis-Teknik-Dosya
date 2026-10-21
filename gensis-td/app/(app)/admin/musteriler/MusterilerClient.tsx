@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument, deleteCompanyDocument, createNotifiedBody } from "../actions";
+import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument, deleteCompanyDocument, createNotifiedBody } from "../api";
 
 type Company = {
   id: string; short_name: string; legal_name: string | null; address: string | null;
@@ -283,7 +283,7 @@ export default function MusterilerClient({
   // ---------- Logo hücresi (Kısa Ad'ın yanında) ----------
   const logoCell = (docs.logo.id && docs.logo.original_name && !docs.logo.file) ? (
     <div className={inp + " flex items-center gap-2"}>
-      <a href={`/api/belge/musteri?id=${docs.logo.id}`} target="_blank" rel="noreferrer" className="flex-1 truncate text-navy font-semibold hover:underline inline-flex items-center gap-1">
+      <a href={`/api/files/company/${docs.logo.id}`} target="_blank" rel="noreferrer" className="flex-1 truncate text-navy font-semibold hover:underline inline-flex items-center gap-1">
         <span className="material-symbols-rounded text-[16px]">image</span>{docs.logo.original_name}
       </a>
       <button type="button" onClick={removeLogo} className="flex-none text-xs text-red-500 hover:underline">Sil</button>
@@ -577,7 +577,7 @@ function DocRow({
       </div>
       {row.id && row.original_name && (
         <div className="mb-2 text-xs">
-          <a href={`/api/belge/musteri?id=${row.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
+          <a href={`/api/files/company/${row.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
             <span className="material-symbols-rounded text-[15px]">description</span>{row.original_name}
           </a>
         </div>
