@@ -53,6 +53,8 @@ public static class DbMigrator
                 EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO %I', u);
                 EXECUTE format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', u);
                 EXECUTE format('REVOKE ALL ON TABLE public."__EFMigrationsHistory" FROM %I', u);
+                -- Database functions the API calls. HardenDbFunctions revoked them from PUBLIC; only SECURITY INVOKER ones belong here.
+                EXECUTE format('GRANT EXECUTE ON FUNCTION public.project_render_context(uuid) TO %I', u);
             END $$;
             """);
         await tx.CommitAsync();
