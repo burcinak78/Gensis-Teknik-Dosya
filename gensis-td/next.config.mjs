@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false, // KRR-025
   // Self-contained server (.next/standalone) for the Docker image.
   output: "standalone",
   // pdfkit (under @react-pdf) loads its standard fonts and data with dynamic requires that file tracing
