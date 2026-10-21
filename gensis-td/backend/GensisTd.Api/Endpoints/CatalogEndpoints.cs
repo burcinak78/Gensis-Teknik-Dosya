@@ -23,6 +23,14 @@ public static class CatalogEndpoints
     public record EngineersDto(Guid? GensisCompanyId, List<EngineerDto> Engineers);
 
     public record ProvinceDto(short Id, string Name);
+    public record NotifiedBodyDto(Guid Id, string? IdentityNo, string Name, string? ShortName, string? Address);
+    public record IlgiliIdareDto(Guid Id, string Name, short? ProvinceId, string Suffix, string? Address);
+    public record CapacityDto(int BeyanYukuKg, int? KisiSayisi, int? KabinAgirlikKg, int? KarsiAgirlikKg);
+    public record LookupDto(string ListKey, string Value, int SortOrder, bool IsActive);
+    public record CompanyDocumentDto(
+        Guid Id, Guid CompanyId, string DocType, string? SubType, Guid? ParentId, string? BelgeNo, DateOnly? IssueDate,
+        DateOnly? ValidUntil, Guid? NotifiedBodyId, string? OriginalName, bool HasFile);
+    public record EngineerDocumentDto(Guid Id, Guid EngineerId, string DocType, DateOnly? ValidUntil);
     public record DistrictDto(Guid Id, string Name);
 
     public record CategoryDto(Guid Id, string Code, string Name, int SortOrder, string DriveType);
@@ -80,6 +88,33 @@ public static class CatalogEndpoints
                 .Select(m => new ModelDto(m.Id, m.BrandId, m.Name, m.CertificateId)).ToListAsync(ct),
             await db.EquipmentModels.AsNoTracking()
                 .SelectMany(m => m.Certificates.Select(c => new ModelCertificateDto(m.Id, c.Id))).ToListAsync(ct)));
+
+        g.MapGet("/notified-bodies", (AppDbContext db, CancellationToken ct) =>
+            db.NotifiedBodies.AsNoTracking().OrderBy(n => EF.Functions.Collate(n.Name, Collations.Turkish))
+                .Select(n => new NotifiedBodyDto(n.Id, n.IdentityNo, n.Name, n.ShortName, n.Address)).ToListAsync(ct));
+
+        g.MapGet("/ilgili-idareler", (AppDbContext db, CancellationToken ct) =>
+            db.IlgiliIdarelers.AsNoTracking().OrderBy(i => EF.Functions.Collate(i.Name, Collations.Turkish))
+                .Select(i => new IlgiliIdareDto(i.Id, i.Name, i.ProvinceId, i.Suffix, i.Address)).ToListAsync(ct));
+
+        g.MapGet("/capacity", (AppDbContext db, CancellationToken ct) =>
+            db.CapacityTables.AsNoTracking().OrderBy(c => c.BeyanYukuKg)
+                .Select(c => new CapacityDto(c.BeyanYukuKg, c.KisiSayisi, c.KabinAgirlikKg, c.KarsiAgirlikKg)).ToListAsync(ct));
+
+        g.MapGet("/lookups", (AppDbContext db, CancellationToken ct) =>
+            db.LookupValues.AsNoTracking().OrderBy(l => l.ListKey).ThenBy(l => l.SortOrder)
+                .Select(l => new LookupDto(l.ListKey, l.Value, l.SortOrder, l.IsActive)).ToListAsync(ct));
+
+        // Company documents (p_company_docs_read): staff all, others their own company's. Metadata only; the file opens via /api/files/company/{id}.
+        g.MapGet("/company-documents", (Actor actor, AppDbContext db, CancellationToken ct) =>
+            db.CompanyDocuments.AsNoTracking().VisibleTo(actor)
+                .Select(d => new CompanyDocumentDto(d.Id, d.CompanyId, d.DocType, d.SubType, d.ParentId, d.BelgeNo, d.IssueDate,
+                    d.ValidUntil, d.NotifiedBodyId, d.OriginalName, d.StoragePath != null)).ToListAsync(ct));
+
+        // Engineer documents (p_eng_docs_read): staff only, as in Supabase; customers get an empty list.
+        g.MapGet("/engineer-documents", (Actor actor, AppDbContext db, CancellationToken ct) =>
+            db.EngineerDocuments.AsNoTracking().VisibleTo(actor)
+                .Select(d => new EngineerDocumentDto(d.Id, d.EngineerId, d.DocType, d.ValidUntil)).ToListAsync(ct));
 
         g.MapGet("/certificates", (AppDbContext db, CancellationToken ct) =>
             db.Certificates.AsNoTracking().OrderBy(c => c.CertNo)

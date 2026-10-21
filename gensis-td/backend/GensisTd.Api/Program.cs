@@ -10,8 +10,8 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-// Enums serialize as their names (e.g. "Admin"), not numbers.
-builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+// Enums serialize as their database names (e.g. "admin", "draft"), as the frontend knew them from Supabase.
+builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new PgNameEnumConverterFactory()));
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("Default")
         ?? throw new InvalidOperationException("ConnectionStrings__Default is not set"), AppDbContext.MapEnums));
@@ -92,5 +92,6 @@ app.MapProjectWriteEndpoints();
 app.MapFileEndpoints();
 app.MapProjectFileEndpoints();
 app.MapPdfSourceEndpoints();
+app.MapProjectMuhasebeEndpoints();
 
 app.Run();

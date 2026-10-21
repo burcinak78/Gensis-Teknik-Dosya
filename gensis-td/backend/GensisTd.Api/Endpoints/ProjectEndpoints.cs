@@ -16,6 +16,9 @@ public static class ProjectEndpoints
 
     public record ProjectStats(int Total, int ThisMonth, int Draft, int Delivered);
 
+    public record ProjectEquipmentDto(
+        Guid CategoryId, string Slot, Guid? BrandId, Guid? ModelId, Guid? CertificateId, string? SeriNo, JsonElement? SeriList);
+
     public record ProjectDetail(
         Guid Id, Guid CompanyId, string? CompanyShortName, Guid? CreatedBy, Guid? AssignedEngineer, string DosyaNo,
         DateOnly? DosyaTarihi, string? TdNo, ProjectStatus Status, ModuleType? CertificationModule, string? BinaAdi,
@@ -60,6 +63,16 @@ public static class ProjectEndpoints
         });
 
         g.MapGet("/{id:guid}/render-context", RenderContextAsync);
+
+        // Equipment rows for the edit wizard.
+        g.MapGet("/{id:guid}/equipment", async (Guid id, Actor actor, AppDbContext db, CancellationToken ct) =>
+        {
+            if (!await db.Projects.VisibleTo(actor).AnyAsync(p => p.Id == id, ct)) return Results.NotFound();
+            var rows = await db.ProjectEquipments.AsNoTracking().Where(e => e.ProjectId == id)
+                .Select(e => new { e.CategoryId, e.Slot, e.BrandId, e.ModelId, e.CertificateId, e.SeriNo, e.SeriList }).ToListAsync(ct);
+            return Results.Ok(rows.Select(e => new ProjectEquipmentDto(e.CategoryId, e.Slot, e.BrandId, e.ModelId, e.CertificateId, e.SeriNo,
+                e.SeriList is null ? null : ReadInput(e.SeriList))));
+        });
 
         // Not visible and not existing look the same (404).
         g.MapGet("/{id:guid}", async (Guid id, Actor actor, AppDbContext db, CancellationToken ct) =>
