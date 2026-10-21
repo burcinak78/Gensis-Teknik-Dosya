@@ -32,12 +32,12 @@ public static partial class ProjectWriteEndpoints
     {
         var g = app.MapGroup("/api/projects").RequireAuthorization();
 
-        g.MapPost("/", async (ProjectInput input, Actor actor, AppDbContext db, CancellationToken ct) =>
+        g.MapPost("/", async (ProjectInput input, Actor actor, AppDbContext db, GensisCompany gensis, CancellationToken ct) =>
         {
             if (Validate(input) is { } invalid) return invalid;
             // RLS p_projects_insert: staff, or a member of the project's company.
             if (!actor.CanAccessCompany(input.CompanyId)) return Results.Forbid();
-            if (await ValidateEngineersAsync(input, actor, db, ct) is { } badEngineer) return badEngineer;
+            if (await ValidateEngineersAsync(input, db, gensis.Id, ct) is { } badEngineer) return badEngineer;
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             var project = new Project { Id = Guid.NewGuid(), CreatedBy = actor.UserId, TdNo = await NextTdNoAsync(db, ct) };
@@ -49,14 +49,14 @@ public static partial class ProjectWriteEndpoints
             return Results.Created($"/api/projects/{project.Id}", new CreatedProject(project.Id, project.TdNo!));
         });
 
-        g.MapPut("/{id:guid}", async (Guid id, ProjectInput input, Actor actor, AppDbContext db, CancellationToken ct) =>
+        g.MapPut("/{id:guid}", async (Guid id, ProjectInput input, Actor actor, AppDbContext db, GensisCompany gensis, CancellationToken ct) =>
         {
             if (Validate(input) is { } invalid) return invalid;
             var project = await db.Projects.VisibleTo(actor).SingleOrDefaultAsync(p => p.Id == id, ct);
             if (project is null) return Results.NotFound();
             // RLS WITH CHECK: the project may not be moved to a company the user does not belong to.
             if (!actor.CanAccessCompany(input.CompanyId)) return Results.Forbid();
-            if (await ValidateEngineersAsync(input, actor, db, ct) is { } badEngineer) return badEngineer;
+            if (await ValidateEngineersAsync(input, db, gensis.Id, ct) is { } badEngineer) return badEngineer;
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             Apply(project, input);
@@ -100,19 +100,22 @@ public static partial class ProjectWriteEndpoints
     }
 
     /// <summary>
-    /// KRR-021: the engineers must be ones the user can pick (own company's or Gensis's, see
-    /// /api/catalog/engineers). Otherwise a customer could attach another company's engineer and then
-    /// read that engineer's documents through the project's PDF sources.
+    /// A project's engineers are the project company's own or Gensis's (Gensis engineers work on every
+    /// customer's files and are the wizard's default). This holds for staff too. KRR-021: it also keeps a
+    /// customer from attaching another company's engineer and reading that engineer's documents through
+    /// the project's PDF sources.
     /// </summary>
-    private static async Task<IResult?> ValidateEngineersAsync(ProjectInput input, Actor actor, AppDbContext db, CancellationToken ct)
+    private static async Task<IResult?> ValidateEngineersAsync(ProjectInput input, AppDbContext db, Guid? gensisId, CancellationToken ct)
     {
         var ids = new[] { input.MakineMuhendisId, input.ElektrikMuhendisId }.OfType<Guid>().Distinct().ToList();
-        if (ids.Count == 0 || actor.IsStaff) return null;
-        var gensisId = await CatalogEndpoints.GensisCompanyIdAsync(db, ct);
-        var allowed = await db.Engineers.VisibleTo(actor, gensisId).CountAsync(e => ids.Contains(e.Id), ct);
-        return allowed == ids.Count
+        if (ids.Count == 0) return null;
+        var candidates = db.Engineers.Where(e => ids.Contains(e.Id));
+        candidates = gensisId is { } gid
+            ? candidates.Where(e => e.CompanyId == input.CompanyId || e.CompanyId == gid)
+            : candidates.Where(e => e.CompanyId == input.CompanyId);
+        return await candidates.CountAsync(ct) == ids.Count
             ? null
-            : Results.ValidationProblem(new Dictionary<string, string[]> { ["engineer"] = ["Seçilen mühendis bu firma için kullanılamaz."] });
+            : Results.ValidationProblem(new Dictionary<string, string[]> { ["engineer"] = ["Mühendis, projenin firmasına ya da Gensis'e kayıtlı olmalı."] });
     }
 
     private static void Apply(Project p, ProjectInput i)

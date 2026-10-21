@@ -62,9 +62,9 @@ public static class CatalogEndpoints
                 .Select(c => new CompanyNameDto(c.Id, c.ShortName, c.LegalName, c.City, c.Category)).ToListAsync(ct))
             .RequireAuthorization(Policies.Office);
 
-        g.MapGet("/engineers", async (Actor actor, AppDbContext db, CancellationToken ct) =>
+        g.MapGet("/engineers", async (Actor actor, AppDbContext db, GensisCompany gensis, CancellationToken ct) =>
         {
-            var gensisId = await GensisCompanyIdAsync(db, ct);
+            var gensisId = gensis.Id;
             var engineers = await db.Engineers.AsNoTracking().VisibleTo(actor, gensisId)
                 .OrderBy(e => EF.Functions.Collate(e.FullName, Collations.Turkish))
                 .Select(e => new EngineerDto(e.Id, e.FullName, e.Discipline, e.ChamberRegNo, e.CompanyId)).ToListAsync(ct);
@@ -121,11 +121,6 @@ public static class CatalogEndpoints
                 .Select(c => new CertificateDto(c.Id, c.CertNo, c.NotifiedBodyId, c.IssueDate, c.ValidUntil, c.BelgeTipi, c.CategoryId, c.FirmaAdi))
                 .ToListAsync(ct));
     }
-
-    // Gensis's own company record, found by name as the frontend does (first match in name order).
-    public static Task<Guid?> GensisCompanyIdAsync(AppDbContext db, CancellationToken ct) =>
-        db.Companies.AsNoTracking().Where(c => EF.Functions.ILike(c.ShortName, "%gensis%"))
-            .OrderBy(c => EF.Functions.Collate(c.ShortName, Collations.Turkish)).Select(c => (Guid?)c.Id).FirstOrDefaultAsync(ct);
 
     private static readonly System.Linq.Expressions.Expression<Func<Data.Entities.Company, CompanyDto>> ToCompanyDto = c => new CompanyDto(
         c.Id, c.ShortName, c.LegalName, c.Address, c.Phone, c.Fax, c.MobilePhone, c.Email, c.City, c.AuthorizedPerson,

@@ -52,6 +52,7 @@ services:
       Storage__PublicUrl: ${STORAGE_PUBLIC_URL}
       Storage__AccessKey: ${MINIO_APP_USER}
       Storage__SecretKey: ${MINIO_APP_PASSWORD}
+      GENSIS_COMPANY_ID: ${GENSIS_COMPANY_ID:-}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-10202}:8080"
     depends_on:

@@ -33,6 +33,7 @@ if (string.IsNullOrEmpty(jwtSecret) || jwtSecret.Length < 32)
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<LoginThrottle>();
+builder.Services.AddSingleton<GensisCompany>();
 
 // The client IP comes from the nginx proxy (which takes it from Cloudflare's CF-Connecting-IP).
 // Only trust X-Forwarded-For from private networks: the proxy container, never the internet.
