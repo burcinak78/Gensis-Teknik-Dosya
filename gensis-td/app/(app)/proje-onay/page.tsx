@@ -1,16 +1,11 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { listProjeOnay } from "./data";
 import ProjeOnayTable from "./ProjeOnayTable";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjeOnayListPage() {
-  const supabase = createClient();
-  const { data: list } = await supabase
-    .from("proje_onay")
-    .select("id, dosya_no, status, yapi_sahibi, beyan_yuku_kg, durak_sayisi, dilekce_tarihi, created_at, input_data, companies(short_name)")
-    .order("created_at", { ascending: false })
-    .limit(300);
+  const list = await listProjeOnay();
 
   return (
     <div>
@@ -26,7 +21,7 @@ export default async function ProjeOnayListPage() {
         </div>
       </div>
       <div className="px-8 pb-8 gs-fade">
-        <ProjeOnayTable rows={(list ?? []) as any} />
+        <ProjeOnayTable rows={list} />
       </div>
     </div>
   );

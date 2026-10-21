@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProjeOnay } from "../data";
 
 export const dynamic = "force-dynamic";
 
@@ -15,15 +15,9 @@ function Row({ k, v }: { k: string; v?: any }) {
 
 export default async function ProjeOnayDetayPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const supabase = createClient();
-  const { data: r } = await supabase
-    .from("proje_onay")
-    .select("*, companies(short_name, legal_name), provinces(name), districts(name), makine:engineers!makine_muhendis_id(full_name, chamber_reg_no), elektrik:engineers!elektrik_muhendis_id(full_name, chamber_reg_no)")
-    .eq("id", params.id)
-    .single();
-  if (!r) notFound();
+  const row = await getProjeOnay(params.id);
+  if (!row) notFound();
 
-  const row = r as any;
   const belediye = row.districts?.name || row.input_data?.belediye || "";
   const il = row.provinces?.name || row.input_data?.il || "";
   const hiz = row.input_data?.beyan_hizi_txt || row.beyan_hizi;

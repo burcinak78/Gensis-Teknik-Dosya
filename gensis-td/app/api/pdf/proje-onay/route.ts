@@ -1,8 +1,7 @@
 import { NextRequest } from "next/server";
 import React from "react";
 import { Font, renderToBuffer } from "@react-pdf/renderer";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getProjeOnay, getProjeOnayFile } from "@/app/(app)/proje-onay/data";
 import { ProjeOnayDoc } from "@/lib/pdf/ProjeOnayDoc";
 import { imzaToPngDataUri } from "@/lib/pdf/imzaUri";
 
@@ -31,23 +30,14 @@ function frmtTarih(d: any): string {
 const VALID = ["dilekce", "makine_taahhut", "elektrik_taahhut"];
 
 export async function GET(req: NextRequest) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return new Response("Yetkisiz.", { status: 401 });
-
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return new Response("id gerekli.", { status: 400 });
   const docParam = req.nextUrl.searchParams.get("doc") || "hepsi";
   const docs = docParam === "hepsi" ? VALID : VALID.filter((c) => c === docParam);
   if (docs.length === 0) return new Response("Geçersiz belge.", { status: 400 });
 
-  const { data: row } = await supabase
-    .from("proje_onay")
-    .select("*, companies(short_name, legal_name, address, city, phone, mobile_phone, email), provinces(name), districts(name), makine:engineers!makine_muhendis_id(full_name, chamber_reg_no, address, phone), elektrik:engineers!elektrik_muhendis_id(full_name, chamber_reg_no, address, phone)")
-    .eq("id", id)
-    .single();
+  // Session and access are checked by the API: no session → login page, another company's record → null.
+  const row = await getProjeOnay(id).catch(() => null);
   if (!row) return new Response("Kayıt bulunamadı veya yetkiniz yok.", { status: 404 });
 
   const r = row as any;
@@ -78,42 +68,23 @@ export async function GET(req: NextRequest) {
 
   // Taahhütname imzası: "İmza ekle" seçili müellif için imzayı (engineer_documents doc_type=imza) göm
   try {
-    const admin = createAdminClient();
-    const engPairs: [string | null | undefined, "makine" | "elektrik", boolean][] = [
-      [r.makine_muhendis_id, "makine", !!inp.imza_makine],
-      [r.elektrik_muhendis_id, "elektrik", !!inp.imza_elektrik],
-    ];
-    const wantIds = engPairs.filter(([id, , want]) => id && want).map(([id]) => id) as string[];
-    if (wantIds.length) {
-      const { data: edocs } = await admin.from("engineer_documents")
-        .select("engineer_id, storage_path").eq("doc_type", "imza").in("engineer_id", wantIds);
-      for (const [id, disc, want] of engPairs) {
-        if (!id || !want) continue;
-        const ed = (edocs ?? []).find((d: any) => d.engineer_id === id);
-        if (!ed?.storage_path) continue;
-        const { data: blob } = await admin.storage.from("documents").download(ed.storage_path);
-        if (!blob) continue;
-        const uri = await imzaToPngDataUri(new Uint8Array(await blob.arrayBuffer()));
-        if (uri) (data.muh as any)[disc] = { ...(data.muh as any)[disc], imza: uri };
-      }
+    const engPairs: ["makine" | "elektrik", boolean][] = [["makine", !!inp.imza_makine], ["elektrik", !!inp.imza_elektrik]];
+    for (const [disc, want] of engPairs) {
+      if (!want) continue;
+      const bytes = await getProjeOnayFile(id, disc === "makine" ? "imza_makine" : "imza_elektrik");
+      if (!bytes) continue;
+      const uri = await imzaToPngDataUri(bytes);
+      if (uri) (data.muh as any)[disc] = { ...(data.muh as any)[disc], imza: uri };
     }
   } catch { /* imza gömülemezse taahhütname imzasız üretilir */ }
 
   // Firma logosu (company_documents doc_type=logo) → dilekçe sol üst köşe
   try {
-    if (r.company_id) {
-      const admin = createAdminClient();
-      const { data: logoDoc } = await admin.from("company_documents")
-        .select("storage_path").eq("company_id", r.company_id).eq("doc_type", "logo").limit(1).maybeSingle();
-      if (logoDoc?.storage_path) {
-        const { data: blob } = await admin.storage.from("documents").download(logoDoc.storage_path);
-        if (blob) {
-          const bytes = new Uint8Array(await blob.arrayBuffer());
-          const ext = (logoDoc.storage_path.split(".").pop() || "").toLowerCase();
-          const mime = ext === "png" ? "image/png" : "image/jpeg";
-          (data.firma as any).logo = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
-        }
-      }
+    const bytes = await getProjeOnayFile(id, "logo");
+    if (bytes) {
+      // PNG signature, otherwise JPEG (logos are PNG or JPEG).
+      const mime = bytes[0] === 0x89 && bytes[1] === 0x50 ? "image/png" : "image/jpeg";
+      (data.firma as any).logo = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
     }
   } catch { /* logo alınamazsa kısa ad kalır */ }
 

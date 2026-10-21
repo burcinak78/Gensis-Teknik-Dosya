@@ -13,7 +13,7 @@ type EquipmentApi = {
 };
 type CertificateApi = { id: string; certNo: string; notifiedBodyId: string | null; validUntil: string | null };
 type NotifiedBodyApi = { id: string; identityNo: string | null; name: string; address: string | null };
-type IlgiliIdareApi = { id: string; name: string; provinceId: number | null; suffix: string };
+type IlgiliIdareApi = { id: string; name: string; provinceId: number | null; suffix: string; address: string | null };
 type CapacityApi = { beyanYukuKg: number; kisiSayisi: number | null; kabinAgirlikKg: number | null; karsiAgirlikKg: number | null };
 type LookupApi = { listKey: string; value: string; sortOrder: number };
 type EngineersApi = {
@@ -56,7 +56,7 @@ export async function loadWizardReference() {
     certificates: (certificates ?? []).map((c) => ({ id: c.id, cert_no: c.certNo, notified_body_id: c.notifiedBodyId, valid_until: c.validUntil })),
     notifiedBodies: (notifiedBodies ?? []).map((n) => ({ id: n.id, identity_no: n.identityNo, name: n.name, address: n.address })),
     provinces: provinces ?? [],
-    ilgiliIdareler: (idareler ?? []).map((i) => ({ id: i.id, name: i.name, province_id: i.provinceId, suffix: i.suffix })),
+    ilgiliIdareler: (idareler ?? []).map((i) => ({ id: i.id, name: i.name, province_id: i.provinceId, suffix: i.suffix, address: i.address })),
     capacity: (capacity ?? []).map((c) => ({
       beyan_yuku_kg: c.beyanYukuKg, kisi_sayisi: c.kisiSayisi, kabin_agirlik_kg: c.kabinAgirlikKg, karsi_agirlik_kg: c.karsiAgirlikKg,
     })),

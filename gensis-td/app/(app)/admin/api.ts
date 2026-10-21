@@ -113,6 +113,18 @@ export const deleteCompanyDocument = (_id: string) => notYet();
 export const deleteEngineer = (_id: string) => notYet();
 export const createNotifiedBody = (_form: Record<string, unknown>) => notYet();
 
+// New ilgili idare from the proje onay wizard (staff only in the API).
+export async function createIlgiliIdare(form: { name: string; address?: string; province_id?: number | null; suffix?: string }): Promise<Result> {
+  try {
+    const r = await api<{ id: string }>("/api/catalog/ilgili-idareler", {
+      method: "POST", body: JSON.stringify({ name: form.name, address: form.address, provinceId: form.province_id ?? null, suffix: form.suffix }),
+    });
+    return { ok: true, message: "İlgili idare eklendi.", id: r.id };
+  } catch (e) {
+    return fail(e, "İlgili idare eklenemedi.");
+  }
+}
+
 // Onaylar queue (staff only; the API re-checks the change against current data before applying it).
 export async function approvePendingChange(id: string): Promise<Result> {
   try {

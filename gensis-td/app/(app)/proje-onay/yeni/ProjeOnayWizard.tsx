@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { saveProjeOnay, updateProjeOnay, type OnayPayload } from "./actions";
-import { createIlgiliIdare, uploadEngineerDocument } from "@/app/(app)/admin/actions";
+import { saveProjeOnay, updateProjeOnay, type OnayPayload } from "./api";
+import { createIlgiliIdare, uploadEngineerDocument } from "@/app/(app)/admin/api";
+import { loadDistricts } from "@/app/(app)/yeni/api";
 
 type Company = { id: string; short_name: string; legal_name: string | null };
 type Province = { id: number; name: string };
@@ -43,7 +43,6 @@ const idareLabel = (name: string) => {
 
 export default function ProjeOnayWizard(props: Props) {
   const router = useRouter();
-  const supabase = createClient();
   const init = props.initial;
   const isEdit = !!init?.id;
 
@@ -141,7 +140,7 @@ export default function ProjeOnayWizard(props: Props) {
     const id = idStr ? Number(idStr) : "";
     setProvinceId(id); setDistrictId(""); setDistricts([]);
     if (id !== "") {
-      const { data } = await supabase.from("districts").select("id, name").eq("province_id", id).order("name").limit(2000);
+      const data = await loadDistricts(id);
       setDistricts(data ?? []);
     }
   }
@@ -365,7 +364,7 @@ function MuhImza({ engineerId, imzaDocId, checked, onToggle }: { engineerId: str
       {imzaDocId ? (
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <img src={`/api/belge/muhendis?id=${imzaDocId}`} alt="İmza" className="h-10 max-w-[140px] object-contain border border-slate-100 rounded bg-white p-0.5" />
+            <img src={`/api/files/engineer/${imzaDocId}`} alt="İmza" className="h-10 max-w-[140px] object-contain border border-slate-100 rounded bg-white p-0.5" />
             <span className="text-[11px] text-green-600 font-semibold inline-flex items-center gap-0.5"><span className="material-symbols-rounded text-[14px]">check_circle</span>İmza yüklü</span>
           </div>
           {onToggle && (

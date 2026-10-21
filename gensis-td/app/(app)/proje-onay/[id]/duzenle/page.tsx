@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { apiGet } from "@/lib/api/server";
+import { loadWizardReference } from "../../../yeni/reference";
+import { getProjeOnay } from "../../data";
 import ProjeOnayWizard, { type OnayInitial } from "../../yeni/ProjeOnayWizard";
 
 export const dynamic = "force-dynamic";
@@ -8,28 +10,12 @@ const s = (v: any) => (v == null ? "" : String(v));
 
 export default async function DuzenleProjeOnayPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const supabase = createClient();
-  const [companies, provinces, capacity, engineers, idareler, rowRes] = await Promise.all([
-    supabase.from("companies").select("id, short_name, legal_name").order("short_name").limit(2000),
-    supabase.from("provinces").select("id, name").order("name"),
-    supabase.from("capacity_table").select("beyan_yuku_kg, kisi_sayisi").order("beyan_yuku_kg"),
-    supabase.from("engineers").select("id, full_name, discipline, chamber_reg_no, company_id").order("full_name").limit(2000),
-    supabase.from("ilgili_idareler").select("id, name, address").order("name").limit(2000),
-    supabase.from("proje_onay").select("*").eq("id", params.id).single(),
-  ]);
-
-  const row = rowRes.data as any;
+  const [ref, row] = await Promise.all([loadWizardReference(), getProjeOnay(params.id)]);
   if (!row) notFound();
 
-  const { data: imzaDocs } = await supabase.from("engineer_documents").select("id, engineer_id").eq("doc_type", "imza").limit(5000);
-  const imzaByEng = new Map((imzaDocs ?? []).map((d: any) => [d.engineer_id, d.id]));
-  const engineersWithImza = (engineers.data ?? []).map((e: any) => ({ ...e, imzaDocId: imzaByEng.get(e.id) ?? null }));
-
-  let districts: { id: string; name: string }[] = [];
-  if (row.province_id != null) {
-    const { data } = await supabase.from("districts").select("id, name").eq("province_id", row.province_id).order("name").limit(2000);
-    districts = data ?? [];
-  }
+  const districts = row.province_id != null
+    ? (await apiGet<{ id: string; name: string }[]>(`/api/catalog/provinces/${row.province_id}/districts`)) ?? []
+    : [];
 
   const inp = (row.input_data ?? {}) as any;
   const initial: OnayInitial = {
@@ -54,17 +40,14 @@ export default async function DuzenleProjeOnayPage(props: { params: Promise<{ id
     imzaElektrik: inp.imza_elektrik === true,
   };
 
-  const list = companies.data ?? [];
-  const gensis = list.find((c) => (c.short_name ?? "").toLocaleLowerCase("tr").includes("gensis"));
-
   return (
     <ProjeOnayWizard
-      companies={list}
-      provinces={provinces.data ?? []}
-      capacity={(capacity.data ?? []) as any}
-      engineers={engineersWithImza}
-      gensisCompanyId={gensis?.id ?? null}
-      ilgiliIdareler={(idareler.data ?? []) as any}
+      companies={ref.companies}
+      provinces={ref.provinces}
+      capacity={ref.capacity}
+      engineers={ref.engineers}
+      gensisCompanyId={ref.gensisCompanyId}
+      ilgiliIdareler={ref.ilgiliIdareler}
       initial={initial}
     />
   );

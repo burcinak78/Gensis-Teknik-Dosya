@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import React from "react";
 import { Font, renderToBuffer } from "@react-pdf/renderer";
-import { createClient } from "@/lib/supabase/server";
+import { getMe } from "@/lib/api/server";
+import { getProjeOnay } from "@/app/(app)/proje-onay/data";
 import { AvanProjeDilekceDoc } from "@/lib/pdf/AvanProjeDilekceDoc";
 
 export const runtime = "nodejs";
@@ -28,20 +29,12 @@ function frmtTarih(d: any): string {
 
 // Kayıtlı proje onay dosyasından dilekçe üretimi (detay/liste linkleri için)
 export async function GET(req: NextRequest) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return new Response("Yetkisiz.", { status: 401 });
+  if (!(await getMe().catch(() => null))) return new Response("Yetkisiz.", { status: 401 });
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return new Response("id gerekli.", { status: 400 });
 
-  const { data: row } = await supabase
-    .from("proje_onay")
-    .select("*, companies(short_name, legal_name), provinces(name), districts(name)")
-    .eq("id", id)
-    .single();
+  const row = await getProjeOnay(id).catch(() => null);
   if (!row) return new Response("Kayıt bulunamadı veya yetkiniz yok.", { status: 404 });
 
   const inp = (row.input_data ?? {}) as any;
@@ -75,11 +68,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return new Response("Yetkisiz.", { status: 401 });
+  if (!(await getMe().catch(() => null))) return new Response("Yetkisiz.", { status: 401 });
 
   let body: any = {};
   try {
