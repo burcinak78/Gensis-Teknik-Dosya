@@ -30,3 +30,13 @@ public sealed class PgNameEnumConverterFactory : JsonConverterFactory
         public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options) => writer.WriteStringValue(ToName[value]);
     }
 }
+
+/// <summary>Database names of enum members ([PgName]), for payloads stored as JSON.</summary>
+public static class PgNames
+{
+    public static string Of<T>(T value) where T : struct, Enum =>
+        typeof(T).GetField(value.ToString())!.GetCustomAttribute<PgNameAttribute>()?.PgName ?? value.ToString();
+
+    public static T Parse<T>(string name) where T : struct, Enum =>
+        Enum.GetValues<T>().First(v => Of(v) == name);
+}
