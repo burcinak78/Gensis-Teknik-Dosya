@@ -98,4 +98,45 @@ public class AccessFilterTests
         Assert.Empty(docs.VisibleTo(CustomerA));
         Assert.Single(docs.VisibleTo(Gensis));
     }
+
+    [Fact]
+    public void Companies_customers_see_only_own_company()
+    {
+        var a = new Company { Id = CompanyA, ShortName = "A" };
+        var b = new Company { Id = CompanyB, ShortName = "B" };
+        var companies = new[] { a, b }.AsQueryable();
+        Assert.Equal(2, companies.VisibleTo(Admin).Count());
+        Assert.Equal(2, companies.VisibleTo(Gensis).Count());
+        Assert.Equal([a], companies.VisibleTo(CustomerA).ToArray());
+        Assert.Empty(companies.VisibleTo(Accountant));
+        Assert.Empty(companies.VisibleTo(NoCompany));
+    }
+
+    [Fact]
+    public void Company_module_certs_customers_see_only_own_company()
+    {
+        var a = new CompanyModuleCert { Id = Guid.NewGuid(), CompanyId = CompanyA };
+        var b = new CompanyModuleCert { Id = Guid.NewGuid(), CompanyId = CompanyB };
+        var certs = new[] { a, b }.AsQueryable();
+        Assert.Equal(2, certs.VisibleTo(Gensis).Count());
+        Assert.Equal([a], certs.VisibleTo(CustomerA).ToArray());
+        Assert.Empty(certs.VisibleTo(NoCompany));
+    }
+
+    [Fact]
+    public void Engineers_customers_see_own_and_gensis_engineers()
+    {
+        var gensisCompany = Guid.NewGuid();
+        var own = new Engineer { Id = Guid.NewGuid(), FullName = "Own", CompanyId = CompanyA };
+        var other = new Engineer { Id = Guid.NewGuid(), FullName = "Other", CompanyId = CompanyB };
+        var gensis = new Engineer { Id = Guid.NewGuid(), FullName = "Gensis", CompanyId = gensisCompany };
+        var unassigned = new Engineer { Id = Guid.NewGuid(), FullName = "None", CompanyId = null };
+        var engineers = new[] { own, other, gensis, unassigned }.AsQueryable();
+
+        Assert.Equal(4, engineers.VisibleTo(Admin, gensisCompany).Count());
+        Assert.Equal([own, gensis], engineers.VisibleTo(CustomerA, gensisCompany).ToArray());
+        Assert.Empty(engineers.VisibleTo(NoCompany, gensisCompany));
+        // No Gensis company found: a null id must not match engineers without a company.
+        Assert.Equal([own], engineers.VisibleTo(CustomerA, null).ToArray());
+    }
 }

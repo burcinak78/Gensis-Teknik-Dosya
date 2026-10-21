@@ -4,8 +4,10 @@ namespace GensisTd.Api.Auth;
 
 /// <summary>
 /// Read filters replacing the Supabase RLS SELECT policies (schema dump 2026-10-20).
-/// Catalog tables (companies, engineers, certificates, provinces, ...) are readable by every
-/// signed-in user and need no filter. Write rules are checked in the endpoints with Actor.
+/// Catalog tables (certificates, provinces, equipment, ...) are readable by every signed-in user
+/// and need no filter. Companies, engineers and company module certs hold contact and company data,
+/// so they are filtered here although Supabase let everyone read them (KRR-014).
+/// Write rules are checked in the endpoints with Actor.
 /// The staff/company decision is made here in C#, so a user without a company never reaches
 /// a `company_id = NULL` comparison.
 /// </summary>
@@ -43,6 +45,21 @@ public static class AccessFilters
 
     public static IQueryable<DownloadLink> VisibleTo(this IQueryable<DownloadLink> q, Actor a) =>
         a.IsStaff ? q : a.CompanyId is { } cid ? q.Where(x => x.GeneratedFile.Project.CompanyId == cid) : q.Where(_ => false);
+
+    // KRR-014: staff see every company, others only their own.
+    public static IQueryable<Company> VisibleTo(this IQueryable<Company> q, Actor a) =>
+        a.IsStaff ? q : a.CompanyId is { } cid ? q.Where(x => x.Id == cid) : q.Where(_ => false);
+
+    public static IQueryable<CompanyModuleCert> VisibleTo(this IQueryable<CompanyModuleCert> q, Actor a) =>
+        a.IsStaff ? q : a.CompanyId is { } cid ? q.Where(x => x.CompanyId == cid) : q.Where(_ => false);
+
+    // KRR-014: own company's engineers plus Gensis's, which the project wizard offers to every customer.
+    // A null Gensis id must not become `company_id IS NULL`, so it only joins the filter when known.
+    public static IQueryable<Engineer> VisibleTo(this IQueryable<Engineer> q, Actor a, Guid? gensisCompanyId) =>
+        a.IsStaff ? q
+        : a.CompanyId is not { } cid ? q.Where(_ => false)
+        : gensisCompanyId is { } gid ? q.Where(x => x.CompanyId == cid || x.CompanyId == gid)
+        : q.Where(x => x.CompanyId == cid);
 
     // p_profiles_select: own profile, staff see all
     public static IQueryable<Profile> VisibleTo(this IQueryable<Profile> q, Actor a) =>
