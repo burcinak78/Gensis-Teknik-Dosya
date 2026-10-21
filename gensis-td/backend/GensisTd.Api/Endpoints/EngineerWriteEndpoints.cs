@@ -92,6 +92,40 @@ public static class EngineerWriteEndpoints
             return Results.Ok(new WriteResult(false, id));
         });
 
+        // Staff only (admin/actions.ts deleteEngineer): projects keep the file but lose the engineer reference.
+        g.MapDelete("/{id:guid}", async (Guid id, AppDbContext db, StorageService storage, ILoggerFactory logs, CancellationToken ct) =>
+        {
+            if (!await db.Engineers.AnyAsync(e => e.Id == id, ct)) return Results.NotFound();
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            var paths = await db.EngineerDocuments.Where(d => d.EngineerId == id && d.StoragePath != null).Select(d => d.StoragePath!).ToListAsync(ct);
+            await db.Projects.Where(p => p.MakineMuhendisId == id).ExecuteUpdateAsync(s => s.SetProperty(p => p.MakineMuhendisId, (Guid?)null), ct);
+            await db.Projects.Where(p => p.ElektrikMuhendisId == id).ExecuteUpdateAsync(s => s.SetProperty(p => p.ElektrikMuhendisId, (Guid?)null), ct);
+            await db.EngineerDocuments.Where(d => d.EngineerId == id).ExecuteDeleteAsync(ct);
+            try
+            {
+                await db.Engineers.Where(e => e.Id == id).ExecuteDeleteAsync(ct);
+            }
+            catch (Npgsql.PostgresException pg) when (pg.SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation)
+            {
+                return Results.Conflict(new { error = $"Mühendis başka kayıtlarda kullanılıyor ({pg.TableName})." });
+            }
+            await tx.CommitAsync(ct);
+            await storage.DeleteQuietlyAsync(FileEndpoints.DocumentsBucket, paths, logs.CreateLogger(nameof(EngineerWriteEndpoints)));
+            return Results.Ok(new { message = "Mühendis silindi." });
+        }).RequireAuthorization(Policies.Staff);
+
+        g.MapDelete("/documents/{docId:guid}", async (Guid docId, AppDbContext db, StorageService storage, ILoggerFactory logs,
+            CancellationToken ct) =>
+        {
+            var doc = await db.EngineerDocuments.SingleOrDefaultAsync(d => d.Id == docId, ct);
+            if (doc is null) return Results.NotFound();
+            db.EngineerDocuments.Remove(doc);
+            await db.SaveChangesAsync(ct);
+            if (doc.StoragePath is { } path)
+                await storage.DeleteQuietlyAsync(FileEndpoints.DocumentsBucket, [path], logs.CreateLogger(nameof(EngineerWriteEndpoints)));
+            return Results.Ok(new { message = "Belge silindi." });
+        }).RequireAuthorization(Policies.Staff);
+
         g.MapPost("/{id:guid}/documents/upload-url", async (Guid id, UploadUrlRequest req, Actor actor, AppDbContext db,
             StorageService storage, CancellationToken ct) =>
         {

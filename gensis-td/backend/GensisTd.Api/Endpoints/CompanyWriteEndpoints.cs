@@ -46,6 +46,60 @@ public static class CompanyWriteEndpoints
             return Results.Ok(new WriteResult(false, company.Id));
         }).RequireAuthorization(Policies.Staff);
 
+        // Staff only (admin/actions.ts deleteCompany). A company with teknik dosya or proje onay files is not deleted,
+        // and neither is Gensis's own company (its engineers are every customer's default).
+        app.MapDelete("/api/companies/{id:guid}", async (Guid id, AppDbContext db, GensisCompany gensis, StorageService storage,
+            ILoggerFactory logs, CancellationToken ct) =>
+        {
+            if (!await db.Companies.AnyAsync(c => c.Id == id, ct)) return Results.NotFound();
+            if (id == gensis.Id) return Results.Conflict(new { error = "Gensis firması silinemez." });
+            if (await db.Projects.AnyAsync(p => p.CompanyId == id, ct))
+                return Results.Conflict(new { error = "Bu firmanın teknik dosyaları var; önce onları silin." });
+            if (await db.ProjeOnays.AnyAsync(p => p.CompanyId == id, ct))
+                return Results.Conflict(new { error = "Bu firmanın proje onay dosyaları var; önce onları silin." });
+
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            var engineerIds = await db.Engineers.Where(e => e.CompanyId == id).Select(e => e.Id).ToListAsync(ct);
+            var paths = await db.CompanyDocuments.Where(d => d.CompanyId == id && d.StoragePath != null).Select(d => d.StoragePath!).ToListAsync(ct);
+            paths.AddRange(await db.EngineerDocuments.Where(d => engineerIds.Contains(d.EngineerId) && d.StoragePath != null)
+                .Select(d => d.StoragePath!).ToListAsync(ct));
+            paths.AddRange(await db.PendingChanges.Where(p => p.CompanyId == id && p.StoragePath != null && p.Status == "pending")
+                .Select(p => p.StoragePath!).ToListAsync(ct));
+
+            await db.CompanyDocuments.Where(d => d.CompanyId == id).ExecuteDeleteAsync(ct);
+            await db.EngineerDocuments.Where(d => engineerIds.Contains(d.EngineerId)).ExecuteDeleteAsync(ct);
+            await db.Projects.Where(p => p.MakineMuhendisId != null && engineerIds.Contains(p.MakineMuhendisId.Value))
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.MakineMuhendisId, (Guid?)null), ct);
+            await db.Projects.Where(p => p.ElektrikMuhendisId != null && engineerIds.Contains(p.ElektrikMuhendisId.Value))
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.ElektrikMuhendisId, (Guid?)null), ct);
+            await db.Engineers.Where(e => engineerIds.Contains(e.Id)).ExecuteDeleteAsync(ct);
+            await db.PendingChanges.Where(p => p.CompanyId == id).ExecuteDeleteAsync(ct);
+            await db.Profiles.Where(p => p.CompanyId == id).ExecuteUpdateAsync(s => s.SetProperty(p => p.CompanyId, (Guid?)null), ct);
+            try
+            {
+                await db.Companies.Where(c => c.Id == id).ExecuteDeleteAsync(ct);
+            }
+            catch (Npgsql.PostgresException pg) when (pg.SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation)
+            {
+                return Results.Conflict(new { error = $"Firma başka kayıtlarda kullanılıyor ({pg.TableName})." });
+            }
+            await tx.CommitAsync(ct);
+            await storage.DeleteQuietlyAsync(FileEndpoints.DocumentsBucket, paths, logs.CreateLogger(nameof(CompanyWriteEndpoints)));
+            return Results.Ok(new { message = "Müşteri, belgeleri ve bağlı mühendisleri silindi." });
+        }).RequireAuthorization(Policies.Staff);
+
+        app.MapDelete("/api/companies/documents/{docId:guid}", async (Guid docId, AppDbContext db, StorageService storage,
+            ILoggerFactory logs, CancellationToken ct) =>
+        {
+            var doc = await db.CompanyDocuments.SingleOrDefaultAsync(d => d.Id == docId, ct);
+            if (doc is null) return Results.NotFound();
+            db.CompanyDocuments.Remove(doc);
+            await db.SaveChangesAsync(ct);
+            if (doc.StoragePath is { } path)
+                await storage.DeleteQuietlyAsync(FileEndpoints.DocumentsBucket, [path], logs.CreateLogger(nameof(CompanyWriteEndpoints)));
+            return Results.Ok(new { message = "Belge silindi." });
+        }).RequireAuthorization(Policies.Staff);
+
         var g = app.MapGroup("/api/companies/{id:guid}").RequireAuthorization();
 
         g.MapPut("/", async (Guid id, CompanyInput input, Actor actor, AppDbContext db, CancellationToken ct) =>
