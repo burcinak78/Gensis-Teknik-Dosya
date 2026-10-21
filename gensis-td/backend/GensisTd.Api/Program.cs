@@ -91,5 +91,6 @@ app.MapProjectEndpoints();
 app.MapProjectWriteEndpoints();
 app.MapFileEndpoints();
 app.MapProjectFileEndpoints();
+app.MapPdfSourceEndpoints();
 
 app.Run();

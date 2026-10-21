@@ -72,6 +72,20 @@ public class StorageService
         }
     }
 
+    /// <summary>Object content for server-side use (PDF assembly), or null when it does not exist.</summary>
+    public async Task<(Stream Body, string ContentType)?> OpenReadAsync(string bucket, string key, CancellationToken ct = default)
+    {
+        try
+        {
+            var obj = await _internal.GetObjectAsync(bucket, key, ct);
+            return (obj.ResponseStream, obj.Headers.ContentType ?? "application/octet-stream");
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
     public Task DeleteAsync(string bucket, string key, CancellationToken ct = default) =>
         _internal.DeleteObjectAsync(bucket, key, ct);
 

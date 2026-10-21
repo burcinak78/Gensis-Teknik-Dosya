@@ -3,8 +3,7 @@ import React from "react";
 import { Font, renderToBuffer } from "@react-pdf/renderer";
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { apiFetch } from "@/lib/api/server";
 import { TeknikDosyaDoc } from "@/lib/pdf/TeknikDosyaDoc";
 import { TEKNIK_DOSYA_BELGELERI } from "@/lib/pdf/belgeler";
 import { imzaToPngDataUri } from "@/lib/pdf/imzaUri";
@@ -26,20 +25,31 @@ function registerFonts(base: string) {
   fontsRegistered = true;
 }
 
-export async function GET(req: NextRequest) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new Response("Yetkisiz.", { status: 401 });
+// Rows from GET /api/projects/{id}/pdf-source (access-checked by the API).
+type PdfSource = {
+  context: any;
+  project: { makineMuhendisId: string | null; elektrikMuhendisId: string | null; companyId: string; inputData: Record<string, any>; binaAdi: string | null; tdNo: string | null };
+  company: { phone: string | null; mobilePhone: string | null; email: string | null } | null;
+  projectFiles: { kind: string; path: string; sortOrder: number }[];
+  engineerDocs: { engineerId: string; docType: string; path: string }[];
+  companyDocs: { id: string; docType: string; path: string | null; belgeNo: string | null; issueDate: string | null; notifiedBodyId: string | null }[];
+  notifiedBodies: { id: string; name: string; shortName: string | null; identityNo: string | null; address: string | null }[];
+  equipmentCategories: { code: string; name: string; driveType: string }[];
+  equipment: { slot: string; categoryCode: string; brandName: string | null; certificateId: string | null; seriList: unknown }[];
+  certificateFiles: { certificateId: string; path: string }[];
+};
 
+export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) return new Response("projectId gerekli.", { status: 400 });
 
-  // Erişim kontrolü (RLS)
-  const { data: proj } = await supabase.from("projects").select("id").eq("id", projectId).single();
-  if (!proj) return new Response("Proje bulunamadı veya yetkiniz yok.", { status: 404 });
-
-  const { data: ctx, error } = await supabase.rpc("project_render_context", { p_id: projectId });
-  if (error || !ctx) return new Response("Veri alınamadı: " + (error?.message ?? ""), { status: 500 });
+  // Oturum ve erişim kontrolü API'de: görünmeyen proje 404.
+  const srcRes = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/pdf-source`);
+  if (srcRes.status === 401) return new Response("Yetkisiz.", { status: 401 });
+  if (srcRes.status === 404) return new Response("Proje bulunamadı veya yetkiniz yok.", { status: 404 });
+  if (!srcRes.ok) return new Response("Veri alınamadı.", { status: 500 });
+  const src = (await srcRes.json()) as PdfSource;
+  const ctx: any = src.context;
 
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
   const host = req.headers.get("host");
@@ -54,12 +64,20 @@ export async function GET(req: NextRequest) {
     .map((b) => b.code);
 
   // Kullanma ve Bakım Kılavuzu: asansör tipi + askı tipine göre hazır PDF
-  const cIsHid = (ctx as any)?.asansor_tipi === "hidrolik";
-  const cAski = String((ctx as any)?.aski_tipi || "");
+  const cIsHid = ctx?.asansor_tipi === "hidrolik";
+  const cAski = String(ctx?.aski_tipi || "");
   const kilavuzFile = cIsHid ? "KBT_H.pdf" : (cAski.startsWith("1/1") ? "KBT_E_1-1.pdf" : "KBT_E_1-2.pdf");
 
+  // Ek dosyalar API üzerinden; yalnızca bu projeye ait olanlar verilir.
+  async function download(bucket: string, path: string): Promise<Uint8Array | null> {
+    try {
+      const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId!)}/pdf-source/file?bucket=${bucket}&path=${encodeURIComponent(path)}`);
+      if (!res.ok) return null;
+      return new Uint8Array(await res.arrayBuffer());
+    } catch { return null; }
+  }
+
   // ---------- Yüklenmiş ekleri topla (hata olursa eksiz üret) ----------
-  const admin = createAdminClient();
   let attach: {
     isG: boolean;
     pf: Record<string, string[]>;
@@ -71,142 +89,112 @@ export async function GET(req: NextRequest) {
   let logoBytes: Uint8Array | null = null;
   let logoMime = "image/png";
   try {
-    const { data: prow } = await admin.from("projects")
-      .select("makine_muhendis_id, elektrik_muhendis_id, company_id, input_data, bina_adi, td_no").eq("id", projectId).single();
+    const prow = src.project;
     // Kapakta Dosya No karşısına TD No
-    if (prow?.td_no != null) (ctx as any).td_no = prow.td_no;
-    const inp = (prow?.input_data ?? {}) as Record<string, any>;
+    if (prow.tdNo != null) ctx.td_no = prow.tdNo;
+    const inp = (prow.inputData ?? {}) as Record<string, any>;
     // Son Kontrol Formu bilgi tablosu için veriler (montaj adresi + input_data)
-    (ctx as any).__sk = {
-      montaj_adresi: (ctx as any).montaj_adresi || inp.montaj_adresi || null,
+    ctx.__sk = {
+      montaj_adresi: ctx.montaj_adresi || inp.montaj_adresi || null,
       ada: inp.ada ?? null, pafta: inp.pafta ?? null, parsel: inp.parsel ?? null,
       asansor_seri_no: inp.asansor_seri_no ?? null,
     };
     // Kapakta Bina Adı — render context'te yoksa projects tablosundan tamamla
-    if (prow?.bina_adi && !(ctx as any).bina_adi) (ctx as any).bina_adi = prow.bina_adi;
+    if (prow.binaAdi && !ctx.bina_adi) ctx.bina_adi = prow.binaAdi;
     attach.isG = inp.modul_secim === "G";
-    const companyId = prow?.company_id ?? null;
     // Firma Bilgileri: Telefon/E-posta render context'te boşsa companies tablosundan tamamla
-    if (companyId) {
-      const { data: crow } = await admin.from("companies").select("phone, mobile_phone, email").eq("id", companyId).single();
-      if (crow) {
-        (ctx as any).firma = (ctx as any).firma || {};
-        if (!(ctx as any).firma.telefon) (ctx as any).firma.telefon = crow.phone || crow.mobile_phone || null;
-        if (!(ctx as any).firma.email) (ctx as any).firma.email = crow.email || null;
-      }
-      // Müşteri logosu (company_documents doc_type=logo) → header'da kısa ad yerine
-      try {
-        const { data: logoDoc } = await admin.from("company_documents")
-          .select("storage_path").eq("company_id", companyId).eq("doc_type", "logo").limit(1).maybeSingle();
-        if (logoDoc?.storage_path) {
-          const { data: blob } = await admin.storage.from("documents").download(logoDoc.storage_path);
-          if (blob) {
-            logoBytes = new Uint8Array(await blob.arrayBuffer());
-            const ext = (logoDoc.storage_path.split(".").pop() || "").toLowerCase();
-            logoMime = ext === "png" ? "image/png" : "image/jpeg";
-            (ctx as any).firma = (ctx as any).firma || {};
-            (ctx as any).firma.logo = `data:${logoMime};base64,${Buffer.from(logoBytes).toString("base64")}`;
-          }
-        }
-      } catch { /* logo alınamazsa kısa ad kalır */ }
+    const crow = src.company;
+    if (crow) {
+      ctx.firma = ctx.firma || {};
+      if (!ctx.firma.telefon) ctx.firma.telefon = crow.phone || crow.mobilePhone || null;
+      if (!ctx.firma.email) ctx.firma.email = crow.email || null;
     }
-    const engIds = [prow?.makine_muhendis_id, prow?.elektrik_muhendis_id].filter(Boolean) as string[];
+    // Müşteri logosu (company_documents doc_type=logo) → header'da kısa ad yerine
+    try {
+      const logoPath = src.companyDocs.find((d) => d.docType === "logo" && d.path)?.path;
+      if (logoPath) {
+        const bytes = await download("documents", logoPath);
+        if (bytes) {
+          logoBytes = bytes;
+          const ext = (logoPath.split(".").pop() || "").toLowerCase();
+          logoMime = ext === "png" ? "image/png" : "image/jpeg";
+          ctx.firma = ctx.firma || {};
+          ctx.firma.logo = `data:${logoMime};base64,${Buffer.from(logoBytes).toString("base64")}`;
+        }
+      }
+    } catch { /* logo alınamazsa kısa ad kalır */ }
 
-    const { data: pfiles } = await admin.from("project_files")
-      .select("kind, storage_path, sort_order").eq("project_id", projectId).order("sort_order");
-    for (const f of pfiles ?? []) {
-      if (!f.storage_path) continue;
-      (attach.pf[f.kind] ||= []).push(f.storage_path);
+    for (const f of src.projectFiles) {
+      if (!f.path) continue;
+      (attach.pf[f.kind] ||= []).push(f.path);
     }
 
     let imzaMakinePath: string | undefined, imzaElektrikPath: string | undefined;
-    if (engIds.length) {
-      const { data: edocs } = await admin.from("engineer_documents")
-        .select("engineer_id, storage_path, doc_type").in("engineer_id", engIds);
-      for (const d of edocs ?? []) {
-        if (!d.storage_path) continue;
-        // İmza (doc_type=imza) ayrı sayfa olarak eklenmez; Taahhütname'ye gömülür (seçiliyse).
-        if (d.doc_type === "imza") {
-          if (d.engineer_id === prow?.makine_muhendis_id) imzaMakinePath = d.storage_path;
-          if (d.engineer_id === prow?.elektrik_muhendis_id) imzaElektrikPath = d.storage_path;
-          continue;
-        }
-        if (d.engineer_id === prow?.makine_muhendis_id) attach.engMakine.push(d.storage_path);
-        if (d.engineer_id === prow?.elektrik_muhendis_id) attach.engElektrik.push(d.storage_path);
+    for (const d of src.engineerDocs) {
+      // İmza (doc_type=imza) ayrı sayfa olarak eklenmez; Taahhütname'ye gömülür (seçiliyse).
+      if (d.docType === "imza") {
+        if (d.engineerId === prow.makineMuhendisId) imzaMakinePath = d.path;
+        if (d.engineerId === prow.elektrikMuhendisId) imzaElektrikPath = d.path;
+        continue;
       }
+      if (d.engineerId === prow.makineMuhendisId) attach.engMakine.push(d.path);
+      if (d.engineerId === prow.elektrikMuhendisId) attach.engElektrik.push(d.path);
     }
     // Taahhütname imzası: kullanıcı "İmza ekle" seçtiyse imzayı temiz PNG data URI olarak doc'a geçir.
     // NOT: TeknikDosyaDoc, müellif bilgisini ctx.muhendis üzerinden okur (buildCtx: muh = d.muhendis).
     try {
       const imzaDataUri = async (path?: string): Promise<string | null> => {
         if (!path) return null;
-        const { data: blob } = await admin.storage.from("documents").download(path);
-        if (!blob) return null;
-        return imzaToPngDataUri(new Uint8Array(await blob.arrayBuffer()));
+        const bytes = await download("documents", path);
+        return bytes ? imzaToPngDataUri(bytes) : null;
       };
       if (inp.imza_makine && imzaMakinePath) {
         const uri = await imzaDataUri(imzaMakinePath);
-        if (uri) { (ctx as any).muhendis = (ctx as any).muhendis || {}; (ctx as any).muhendis.makine = (ctx as any).muhendis.makine || {}; (ctx as any).muhendis.makine.imza = uri; }
+        if (uri) { ctx.muhendis = ctx.muhendis || {}; ctx.muhendis.makine = ctx.muhendis.makine || {}; ctx.muhendis.makine.imza = uri; }
       }
       if (inp.imza_elektrik && imzaElektrikPath) {
         const uri = await imzaDataUri(imzaElektrikPath);
-        if (uri) { (ctx as any).muhendis = (ctx as any).muhendis || {}; (ctx as any).muhendis.elektrik = (ctx as any).muhendis.elektrik || {}; (ctx as any).muhendis.elektrik.imza = uri; }
+        if (uri) { ctx.muhendis = ctx.muhendis || {}; ctx.muhendis.elektrik = ctx.muhendis.elektrik || {}; ctx.muhendis.elektrik.imza = uri; }
       }
     } catch { /* imza gömülemezse taahhütname imzasız üretilir */ }
 
-    if (companyId) {
-      const { data: cdocs } = await admin.from("company_documents")
-        .select("id, doc_type, storage_path").eq("company_id", companyId);
-      for (const d of cdocs ?? []) {
-        if (!d.storage_path) continue;
-        if (d.doc_type === "imza_sirkuleri") attach.coImza.push(d.storage_path);
-        else if (d.doc_type === "sanayi_sicil") attach.coSanayi.push(d.storage_path);
-        else if (d.doc_type === "tse_hyb") attach.coTse.push(d.storage_path);
-        else if (String(d.doc_type).startsWith("ce")) attach.coCe.push(d.storage_path);
-      }
-      // Firma Bilgileri arkasına yalnızca Belgeler'de SEÇİLEN CE belgeleri (H1 → Tasarım → Mod B(+Eki) → Mod E sırasıyla)
-      const selCeIds: string[] = Array.isArray(inp.modul_belge_ids) ? inp.modul_belge_ids : [];
-      const ceRank: Record<string, number> = { ce_h1: 0, ce_tasarim: 1, ce_b: 2, ce_b_eki: 3, ce_e: 4 };
-      attach.coCeSelected = (cdocs ?? [])
-        .filter((d: any) => d.storage_path && String(d.doc_type).startsWith("ce") && selCeIds.includes(d.id))
-        .sort((a: any, b: any) => (ceRank[a.doc_type] ?? 9) - (ceRank[b.doc_type] ?? 9))
-        .map((d: any) => d.storage_path as string);
-      // Firma CE modül belgeleri (ce_h1 / ce_b / ce_e) → tescil + AB Uygunluk Beyanı
-      const { data: ceDocs } = await admin.from("company_documents")
-        .select("doc_type, belge_no, issue_date, notified_body_id")
-        .eq("company_id", companyId).in("doc_type", ["ce_h1", "ce_b", "ce_e"])
-        .order("issue_date", { ascending: false });
-      if (ceDocs && ceDocs.length) {
-        const nbIds = Array.from(new Set(ceDocs.map((d: any) => d.notified_body_id).filter(Boolean)));
-        const nbMap = new Map<string, any>();
-        if (nbIds.length) {
-          const { data: nbs } = await admin.from("notified_bodies").select("id, name, identity_no, address").in("id", nbIds as string[]);
-          for (const n of nbs ?? []) nbMap.set(n.id, n);
-        }
-        const pick = (dt: string) => {
-          const d = ceDocs.find((x: any) => x.doc_type === dt); // sıralı: en yeni önce
-          if (!d) return null;
-          const nb = d.notified_body_id ? nbMap.get(d.notified_body_id) : null;
-          return { belge_no: d.belge_no ?? null, tarih: d.issue_date ?? null, onaylanmis_kurulus: nb?.name ?? null, kurulus_no: nb?.identity_no ?? null, nb_adres: nb?.address ?? null };
-        };
-        const mH1 = pick("ce_h1"), mB = pick("ce_b"), mE = pick("ce_e");
-        if (mH1) (ctx as any).modulH1 = mH1;
-        if (mB) (ctx as any).modulB = mB;
-        if (mE) (ctx as any).modulE = mE;
-      }
+    const cdocs = src.companyDocs;
+    for (const d of cdocs) {
+      if (!d.path) continue;
+      if (d.docType === "imza_sirkuleri") attach.coImza.push(d.path);
+      else if (d.docType === "sanayi_sicil") attach.coSanayi.push(d.path);
+      else if (d.docType === "tse_hyb") attach.coTse.push(d.path);
+      else if (d.docType.startsWith("ce")) attach.coCe.push(d.path);
     }
+    // Firma Bilgileri arkasına yalnızca Belgeler'de SEÇİLEN CE belgeleri (H1 → Tasarım → Mod B(+Eki) → Mod E sırasıyla)
+    const selCeIds: string[] = Array.isArray(inp.modul_belge_ids) ? inp.modul_belge_ids : [];
+    const ceRank: Record<string, number> = { ce_h1: 0, ce_tasarim: 1, ce_b: 2, ce_b_eki: 3, ce_e: 4 };
+    attach.coCeSelected = cdocs
+      .filter((d) => d.path && d.docType.startsWith("ce") && selCeIds.includes(d.id))
+      .sort((a, b) => (ceRank[a.docType] ?? 9) - (ceRank[b.docType] ?? 9))
+      .map((d) => d.path as string);
+    // Firma CE modül belgeleri (ce_h1 / ce_b / ce_e) → tescil + AB Uygunluk Beyanı (API en yeni önce sıralar)
+    const nbMap = new Map(src.notifiedBodies.map((n) => [n.id, n]));
+    const pick = (dt: string) => {
+      const d = cdocs.find((x) => x.docType === dt);
+      if (!d) return null;
+      const nb = d.notifiedBodyId ? nbMap.get(d.notifiedBodyId) : null;
+      return { belge_no: d.belgeNo ?? null, tarih: d.issueDate ?? null, onaylanmis_kurulus: nb?.name ?? null, kurulus_no: nb?.identityNo ?? null, nb_adres: nb?.address ?? null };
+    };
+    const mH1 = pick("ce_h1"), mB = pick("ce_b"), mE = pick("ce_e");
+    if (mH1) ctx.modulH1 = mH1;
+    if (mB) ctx.modulB = mB;
+    if (mE) ctx.modulE = mE;
 
     // Ekipman kategorileri (kod → ad) — Teknik Komponent'te hidrolik valfleri ada göre bulmak için
-    const { data: allCats } = await admin.from("equipment_categories").select("code, name, drive_type");
-    if (allCats) (ctx as any).equipCats = allCats;
+    ctx.equipCats = src.equipmentCategories.map((c) => ({ code: c.code, name: c.name, drive_type: c.driveType }));
 
     // Teknik Komponent'te ekipman OK'si TİCARİ ÜNVAN yerine KISA AD gösterilsin.
     // (RPC onaylanmis_kurulus'u ünvan=name ile dolduruyor; ünvan → kısa ad eşle.)
     // Tescil ve AB Uygunluk Beyanı kendi alanlarını kullandığından ünvanı korur.
     try {
-      const { data: allNbs } = await admin.from("notified_bodies").select("name, short_name");
-      const shortByName = new Map((allNbs ?? []).map((n: any) => [String(n.name || "").trim(), n.short_name]));
-      const ek = (ctx as any).ekipman;
+      const shortByName = new Map(src.notifiedBodies.map((n) => [String(n.name || "").trim(), n.shortName]));
+      const ek = ctx.ekipman;
       if (ek && typeof ek === "object") {
         for (const key of Object.keys(ek)) {
           const o = ek[key];
@@ -221,15 +209,13 @@ export async function GET(req: NextRequest) {
     // Marka seçili ama model yok olan ekipmanlarda, RPC marka ismini doldurmamış olabilir.
     // Burada marka'yı brand_id üzerinden tamamlıyoruz (yalnızca boşsa) — böylece Teknik Komponent
     // ve Tescil tablolarında ilgili satırda marka görünür, model/seri boş kalır.
-    const { data: peqBrand } = await admin.from("project_equipment")
-      .select("slot, equipment_categories(code), equipment_brands(name)").eq("project_id", projectId);
-    if (peqBrand) {
-      const ek = ((ctx as any).ekipman = (ctx as any).ekipman || {});
+    {
+      const ek = (ctx.ekipman = ctx.ekipman || {});
       const hasMarka = (...keys: string[]) => keys.some((k) => ek[k]?.marka);
       const fill = (key: string, bname: string) => { ek[key] = { ...(ek[key] || {}), marka: bname }; };
-      for (const r of peqBrand as any[]) {
-        const code = r.equipment_categories?.code;
-        const bname = r.equipment_brands?.name;
+      for (const r of src.equipment) {
+        const code = r.categoryCode;
+        const bname = r.brandName;
         if (!code || !bname) continue;
         if (code === "tampon") {
           // Doc okuma yolu: agırlık → tampon_agirlik; kabin → tampon_kabin || tampon.
@@ -247,42 +233,30 @@ export async function GET(req: NextRequest) {
 
     // Tampon seri_list'i (kabin/ağırlık) ekipman nesnesine ekle — Teknik Komponent & Tescil'de çoklu seri no
     try {
-      const { data: peqSeri } = await admin.from("project_equipment")
-        .select("slot, seri_list, equipment_categories(code)").eq("project_id", projectId);
-      if (peqSeri) {
-        const ek = ((ctx as any).ekipman = (ctx as any).ekipman || {});
-        for (const r of peqSeri as any[]) {
-          if (r.equipment_categories?.code !== "tampon") continue;
-          const list = Array.isArray(r.seri_list) ? r.seri_list : null;
-          if (!list) continue;
-          if ((r.slot || "kabin") === "agirlik") {
-            ek.tampon_agirlik = { ...(ek.tampon_agirlik || {}), seri_list: list };
-          } else if (ek.tampon_kabin) {
-            ek.tampon_kabin = { ...ek.tampon_kabin, seri_list: list };
-          } else {
-            ek.tampon = { ...(ek.tampon || {}), seri_list: list };
-          }
+      const ek = (ctx.ekipman = ctx.ekipman || {});
+      for (const r of src.equipment) {
+        if (r.categoryCode !== "tampon") continue;
+        const list = Array.isArray(r.seriList) ? r.seriList : null;
+        if (!list) continue;
+        if ((r.slot || "kabin") === "agirlik") {
+          ek.tampon_agirlik = { ...(ek.tampon_agirlik || {}), seri_list: list };
+        } else if (ek.tampon_kabin) {
+          ek.tampon_kabin = { ...ek.tampon_kabin, seri_list: list };
+        } else {
+          ek.tampon = { ...(ek.tampon || {}), seri_list: list };
         }
       }
     } catch { /* tampon seri_list eklenemezse tek seri_no gösterilir */ }
 
-    const { data: peq } = await admin.from("project_equipment")
-      .select("certificate_id, equipment_categories(code)").eq("project_id", projectId);
     const motorIds = new Set<string>(); const otherIds = new Set<string>();
-    for (const e of (peq ?? []) as any[]) {
-      if (!e.certificate_id) continue;
-      const code = e.equipment_categories?.code;
-      if (code === "motor") motorIds.add(e.certificate_id);
-      else otherIds.add(e.certificate_id);
+    for (const e of src.equipment) {
+      if (!e.certificateId) continue;
+      if (e.categoryCode === "motor") motorIds.add(e.certificateId);
+      else otherIds.add(e.certificateId);
     }
-    const allIds = Array.from(new Set([...motorIds, ...otherIds]));
-    if (allIds.length) {
-      const { data: cfiles } = await admin.from("certificate_files")
-        .select("certificate_id, storage_path").in("certificate_id", allIds).eq("is_current", true);
-      const pathOf = (id: string) => (cfiles ?? []).find((f: any) => f.certificate_id === id)?.storage_path as string | undefined;
-      attach.motorCerts = Array.from(motorIds).map(pathOf).filter(Boolean) as string[];
-      attach.otherCerts = Array.from(otherIds).map(pathOf).filter(Boolean) as string[];
-    }
+    const pathOf = (id: string) => src.certificateFiles.find((f) => f.certificateId === id)?.path;
+    attach.motorCerts = Array.from(motorIds).map(pathOf).filter(Boolean) as string[];
+    attach.otherCerts = Array.from(otherIds).map(pathOf).filter(Boolean) as string[];
   } catch { /* ekler alınamazsa yalnız üretilen belgeler basılır */ }
 
   // ---------- Birleştirme (pdf-lib) ----------
@@ -300,13 +274,6 @@ export async function GET(req: NextRequest) {
     const scale = Math.min((A4W - 2 * m) / img.width, (A4H - 2 * m) / img.height, 1);
     const w = img.width * scale, h = img.height * scale;
     page.drawImage(img, { x: (A4W - w) / 2, y: (A4H - h) / 2, width: w, height: h });
-  }
-  async function download(bucket: string, path: string): Promise<Uint8Array | null> {
-    try {
-      const { data } = await admin.storage.from(bucket).download(path);
-      if (!data) return null;
-      return new Uint8Array(await data.arrayBuffer());
-    } catch { return null; }
   }
   async function addFile(bucket: string, path?: string) {
     if (!path) return;
