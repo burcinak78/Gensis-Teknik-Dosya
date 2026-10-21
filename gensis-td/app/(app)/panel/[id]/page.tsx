@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { apiGet, dbName } from "@/lib/api/server";
 import BelgeListesi from "./BelgeListesi";
 
 export const dynamic = "force-dynamic";
@@ -11,15 +11,12 @@ const STATUS_TR: Record<string, string> = {
 
 export default async function ProjeDetay(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const supabase = createClient();
-  const { data: proje } = await supabase
-    .from("projects")
-    .select("id, dosya_no, bina_adi, status, beyan_yuku_kg, kisi_sayisi, kat_adedi, companies(short_name)")
-    .eq("id", params.id)
-    .single();
-
-  if (!proje) notFound();
-  const p = proje as any;
+  const p = await apiGet<{
+    id: string; dosyaNo: string; binaAdi: string | null; status: string; beyanYukuKg: number | null;
+    kisiSayisi: number | null; katAdedi: number | null; companyShortName: string | null;
+  }>(`/api/projects/${encodeURIComponent(params.id)}`);
+  if (!p) notFound();
+  const status = dbName(p.status);
 
   return (
     <div className="px-8 py-6 gs-fade">
@@ -32,14 +29,14 @@ export default async function ProjeDetay(props: { params: Promise<{ id: string }
         <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-white/10" />
         <div className="relative z-10 flex items-start justify-between">
           <div>
-            <div className="text-xs font-bold text-white/80 tracking-wide">{p.dosya_no}</div>
-            <h1 className="text-[24px] font-extrabold mt-0.5">{p.bina_adi || "Teknik Dosya"}</h1>
+            <div className="text-xs font-bold text-white/80 tracking-wide">{p.dosyaNo}</div>
+            <h1 className="text-[24px] font-extrabold mt-0.5">{p.binaAdi || "Teknik Dosya"}</h1>
             <div className="text-sm text-white/80 mt-1">
-              {p.beyan_yuku_kg ?? "—"} kg · {p.kisi_sayisi ?? "—"} kişi · {p.kat_adedi ?? "—"} kat · {p.companies?.short_name ?? "—"}
+              {p.beyanYukuKg ?? "—"} kg · {p.kisiSayisi ?? "—"} kişi · {p.katAdedi ?? "—"} kat · {p.companyShortName ?? "—"}
             </div>
           </div>
           <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white/20 text-white">
-            {STATUS_TR[p.status] ?? p.status}
+            {STATUS_TR[status] ?? status}
           </span>
         </div>
       </div>

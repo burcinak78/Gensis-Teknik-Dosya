@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { apiGet, dbName } from "@/lib/api/server";
 import PanelTable from "./PanelTable";
 
 export const dynamic = "force-dynamic";
@@ -15,28 +15,26 @@ function Stat({ icon, color, value, label }: { icon: string; color: string; valu
   );
 }
 
+type ProjectStats = { total: number; thisMonth: number; draft: number; delivered: number };
+type ProjectListItem = {
+  id: string; dosyaNo: string; tdNo: string | null; status: string; binaAdi: string | null; beyanYukuKg: number | null;
+  katAdedi: number | null; createdAt: string; companyShortName: string | null; adaParsel: string; seriNo: string;
+};
+
 export default async function PanelPage() {
-  const supabase = createClient();
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-
-  const [total, draft, delivered, thisMonth, list] = await Promise.all([
-    supabase.from("projects").select("*", { count: "exact", head: true }),
-    supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "draft"),
-    supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "delivered"),
-    supabase.from("projects").select("*", { count: "exact", head: true }).gte("created_at", monthStart),
-    supabase.from("projects")
-      .select("id, dosya_no, td_no, status, bina_adi, beyan_yuku_kg, kat_adedi, created_at, input_data, companies(short_name)")
-      .order("created_at", { ascending: false }).limit(100),
+  // Counts and the list are filtered by the API to what this user may see ("bu ay" in Turkey time).
+  const [stats, list] = await Promise.all([
+    apiGet<ProjectStats>("/api/projects/stats"),
+    apiGet<ProjectListItem[]>("/api/projects?limit=100"),
   ]);
+  const total = stats?.total ?? 0, thisMonth = stats?.thisMonth ?? 0, draft = stats?.draft ?? 0, delivered = stats?.delivered ?? 0;
 
-  const projeler = (list.data ?? []).map((p: any) => {
-    const inp = p.input_data ?? {};
-    return {
-      ...p,
-      ada_parsel: [inp.ada, inp.parsel].filter(Boolean).join(" / "),
-      seri_no: inp.asansor_seri_no ?? "",
-    };
-  });
+  const projeler = (list ?? []).map((p) => ({
+    id: p.id, dosya_no: p.dosyaNo, td_no: p.tdNo, status: dbName(p.status), bina_adi: p.binaAdi,
+    beyan_yuku_kg: p.beyanYukuKg, kat_adedi: p.katAdedi, created_at: p.createdAt,
+    ada_parsel: p.adaParsel, seri_no: p.seriNo,
+    companies: p.companyShortName ? { short_name: p.companyShortName } : null,
+  }));
 
   return (
     <div>
@@ -54,13 +52,13 @@ export default async function PanelPage() {
 
       <div className="px-8 pb-8 gs-fade">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <Stat icon="folder" color="#0d8b8b" value={total.count ?? 0} label="Toplam dosya" />
-          <Stat icon="trending_up" color="#1e2a5b" value={thisMonth.count ?? 0} label="Bu ay üretilen" />
-          <Stat icon="edit_document" color="#b45309" value={draft.count ?? 0} label="Taslak" />
-          <Stat icon="task_alt" color="#15803d" value={delivered.count ?? 0} label="Teslim edildi" />
+          <Stat icon="folder" color="#0d8b8b" value={total} label="Toplam dosya" />
+          <Stat icon="trending_up" color="#1e2a5b" value={thisMonth} label="Bu ay üretilen" />
+          <Stat icon="edit_document" color="#b45309" value={draft} label="Taslak" />
+          <Stat icon="task_alt" color="#15803d" value={delivered} label="Teslim edildi" />
         </div>
 
-        <PanelTable projects={projeler as any} />
+        <PanelTable projects={projeler} />
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { deleteProject } from "../yeni/actions";
+import { api } from "@/lib/api/client";
 
 type Proje = {
   id: string; dosya_no: string; td_no: string | null; status: string; bina_adi: string | null;
@@ -38,10 +38,14 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
   async function sil(p: Proje) {
     if (!confirm(`"${p.dosya_no}" teknik dosyası tamamen silinsin mi? Bu işlem geri alınamaz.`)) return;
     setSilId(p.id);
-    const r = await deleteProject(p.id);
-    setSilId(null);
-    if (r.ok) router.refresh();
-    else alert("Silinemedi: " + (r.error ?? ""));
+    try {
+      await api(`/api/projects/${p.id}`, { method: "DELETE" });
+      router.refresh();
+    } catch (e) {
+      alert("Silinemedi: " + (e instanceof Error ? e.message : ""));
+    } finally {
+      setSilId(null);
+    }
   }
 
   // Filtre açılır menüleri için listedeki benzersiz değerler
