@@ -652,9 +652,9 @@ KNOWN = [
     ("proje → muhasebe bağı", "alan farkı", None,
      "KRR-013: projenin takip satırı yalnız aynı firma ya da firmasız satır. Tetikleyen TD-26-0001 deneme kaydı "
      "(kullanıcı 2026-10-21)"),
-    ("katalog: firmalar", "sıra farkı", None, "Türkçe sıralama (tr-x-icu); canlı collation'ı ile kontrol"),
-    ("katalog: iller", "sıra farkı", None, "Türkçe sıralama (tr-x-icu); canlı collation'ı ile kontrol"),
-    ("katalog: ilçeler", "sıra farkı", None, "Türkçe sıralama (tr-x-icu); canlı collation'ı ile kontrol"),
+    ("katalog: firmalar", "sıra farkı", None, "Türkçe sıralama (tr-x-icu); canlı en_US.UTF-8 (datcollate, 2026-10-22)"),
+    ("katalog: iller", "sıra farkı", None, "Türkçe sıralama (tr-x-icu); canlı en_US.UTF-8 (datcollate, 2026-10-22)"),
+    ("katalog: ilçeler", "sıra farkı", None, "Türkçe sıralama (tr-x-icu); canlı en_US.UTF-8 (datcollate, 2026-10-22)"),
 ]
 
 # Intended differences on write paths and edge cases the read-only replay cannot show (PM-Talepleri plan, item 5).
