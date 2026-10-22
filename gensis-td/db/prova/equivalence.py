@@ -732,6 +732,7 @@ def write_report(copy, profiles, notes):
     for p in profiles:
         roles[p["role"]] += 1
     out_dir = os.path.join(copy, "rapor")
+    os.umask(0o077)  # the report holds personal data, like the copy
     os.makedirs(out_dir, mode=0o700, exist_ok=True)
     base = os.path.join(out_dir, f"esdegerlik-{now:%Y%m%d-%H%M}")
     with open(base + ".json", "w") as f:

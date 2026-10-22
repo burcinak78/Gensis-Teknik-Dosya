@@ -134,11 +134,13 @@ def dumps(secrets, copy):
 def take(secrets, copy):
     if os.path.exists(copy) and os.listdir(copy):
         raise SystemExit(f"{copy} is not empty")
+    os.umask(0o077)  # every file and folder of the copy go-rwx, including makedirs' intermediate levels
     os.makedirs(copy, mode=0o700, exist_ok=True)
     os.chmod(copy, 0o700)
 
     locale = sql(secrets, "select datcollate from pg_database where datname = current_database()").strip()
-    with open(os.path.join(copy, "locale.txt"), "w") as f:
+    fd = os.open(os.path.join(copy, "locale.txt"), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as f:
         f.write(locale + "\n")
     print("locale:", locale)
 
