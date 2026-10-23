@@ -8,7 +8,12 @@ New side = the backend at 127.0.0.1:10212 with a session signed by the rehearsal
 Users: every live account plus the rehearsal customer of every company (live has no customer accounts).
 Dates: the live app used UTC (Vercel), the new one Europe/Istanbul; both are taken at run time.
 
-Usage: python3 -I equivalence.py <copy>
+Usage: python3 -I equivalence.py <copy> [--api <url>]
+  --api <url>  another backend (prod over an SSH tunnel, e.g. http://127.0.0.1:10212) with the old side from
+               `prova.py old-up <copy>`: no rehearsal customers, the session key comes from the environment variable
+               GTD_JWT_SECRET (that backend's Auth__JwtSecret; never pass it as an argument), and the table/storage
+               check is left to `migrate.py verify` on the server. Reading the takip list there moves overdue jobs
+               to BEKLIYOR, as any first read in the app would.
 Writes <copy>/rapor/esdegerlik-<time>.md (+ .json). Exit code 1 when there is an unexplained difference.
 The report holds data from the copy: it stays in the copy folder (outside git) and goes with it.
 """
@@ -28,7 +33,7 @@ sys.dont_write_bytecode = True  # no __pycache__ in the repo
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import prova  # noqa: E402
 
-API = f"http://127.0.0.1:{prova.BACKEND_PORT}"
+API = f"http://127.0.0.1:{prova.BACKEND_PORT}"  # --api replaces it
 STAFF = ("admin", "gensis")
 OFFICE = ("admin", "gensis", "muhasebeci")
 ZERO = "00000000-0000-0000-0000-000000000000"
@@ -594,49 +599,13 @@ def check_file_bytes(token, copy, g):
 
 
 def check_migration(copy):
-    """User decision (ADR-004): all live data moves as it is. Every public table: row count and content hash on
-    both sides (rehearsal customers left out); users vs auth.users; every stored object with its size."""
+    """User decision (ADR-004): all live data moves as it is (prova.compare)."""
     who = {"label": "taşıma", "role": "taşıma"}
-    tables = [r["name"] for r in old_json(agg("SELECT table_name AS name FROM information_schema.tables "
-                                           "WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY 1"))]
-    synthetic = "md5('prova-customer:' || id)::uuid"
-
-    def digest_sql(table, cols="x", where=""):
-        return (f"(SELECT json_build_array(count(*), md5(coalesce(string_agg(({cols})::text, E'\\n' "
-                f"ORDER BY ({cols})::text COLLATE \"C\"), ''))) FROM {table} x {where})")
-
-    def both(old_sql_, new_sql_):
-        return old_json(old_sql_), json.loads(prova.new_psql(copy, f"SELECT ({new_sql_})::jsonb::text"))
-
-    parts = []
-    for t in tables:
-        where = f"WHERE x.id NOT IN (SELECT {synthetic} FROM public.companies)" if t == "profiles" else ""
-        parts.append(f"'{t}', {digest_sql('public.' + t, where=where)}")
-    sql = "SELECT json_build_object(" + ", ".join(parts) + ")"
-    old, new = both(sql, sql)
-    for t in tables:
-        o, n = old[t], new.get(t)
-        if n is None:
-            R.add("taşıma: tablolar", "yeni şemada tablo yok", who, {"table": t, "rows": o[0]})
-        elif o[0] != n[0]:
-            R.add("taşıma: tablolar", "satır sayısı farkı", who, {"table": t, "old": o[0], "new": n[0]})
-        elif o[1] != n[1]:
-            R.add("taşıma: tablolar", "içerik farkı", who, {"table": t, "rows": o[0]})
+    for check, kind, detail in prova.compare(copy, prova.rehearsal(copy)):
+        if kind is None:
+            R.ok(f"taşıma: {check}")
         else:
-            R.ok("taşıma: tablolar")
-    real = "WHERE x.email NOT LIKE '%@prova.invalid'"
-    o, n = both(digest_sql("auth.users", "x.id, x.email, x.encrypted_password, x.created_at, x.last_sign_in_at", real),
-                digest_sql("public.users", "x.id, x.email, x.password_hash, x.created_at, x.last_sign_in_at", real))
-    cmp_value("taşıma: kullanıcılar (id, e-posta, parola hash, tarihler)", who, o, n)
-    listed = {}
-    with open(os.path.join(copy, "objects.tsv")) as f:
-        for line in f:
-            if line.strip():
-                bucket, key, size = line.rstrip("\n").split("\t")
-                listed[(bucket, key)] = int(size)
-    stored = prova.minio_objects(copy)
-    cmp_rows("taşıma: storage nesneleri", who, [{"k": f"{b}/{k}", "size": v} for (b, k), v in listed.items()],
-             [{"k": f"{b}/{k}", "size": v} for (b, k), v in stored.items()], key="k")
+            R.add(f"taşıma: {check}", kind, who, detail)
 
 
 # ---------------------------------------------------------------- known, intended differences
@@ -679,10 +648,21 @@ def classify(check, kind, role):
 # ---------------------------------------------------------------- main
 
 def main():
-    if len(sys.argv) != 2:
+    global API
+    args = sys.argv[1:]
+    remote = None
+    if len(args) == 3 and args[1] == "--api":
+        remote = args[2].rstrip("/")
+    elif len(args) != 1:
         raise SystemExit(__doc__)
-    copy = os.path.abspath(sys.argv[1])
-    secret = prova.read_env(copy)["JWT_SECRET"]
+    copy = os.path.abspath(args[0])
+    if remote:
+        API = remote
+        secret = os.environ.get("GTD_JWT_SECRET") or ""
+        if len(secret) < 32:
+            raise SystemExit("GTD_JWT_SECRET is not set (the target backend's Auth__JwtSecret)")
+    else:
+        secret = prova.read_env(copy)["JWT_SECRET"]
     g = load_old_global()
     g["proje_onay_ids"] = [r["id"] for r in old_json(agg("SELECT id FROM proje_onay"))]
     profiles = sorted(g["profiles"], key=lambda p: (p["role"], p["email"]))
@@ -695,7 +675,8 @@ def main():
     sampled = {"company_documents": company_docs_for,
                "certificates": sorted(g["certificate_files"], key=lambda f: f["certificate_id"])[:10]}
 
-    check_migration(copy)  # first: the new side's takip list moves overdue jobs to BEKLIYOR when read
+    if not remote:
+        check_migration(copy)  # first: the new side's takip list moves overdue jobs to BEKLIYOR when read
 
     seen_roles = set()
     for p in profiles:
@@ -718,7 +699,7 @@ def main():
     check_file_bytes(session(secret, admin_id), copy, g)
     loc = prova.old_locale(copy)
     write_report(copy, profiles, {"locale": loc or "en_US.utf8 (varsayım; canlı değeri kopyada yok)",
-                                  "pending": g["pending_changes_exists"][0]["ok"]})
+                                  "pending": g["pending_changes_exists"][0]["ok"], "api": API, "remote": bool(remote)})
 
 
 def write_report(copy, profiles, notes):
@@ -739,6 +720,7 @@ def write_report(copy, profiles, notes):
         json.dump({"at": now.isoformat(), "roles": roles, "checked": R.checked, "differences": diffs, "intended": known},
                   f, ensure_ascii=False, indent=1, default=str)
     lines = [f"# Eşdeğerlik raporu — {now:%Y-%m-%d %H:%M}", "",
+             f"Yeni taraf: {notes['api']}" + (" (taşıma kontrolü: server'da `migrate.py verify`)" if notes["remote"] else ""),
              f"Kopya: `{copy}` · kullanıcılar: " + ", ".join(f"{k} {v}" for k, v in sorted(roles.items())),
              f"Karşılaştırma: {sum(R.checked.values())} · fark: {len(diffs)} madde · bilinçli fark: {len(known)} madde", "",
              "## Fark listesi (düzeltilecek ya da karara bağlanacak)", ""]
@@ -751,7 +733,9 @@ def write_report(copy, profiles, notes):
         lines.append(f"- **{d['check']}** — {d['kind']} · {d['role']} · {d['users']} kullanıcı — {d['reason']}")
     lines += ["", "Yazma yolları ve bu verinin göstermediği durumlar (plan):", ""] + [f"- {x}" for x in WRITE_PATH_INTENDED]
     lines += ["", "## Kapsam notları", "",
-              "- Canlıda müşteri hesabı yok: her firma için prova'ya özel bir müşteri eklendi (iki tarafta aynı).",
+              ("- Canlıda müşteri hesabı yok; bu koşuda prova müşterisi yok (müşteri erişimi yerel provada ve "
+               "entegrasyon testlerinde)." if notes["remote"] else
+               "- Canlıda müşteri hesabı yok: her firma için prova'ya özel bir müşteri eklendi (iki tarafta aynı)."),
               "- Okumalar karşılaştırıldı; yazma uçları birim/e2e testlerinde.",
               "- Taşıma: public tablolar olduğu gibi; auth.users'tan id, e-posta, parola hash'i ve tarihler. Taşınmayan "
               "Supabase iç alanları: onay/kurtarma token'ları, `raw_user_meta_data` (full_name profilde aynı, email_verified).",

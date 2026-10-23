@@ -13,8 +13,12 @@ and never connects to live Supabase.
 
 Throwaway secrets go to `<copy>/prova.env` (outside git, the copy folder is go-rwx).
 
+The same load (users, public data, storage) and the old-vs-new content check also run against an existing
+compose deployment (prod): migrate.py.
+
 Usage (python3 -I prova.py ...):
   up <copy>          build both sides (fails if they already exist; run down first)
+  old-up <copy>      old side only, without rehearsal customers (equivalence.py --api against another backend)
   gensis-id <copy>   live's Gensis company rule on the copy, plus the engineers it yields
   down <copy>        remove both sides with their data and prova.env
 """
@@ -58,26 +62,64 @@ def old_sql(sql, db="prova"):
     return res.stdout.decode()
 
 
-def read_env(copy):
+def read_env_file(path):
     env = {}
-    with open(os.path.join(copy, "prova.env")) as f:
+    with open(path) as f:
         for line in f:
+            line = line.strip()
             if "=" in line and not line.startswith("#"):
-                k, v = line.rstrip("\n").split("=", 1)
-                env[k] = v
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip().strip("'\"")
     return env
 
 
+def read_env(copy):
+    return read_env_file(os.path.join(copy, "prova.env"))
+
+
+class Target:
+    """A compose deployment the data goes into: the local rehearsal (rehearsal()) or an existing one (migrate.py).
+    `env` holds its secrets; they reach containers through the environment, never as arguments."""
+
+    def __init__(self, project, compose_file, env_file, project_dir=None):
+        self.project = project
+        self.env = read_env_file(env_file)
+        self.network = f"{project}_default"
+        self._args = ["docker", "compose", "-p", project, "--env-file", env_file, "-f", compose_file]
+        if project_dir:
+            self._args += ["--project-directory", project_dir]
+
+    def compose(self, *args, **kw):
+        return run([*self._args, *args], **kw)
+
+    def psql(self, sql, input=None):
+        """Runs SQL as the database owner; psql's unaligned output."""
+        res = self.compose("exec", "-T", "db", "psql", "-X", "-q", "-U", self.env["DB_USER"], "-d", self.env["DB_NAME"],
+                           "-v", "ON_ERROR_STOP=1", "-At", "-c", sql, input=input, capture=True)
+        return res.stdout.decode()
+
+    def mc(self, script, mounts=()):
+        """Shell script with `mc` aliased to the deployment's MinIO as `p` (root key)."""
+        pre = "set -e; export MC_CONFIG_DIR=/tmp/mc; " \
+              "mc alias set p http://storage:9000 \"$MINIO_ROOT_USER\" \"$MINIO_ROOT_PASSWORD\" >/dev/null; "
+        args = ["docker", "run", "--rm", "--network", self.network, "-e", "MINIO_ROOT_USER", "-e", "MINIO_ROOT_PASSWORD"]
+        for m in mounts:
+            args += ["-v", m]
+        return run([*args, "--entrypoint", "/bin/bash", MINIO_IMAGE, "-c", pre + script],
+                   env={**os.environ, "MINIO_ROOT_USER": self.env["MINIO_ROOT_USER"],
+                        "MINIO_ROOT_PASSWORD": self.env["MINIO_ROOT_PASSWORD"]}, capture=True)
+
+
+def rehearsal(copy):
+    return Target(PROJECT, os.path.join(APP_DIR, "docker-compose.yml"), os.path.join(copy, "prova.env"))
+
+
 def compose(copy, *args, **kw):
-    return run(["docker", "compose", "-p", PROJECT, "--env-file", os.path.join(copy, "prova.env"),
-                "-f", os.path.join(APP_DIR, "docker-compose.yml"), *args], **kw)
+    return rehearsal(copy).compose(*args, **kw)
 
 
 def new_psql(copy, sql):
-    env = read_env(copy)
-    res = compose(copy, "exec", "-T", "db", "psql", "-X", "-q", "-U", env["DB_USER"], "-d", env["DB_NAME"],
-                  "-v", "ON_ERROR_STOP=1", "-At", "-c", sql, capture=True)
-    return res.stdout.decode()
+    return rehearsal(copy).psql(sql)
 
 
 # ---------------------------------------------------------------- old side
@@ -163,34 +205,30 @@ def wait_health():
 def new_up(copy):
     compose(copy, "up", "-d", "--build", "backend")
     wait_health()
-    env = read_env(copy)
+    load(copy, rehearsal(copy))
+    print("new side:", new_psql(copy, "select (select count(*) from users) || ' users, ' || "
+                                      "(select count(*) from projects) || ' projects'").strip())
+
+
+def load(copy, target):
+    """The migration itself, from the old side (running) and the copy into a migrated, empty target."""
     db = ["exec", "-T", "db"]
     # users ← auth.users (bcrypt hashes as they are)
     users = run(["docker", "exec", OLD, "psql", "-X", "-U", "postgres", "-d", "prova", "-c",
                  "COPY (select id, email, coalesce(encrypted_password, ''), created_at, last_sign_in_at "
                  "from auth.users) TO STDOUT"], capture=True).stdout
-    compose(copy, *db, "psql", "-X", "-q", "-U", env["DB_USER"], "-d", env["DB_NAME"], "-v", "ON_ERROR_STOP=1", "-c",
-            "COPY public.users (id, email, password_hash, created_at, last_sign_in_at) FROM STDIN",
-            input=users, capture=True)
+    target.psql("COPY public.users (id, email, password_hash, created_at, last_sign_in_at) FROM STDIN", input=users)
     # public data as dumped; FK triggers off during the load (same rows, so nothing dangles that did not on live)
-    cid = compose(copy, "ps", "-q", "db", capture=True).stdout.decode().strip()
+    cid = target.compose("ps", "-q", "db", capture=True).stdout.decode().strip()
     run(["docker", "cp", os.path.join(copy, "public.dump"), f"{cid}:/tmp/public.dump"])
     try:
-        compose(copy, *db, "pg_restore", "-U", env["DB_USER"], "-d", env["DB_NAME"], "--data-only",
-                "--disable-triggers", "--no-owner", "--exit-on-error", "/tmp/public.dump", capture=True)
+        target.compose(*db, "pg_restore", "-U", target.env["DB_USER"], "-d", target.env["DB_NAME"], "--data-only",
+                       "--disable-triggers", "--no-owner", "--exit-on-error", "/tmp/public.dump", capture=True)
     finally:
-        compose(copy, *db, "rm", "-f", "/tmp/public.dump", check=False)
+        target.compose(*db, "rm", "-f", "/tmp/public.dump", check=False)
     # storage files
-    net = f"{PROJECT}_default"
-    script = "set -e; export MC_CONFIG_DIR=/tmp/mc; " \
-             "mc alias set p http://storage:9000 \"$MINIO_ROOT_USER\" \"$MINIO_ROOT_PASSWORD\" >/dev/null; " + \
-             "; ".join(f"mc mirror --overwrite --quiet /data/{b} p/{b}" for b in BUCKETS)
-    run(["docker", "run", "--rm", "--network", net, "-v", f"{copy}/storage:/data:ro", "-e", "MINIO_ROOT_USER",
-         "-e", "MINIO_ROOT_PASSWORD", "--entrypoint", "/bin/bash", MINIO_IMAGE, "-c", script],
-        env={**os.environ, "MINIO_ROOT_USER": env["MINIO_ROOT_USER"], "MINIO_ROOT_PASSWORD": env["MINIO_ROOT_PASSWORD"]},
-        capture=True)
-    print("new side:", new_psql(copy, "select (select count(*) from users) || ' users, ' || "
-                                      "(select count(*) from projects) || ' projects'").strip())
+    target.mc("; ".join(f"mc mirror --overwrite --quiet /data/{b} p/{b}" for b in BUCKETS),
+              mounts=[f"{copy}/storage:/data:ro"])
 
 
 # Live has no customer accounts, so each company gets one rehearsal-only customer, identical on both sides
@@ -209,16 +247,9 @@ def add_customers(copy):
     print("rehearsal customers:", old_sql("select count(*) from profiles where role = 'customer'").strip())
 
 
-def minio_objects(copy):
-    """{(bucket, key): size} on the new side's MinIO."""
-    env = read_env(copy)
-    script = "set -e; export MC_CONFIG_DIR=/tmp/mc; " \
-             "mc alias set p http://storage:9000 \"$MINIO_ROOT_USER\" \"$MINIO_ROOT_PASSWORD\" >/dev/null; " + \
-             "; ".join(f"echo '#{b}'; mc ls --recursive --json p/{b}" for b in BUCKETS)
-    out = run(["docker", "run", "--rm", "--network", f"{PROJECT}_default", "-e", "MINIO_ROOT_USER",
-               "-e", "MINIO_ROOT_PASSWORD", "--entrypoint", "/bin/bash", MINIO_IMAGE, "-c", script],
-              env={**os.environ, "MINIO_ROOT_USER": env["MINIO_ROOT_USER"], "MINIO_ROOT_PASSWORD": env["MINIO_ROOT_PASSWORD"]},
-              capture=True).stdout.decode()
+def minio_objects(target):
+    """{(bucket, key): size} on the target's MinIO."""
+    out = target.mc("; ".join(f"echo '#{b}'; mc ls --recursive --json p/{b}" for b in BUCKETS)).stdout.decode()
     objects, bucket = {}, None
     for line in out.splitlines():
         if line.startswith("#"):
@@ -230,6 +261,77 @@ def minio_objects(copy):
     return objects
 
 
+# ---------------------------------------------------------------- old vs new content (ADR-004: all data moves as it is)
+
+SYNTHETIC = "md5('prova-customer:' || id)::uuid"  # rehearsal customers, left out of every comparison
+
+
+def _digest_sql(table, cols="x", where=""):
+    return (f"(SELECT json_build_array(count(*), md5(coalesce(string_agg(({cols})::text, E'\\n' "
+            f"ORDER BY ({cols})::text COLLATE \"C\"), ''))) FROM {table} x {where})")
+
+
+def _old_value(sql):
+    return json.loads(old_sql(f"BEGIN READ ONLY; SELECT ({sql})::jsonb::text; ROLLBACK;"))
+
+
+def compare(copy, target):
+    """Every public table (row count + content hash), users vs auth.users, every stored object with its size.
+    Returns (check, kind or None when equal, detail) rows; details hold names and counts only, no row data."""
+    out = []
+    tables = _old_value("SELECT coalesce(json_agg(table_name ORDER BY table_name), '[]') FROM information_schema.tables "
+                        "WHERE table_schema = 'public' AND table_type = 'BASE TABLE'")
+    parts = []
+    for t in tables:
+        where = f"WHERE x.id NOT IN (SELECT {SYNTHETIC} FROM public.companies)" if t == "profiles" else ""
+        parts.append(f"'{t}', {_digest_sql('public.' + t, where=where)}")
+    sql = "SELECT json_build_object(" + ", ".join(parts) + ")"
+    old, new = _old_value(sql), json.loads(target.psql(f"SELECT ({sql})::jsonb::text"))
+    for t in tables:
+        o, n = old[t], new.get(t)
+        if n is None:
+            out.append(("tablolar", "yeni şemada tablo yok", {"table": t, "old": o[0]}))
+        elif o[0] != n[0]:
+            out.append(("tablolar", "satır sayısı farkı", {"table": t, "old": o[0], "new": n[0]}))
+        elif o[1] != n[1]:
+            out.append(("tablolar", "içerik farkı", {"table": t, "rows": o[0]}))
+        else:
+            out.append(("tablolar", None, {"table": t, "rows": o[0]}))
+
+    real = "WHERE x.email NOT LIKE '%@prova.invalid'"
+    # The load turns a NULL password into '' (coalesce), so the old side is hashed the same way.
+    o = _old_value(_digest_sql("auth.users", "x.id, x.email, coalesce(x.encrypted_password, ''), x.created_at, "
+                                             "x.last_sign_in_at", real))
+    n = json.loads(target.psql("SELECT " + _digest_sql(
+        "public.users", "x.id, x.email, x.password_hash, x.created_at, x.last_sign_in_at", real) + "::jsonb::text"))
+    # Accounts without a password (invited, never set one) cannot sign in until an admin or a reset sets one.
+    empty = int(target.psql(f"SELECT count(*) FROM public.users x {real} AND x.password_hash = ''").strip())
+    if o[0] != n[0]:
+        out.append(("kullanıcılar", "sayı farkı", {"old": o[0], "new": n[0]}))
+    elif o[1] != n[1]:
+        out.append(("kullanıcılar", "içerik farkı (id, e-posta, parola hash, tarihler)", {"rows": o[0]}))
+    else:
+        out.append(("kullanıcılar", None, {"rows": o[0], "parolasız": empty}))
+
+    listed = {}
+    with open(os.path.join(copy, "objects.tsv")) as f:
+        for line in f:
+            if line.strip():
+                bucket, key, size = line.rstrip("\n").split("\t")
+                listed[(bucket, key)] = int(size)
+    stored = minio_objects(target)
+    missing = [k for k in listed if k not in stored]
+    extra = [k for k in stored if k not in listed]
+    resized = [k for k in listed if k in stored and stored[k] != listed[k]]
+    for kind, keys in (("hedefte yok", missing), ("kaynakta yok", extra), ("boyut farkı", resized)):
+        if keys:
+            out.append(("storage", kind, {"count": len(keys), "first": [f"{b}/{k}" for b, k in sorted(keys)[:5]]}))
+    out.append(("storage", None if not (missing or extra or resized) else "özet", {
+        "old": {"objects": len(listed), "bytes": sum(listed.values())},
+        "new": {"objects": len(stored), "bytes": sum(stored.values())}}))
+    return out
+
+
 def down(copy):
     run(["docker", "rm", "-fv", OLD], capture=True, check=False)
     if os.path.exists(os.path.join(copy, "prova.env")):
@@ -239,11 +341,13 @@ def down(copy):
 
 
 def main():
-    if len(sys.argv) != 3 or sys.argv[1] not in ("up", "gensis-id", "down"):
+    if len(sys.argv) != 3 or sys.argv[1] not in ("up", "old-up", "gensis-id", "down"):
         raise SystemExit(__doc__)
     cmd, copy = sys.argv[1], os.path.abspath(sys.argv[2])
     if cmd == "down":
         return down(copy)
+    if cmd == "old-up":
+        return old_up(copy)
     if cmd == "gensis-id":
         rows = gensis_id()
         print(json.dumps([{"id": r[0], "short_name": r[1]} for r in rows], ensure_ascii=False, indent=1))
