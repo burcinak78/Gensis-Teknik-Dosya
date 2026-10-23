@@ -34,6 +34,7 @@ builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<LoginThrottle>();
 builder.Services.AddSingleton<GensisCompany>();
+builder.Services.AddPasswordReset(builder.Configuration);
 
 // The client IP comes from the nginx proxy (which takes it from Cloudflare's CF-Connecting-IP).
 // Only trust X-Forwarded-For from private networks: the proxy container, never the internet.
@@ -87,6 +88,7 @@ app.UseAuthorization();
 app.MapGet("/api/health", async (AppDbContext db) =>
     await db.Database.CanConnectAsync() ? Results.Ok(new { status = "ok" }) : Results.StatusCode(503));
 app.MapAuthEndpoints();
+app.MapPasswordResetEndpoints();
 app.MapCatalogEndpoints();
 app.MapProjectEndpoints();
 app.MapProjectWriteEndpoints();

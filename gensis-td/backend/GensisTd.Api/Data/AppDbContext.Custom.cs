@@ -22,6 +22,8 @@ public partial class AppDbContext
 
     public virtual DbSet<TdCounter> TdCounters { get; set; }
 
+    public virtual DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
         var b = modelBuilder;
@@ -35,6 +37,23 @@ public partial class AppDbContext
         });
 
         b.Entity<User>().Property(x => x.TokenVersion).HasColumnName("token_version").HasDefaultValueSql("0");
+
+        b.Entity<PasswordResetToken>(e =>
+        {
+            e.ToTable("password_reset_tokens");
+            e.HasKey(x => x.Id).HasName("password_reset_tokens_pkey");
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.TokenHash).HasColumnName("token_hash");
+            e.Property(x => x.TokenVersion).HasColumnName("token_version");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()");
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at");
+            e.Property(x => x.UsedAt).HasColumnName("used_at");
+            e.HasIndex(x => x.TokenHash, "password_reset_tokens_token_hash_key").IsUnique();
+            e.HasIndex(x => x.UserId, "idx_password_reset_tokens_user");
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("password_reset_tokens_user_id_fkey");
+        });
 
         b.Entity<PendingChange>(e =>
         {

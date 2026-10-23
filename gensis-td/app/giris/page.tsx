@@ -24,6 +24,7 @@ export default function GirisPage() {
   const [showPw, setShowPw] = useState(false);
   const [yearly, setYearly] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -47,8 +48,18 @@ export default function GirisPage() {
   async function handleReset() {
     setError(null);
     setNotice(null);
-    // E-posta ile sıfırlama yeni sistemde henüz yok (e-posta gönderimi gerekiyor).
-    setNotice("Şifrenizi sıfırlamak için Gensis yöneticinize başvurun.");
+    if (!email.trim()) { setError("Şifre sıfırlamak için önce e-posta adresinizi girin."); return; }
+    setResetting(true);
+    // The API answers the same whether or not the address has an account; the e-mail goes out in the background.
+    const res = await fetch("/api/auth/password-reset", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: email.trim() }),
+    }).catch(() => null);
+    setResetting(false);
+    if (res?.status === 400) { setError("Sıfırlama bağlantısı gönderilemedi: geçerli bir e-posta adresi girin."); return; }
+    if (!res?.ok) { setError("Sıfırlama bağlantısı gönderilemedi: sunucuya ulaşılamadı."); return; }
+    setNotice("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Gelen kutunuzu kontrol edin.");
   }
 
   const p1 = yearly ? "1.190" : "1.490";
@@ -137,7 +148,7 @@ export default function GirisPage() {
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#3A4250" }}>
                   <span style={{ display: "flex", justifyContent: "space-between" }}><span>Şifre</span>
-                    <button type="button" onClick={handleReset} style={{ border: 0, background: "transparent", fontWeight: 500, color: "#005CFF", cursor: "pointer", fontSize: 13, padding: 0 }}>Şifremi unuttum</button>
+                    <button type="button" onClick={handleReset} disabled={resetting} style={{ border: 0, background: "transparent", fontWeight: 500, color: "#005CFF", cursor: "pointer", fontSize: 13, padding: 0 }}>{resetting ? "Gönderiliyor…" : "Şifremi unuttum"}</button>
                   </span>
                   <span style={{ display: "flex", position: "relative" }}>
                     <input className="lp-input" type={showPw ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={{ flex: 1, minWidth: 0, font: "inherit", fontWeight: 400, fontSize: 15, padding: "12px 70px 12px 14px", border: "1.5px solid #C9D3E3", borderRadius: 4, background: "#F6F8FB", color: "#111418" }} />

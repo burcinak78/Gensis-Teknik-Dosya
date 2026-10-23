@@ -4,6 +4,8 @@ using Amazon.S3;
 using GensisTd.Api.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using GensisTd.Api.Email;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +34,11 @@ public sealed class ApiFixture : IAsyncLifetime
 
     private WebApplicationFactory<Program> _factory = null!;
     private readonly Dictionary<string, HttpClient> _clients = [];
+
+    /// <summary>E-mails the API sent (password reset); nothing leaves the test.</summary>
+    public FakeEmailSender Emails { get; } = new();
+
+    public const string PublicUrl = "https://site.test";
 
     /// <summary>Owner connection to the test database, for seeding and for checking what a request changed.</summary>
     public string OwnerConnection { get; private set; } = "";
@@ -66,11 +73,15 @@ public sealed class ApiFixture : IAsyncLifetime
             ["Storage__AccessKey"] = Env("GTD_IT_STORAGE_KEY"),
             ["Storage__SecretKey"] = Env("GTD_IT_STORAGE_SECRET"),
             ["GENSIS_COMPANY_ID"] = Seed.CompanyGensis.ToString(),
+            ["Email__ResendApiKey"] = "test-key-not-used",
+            ["Email__From"] = "Gensis Teknik Dosya <noreply@site.test>",
+            ["App__PublicUrl"] = PublicUrl,
         };
         foreach (var (k, v) in settings) Environment.SetEnvironmentVariable(k, v);
 
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-            b.ConfigureLogging(l => l.SetMinimumLevel(LogLevel.Warning)));
+            b.ConfigureLogging(l => l.SetMinimumLevel(LogLevel.Warning))
+             .ConfigureTestServices(s => s.AddSingleton<IEmailSender>(Emails)));
         _ = _factory.Server; // starts the app; it creates the buckets
         await PutObjectsAsync();
     }
@@ -159,4 +170,27 @@ public sealed class ApiCollection : ICollectionFixture<ApiFixture>
 {
     // One API and database for all test classes; they run one after another.
     public const string Name = "api";
+}
+
+public sealed class FakeEmailSender : IEmailSender
+{
+    private readonly System.Collections.Concurrent.ConcurrentQueue<EmailMessage> _sent = new();
+
+    public IReadOnlyCollection<EmailMessage> Sent => _sent;
+
+    public Task SendAsync(EmailMessage message, CancellationToken ct)
+    {
+        _sent.Enqueue(message);
+        return Task.CompletedTask;
+    }
+
+    public IEnumerable<EmailMessage> To(string address) => _sent.Where(m => m.To == address);
+
+    /// <summary>Waits until <paramref name="count"/> messages went to the address (the worker sends in the background).</summary>
+    public async Task<List<EmailMessage>> WaitForAsync(string address, int count = 1)
+    {
+        for (var i = 0; i < 100 && To(address).Count() < count; i++)
+            await Task.Delay(50);
+        return To(address).ToList();
+    }
 }

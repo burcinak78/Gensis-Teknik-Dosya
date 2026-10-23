@@ -634,7 +634,7 @@ WRITE_PATH_INTENDED = [
     "Otomatik BEKLIYOR ve tarih sınırları Türkiye tarihine göre (canlı UTC); 00:00–03:00 arası bir gün fark eder",
     "PDF uçları oturumsuz istekte 401/404",
     "Müşterinin firma/mühendis değişikliği onaya düşüyor",
-    "Şifre sıfırlama yöneticide (e-postalı akış ayrı iş)",
+    "Şifre sıfırlama e-postayla, canlıdaki ekranlarla; bağlantı 1 saat ve tek kullanımlık, yeni şifre en az 10 karakter",
 ]
 
 

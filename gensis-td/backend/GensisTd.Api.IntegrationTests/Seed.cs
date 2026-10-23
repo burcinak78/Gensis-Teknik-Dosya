@@ -15,9 +15,11 @@ public static class Seed
 
     public const string Admin = "admin@it.test", Staff = "staff@it.test", Muhasebeci = "muhasebe@it.test",
         CustomerA = "alfa@it.test", CustomerB = "beta@it.test", NoCompany = "firmasiz@it.test",
-        Inactive = "pasif@it.test", SessionUser = "oturum@it.test", NoPassword = "parolasiz@it.test";
+        Inactive = "pasif@it.test", SessionUser = "oturum@it.test", NoPassword = "parolasiz@it.test",
+        ResetUser = "sifirla@it.test", ResetUser2 = "sifirla2@it.test";
 
-    public static readonly Guid UserCustomerA = G(0xA1), UserCustomerB = G(0xB1), UserSession = G(0xA2);
+    public static readonly Guid UserCustomerA = G(0xA1), UserCustomerB = G(0xB1), UserSession = G(0xA2),
+        UserReset = G(0xA0C), UserReset2 = G(0xA0D);
 
     public static readonly Guid EngineerA = G(0xA3), EngineerB = G(0xB3), EngineerGensis = G(0xC3);
     public static readonly Guid EngineerDocA = G(0xA4), EngineerDocB = G(0xB4);
@@ -58,6 +60,8 @@ public static class Seed
             (G(0xD1), NoCompany, "customer", null, true),
             (G(0xA0A), Inactive, "customer", CompanyA, false),
             (UserSession, SessionUser, "customer", CompanyA, true),
+            (UserReset, ResetUser, "customer", CompanyA, true),
+            (UserReset2, ResetUser2, "customer", CompanyA, true),
         };
 
         // Migrated Supabase accounts that never set a password have an empty hash (prova.load).

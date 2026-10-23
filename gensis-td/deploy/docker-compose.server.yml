@@ -56,6 +56,10 @@ services:
       Storage__AccessKey: ${MINIO_APP_USER}
       Storage__SecretKey: ${MINIO_APP_PASSWORD}
       GENSIS_COMPANY_ID: ${GENSIS_COMPANY_ID:-}
+      # Password reset e-mail (Resend). Empty: "Şifremi unuttum" answers as usual but sends nothing.
+      Email__ResendApiKey: ${RESEND_API_KEY:-}
+      Email__From: ${EMAIL_FROM:-}
+      App__PublicUrl: ${APP_PUBLIC_URL:-}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-10202}:8080"
     depends_on:

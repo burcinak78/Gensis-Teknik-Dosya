@@ -1238,6 +1238,52 @@ namespace GensisTd.Api.Data.Migrations
                     b.ToTable("notlar", (string)null);
                 });
 
+            modelBuilder.Entity("GensisTd.Api.Data.Entities.PasswordResetToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("token_hash");
+
+                    b.Property<int>("TokenVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("token_version");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("used_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("password_reset_tokens_pkey");
+
+                    b.HasIndex(new[] { "UserId" }, "idx_password_reset_tokens_user");
+
+                    b.HasIndex(new[] { "TokenHash" }, "password_reset_tokens_token_hash_key")
+                        .IsUnique();
+
+                    b.ToTable("password_reset_tokens", (string)null);
+                });
+
             modelBuilder.Entity("GensisTd.Api.Data.Entities.PendingChange", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2850,6 +2896,16 @@ namespace GensisTd.Api.Data.Migrations
                         .HasConstraintName("notlar_user_id_fkey");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GensisTd.Api.Data.Entities.PasswordResetToken", b =>
+                {
+                    b.HasOne("GensisTd.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("password_reset_tokens_user_id_fkey");
                 });
 
             modelBuilder.Entity("GensisTd.Api.Data.Entities.PendingChange", b =>
