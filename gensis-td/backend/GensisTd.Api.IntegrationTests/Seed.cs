@@ -15,7 +15,7 @@ public static class Seed
 
     public const string Admin = "admin@it.test", Staff = "staff@it.test", Muhasebeci = "muhasebe@it.test",
         CustomerA = "alfa@it.test", CustomerB = "beta@it.test", NoCompany = "firmasiz@it.test",
-        Inactive = "pasif@it.test", SessionUser = "oturum@it.test";
+        Inactive = "pasif@it.test", SessionUser = "oturum@it.test", NoPassword = "parolasiz@it.test";
 
     public static readonly Guid UserCustomerA = G(0xA1), UserCustomerB = G(0xB1), UserSession = G(0xA2);
 
@@ -60,6 +60,9 @@ public static class Seed
             (UserSession, SessionUser, "customer", CompanyA, true),
         };
 
+        // Migrated Supabase accounts that never set a password have an empty hash (prova.load).
+        var noPassword = G(0xA0B);
+
         var sql = new System.Text.StringBuilder($"""
             INSERT INTO companies (id, short_name, legal_name) VALUES
                 ('{CompanyA}', 'ALFA', 'Alfa Asansör Ltd.'), ('{CompanyB}', 'BETA', 'Beta Asansör A.Ş.'),
@@ -72,6 +75,8 @@ public static class Seed
                     VALUES ('{u.Id}', '{u.Email}', '{u.Role}', {(u.Company is { } c ? $"'{c}'" : "NULL")}, {u.Active});
                 """);
         sql.Append($"""
+            INSERT INTO users (id, email, password_hash) VALUES ('{noPassword}', '{NoPassword}', '');
+            INSERT INTO profiles (id, full_name, role, company_id) VALUES ('{noPassword}', '{NoPassword}', 'customer', '{CompanyA}');
             INSERT INTO engineers (id, full_name, discipline, company_id) VALUES
                 ('{EngineerA}', 'Ali Alfa', 'makine', '{CompanyA}'), ('{EngineerB}', 'Burak Beta', 'makine', '{CompanyB}'),
                 ('{EngineerGensis}', 'Gül Gensis', 'elektrik', '{CompanyGensis}');

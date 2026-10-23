@@ -36,7 +36,9 @@ public static class AuthEndpoints
             var user = await db.Users.Include(u => u.Profile).SingleOrDefaultAsync(u => u.Email == email);
             // Same response for unknown email, wrong password and deactivated account.
             // Verify even when the user is missing so response time does not reveal which emails exist.
-            var passwordOk = BCrypt.Net.BCrypt.Verify(req.Password, user?.PasswordHash ?? DummyHash);
+            // Migrated accounts that never set a password have an empty hash, which BCrypt cannot parse: same path.
+            var hasPassword = !string.IsNullOrEmpty(user?.PasswordHash);
+            var passwordOk = BCrypt.Net.BCrypt.Verify(req.Password, hasPassword ? user!.PasswordHash : DummyHash) && hasPassword;
             if (!passwordOk || user?.Profile is not { IsActive: true } profile)
                 return Results.Unauthorized();
 

@@ -14,6 +14,9 @@ public class SessionTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.Unauthorized, await anon.SendAsync("POST", "/api/auth/login", new { email = Inactive, password = Password }));
         Assert.Equal(HttpStatusCode.Unauthorized, await anon.SendAsync("POST", "/api/auth/login", new { email = CustomerA, password = "yanlis-parola" }));
         Assert.Equal(HttpStatusCode.Unauthorized, await anon.SendAsync("POST", "/api/auth/login", new { email = "yok@it.test", password = Password }));
+        // Empty hash (migrated account without a password): no password matches it, not even an empty one.
+        Assert.Equal(HttpStatusCode.Unauthorized, await anon.SendAsync("POST", "/api/auth/login", new { email = NoPassword, password = Password }));
+        Assert.Equal(HttpStatusCode.BadRequest, await anon.SendAsync("POST", "/api/auth/login", new { email = NoPassword, password = "" }));
     }
 
     [Fact]
