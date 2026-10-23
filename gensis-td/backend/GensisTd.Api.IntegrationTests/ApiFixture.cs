@@ -108,6 +108,9 @@ public sealed class ApiFixture : IAsyncLifetime
             await s3.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest { BucketName = "documents", Key = key, ContentBody = key });
     }
 
+    /// <summary>The running API's services (app role connection), for calling its code directly.</summary>
+    public IServiceProvider Services => _factory.Services;
+
     /// <summary>A client without a session.</summary>
     public HttpClient Anonymous() => _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 

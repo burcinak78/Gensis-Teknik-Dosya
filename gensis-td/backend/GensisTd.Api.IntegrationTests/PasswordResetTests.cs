@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using GensisTd.Api.Auth;
+using Microsoft.Extensions.DependencyInjection;
 using static GensisTd.Api.IntegrationTests.Seed;
 
 namespace GensisTd.Api.IntegrationTests;
@@ -143,6 +144,26 @@ public partial class PasswordResetTests(ApiFixture api)
         // A later address in the queue has arrived, so every request for this one has been handled.
         await LinkTokenAsync(CustomerB);
         Assert.Equal(PasswordResetThrottle.MaxPerEmail, api.Emails.To(email).Count());
+    }
+
+    [Fact]
+    public async Task Old_spent_and_expired_links_are_cleaned_up()
+    {
+        var (_, oldHash) = PasswordReset.NewToken();
+        var (_, freshHash) = PasswordReset.NewToken();
+        await api.ExecAsync("""
+            INSERT INTO password_reset_tokens (user_id, token_hash, token_version, expires_at, used_at) VALUES
+                ($1, $2, 0, now() - interval '3 days', NULL),
+                ($1, $3, 0, now() - interval '1 hour', now() - interval '2 hours')
+            """, UserReset2, oldHash, freshHash);
+
+        using var scope = api.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Data.AppDbContext>();
+        await PasswordResetWorker.CleanupAsync(db, DateTime.UtcNow, CancellationToken.None);
+
+        Assert.Equal(0L, await api.ScalarAsync<long>("SELECT count(*) FROM password_reset_tokens WHERE token_hash = $1", oldHash));
+        // Spent two hours ago: kept for a day.
+        Assert.Equal(1L, await api.ScalarAsync<long>("SELECT count(*) FROM password_reset_tokens WHERE token_hash = $1", freshHash));
     }
 
     [Fact]

@@ -11,9 +11,11 @@ Postgres 17, no network, tmpfs; built like prova.py's old side), removed at the 
           storage objects with their sizes; accounts without a password. Exit code 1 on any difference.
   wipe    rollback: empties every public table except the migration history and both buckets, so `load` can run
           again. Asks for the project name to be typed; `--yes <project>` for non-interactive use.
+          Not the final deletion after the rehearsal: rows stay in the WAL and in container logs. That is
+          `docker compose down -v` (volumes) plus removing the backups, then an empty `up` (KORUR).
 
 Secrets (DB and MinIO root) are read from the deployment's .env and passed to containers through the environment;
-they are never printed. Output holds table names and counts only.
+they are never printed. Output holds table names and counts only (no object names: file names can be personal data).
 
 Usage (python3 -I migrate.py ...):
   load   <copy> --dir /opt/apps/gensis-td-prod [--project gensis-td-prod] [--compose-file docker-compose.server.yml]
@@ -108,7 +110,8 @@ def verify(copy, target):
             print(f"  {check}: {d}")
     print(f"\n## farklar: {len(diffs)}")
     for check, kind, d in diffs:
-        print(f"  {check}: {kind} {d}")
+        # Object names stay out of the output (personal data); equivalence.py's report in the copy has them.
+        print(f"  {check}: {kind} {({k: v for k, v in d.items() if k != 'first'})}")
     return not diffs
 
 

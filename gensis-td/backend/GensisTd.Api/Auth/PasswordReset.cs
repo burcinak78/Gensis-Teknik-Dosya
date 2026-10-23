@@ -138,10 +138,42 @@ public sealed class PasswordResetWorker(
     PasswordResetQueue queue, IServiceScopeFactory scopes, IOptions<EmailOptions> email, IOptions<AppOptions> app,
     TimeProvider clock, ILogger<PasswordResetWorker> logger) : BackgroundService
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    // Spent and expired links are kept a day (for support questions), then removed.
+    public static readonly TimeSpan Retention = TimeSpan.FromDays(1);
+    private static readonly TimeSpan CleanupEvery = TimeSpan.FromHours(6);
+
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!email.Value.IsConfigured || string.IsNullOrEmpty(app.Value.PublicUrl))
             logger.LogWarning("Password reset e-mail is not configured (Email__ResendApiKey, Email__From, App__PublicUrl)");
+        return Task.WhenAll(SendLoopAsync(stoppingToken), CleanupLoopAsync(stoppingToken));
+    }
+
+    private async Task CleanupLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(CleanupEvery, clock);
+        do
+        {
+            try
+            {
+                using var scope = scopes.CreateScope();
+                await CleanupAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), clock.GetUtcNow().UtcDateTime, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning("Password reset cleanup failed: {Error}", ex.Message);
+            }
+        } while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false));
+    }
+
+    public static Task<int> CleanupAsync(AppDbContext db, DateTime now, CancellationToken ct)
+    {
+        var cutoff = now - Retention;
+        return db.PasswordResetTokens.Where(t => t.ExpiresAt < cutoff || t.UsedAt < cutoff).ExecuteDeleteAsync(ct);
+    }
+
+    private async Task SendLoopAsync(CancellationToken stoppingToken)
+    {
         await foreach (var address in queue.Reader.ReadAllAsync(stoppingToken))
         {
             try
