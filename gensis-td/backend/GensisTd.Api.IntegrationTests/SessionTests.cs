@@ -62,14 +62,65 @@ public class SessionTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.NotFound, await c.SendAsync("GET", $"/api/projects/{ProjectB}"));
     }
 
-    [Fact]
-    public async Task Forged_cookie_is_anonymous()
+    public static TheoryData<string> BadTokens => new()
     {
-        using var anon = api.Anonymous();
-        using var req = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
         // Valid shape, wrong key.
-        req.Headers.Add("Cookie", "gtd_session=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYzEifQ.c2lnbmF0dXJl");
-        using var res = await anon.SendAsync(req);
-        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYzEifQ.c2lnbmF0dXJl",
+        // alg=none, unsigned, otherwise a valid admin session.
+        Unsigned(),
+        // Right key, expired an hour ago (beyond the one-minute clock skew).
+        Signed(DateTime.UtcNow.AddHours(-1)),
+        // Right key, another issuer.
+        Signed(DateTime.UtcNow.AddHours(1), issuer: "baska"),
+    };
+
+    [Theory, MemberData(nameof(BadTokens))]
+    public async Task Bad_session_token_is_anonymous(string token)
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized, await WithToken(token, "/api/auth/me"));
+        Assert.Equal(HttpStatusCode.Unauthorized, await WithToken(token, "/api/users"));
     }
+
+    // Control for the cases above: the same token, valid, is accepted.
+    [Fact]
+    public async Task Valid_self_built_token_is_accepted()
+    {
+        Assert.Equal(HttpStatusCode.OK, await WithToken(Signed(DateTime.UtcNow.AddHours(1)), "/api/users"));
+    }
+
+    private async Task<HttpStatusCode> WithToken(string token, string path)
+    {
+        if (token.StartsWith(SignedMarker)) token = Sign(token[SignedMarker.Length..], api.JwtSecret);
+        using var anon = api.Anonymous();
+        using var req = new HttpRequestMessage(HttpMethod.Get, path);
+        req.Headers.Add("Cookie", $"gtd_session={token}");
+        using var res = await anon.SendAsync(req);
+        return res.StatusCode;
+    }
+
+    private static string Payload(DateTime expires, string issuer) =>
+        System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["sub"] = "00000000-0000-4000-8000-0000000000c1" /* admin */, ["tv"] = 0, ["iss"] = issuer, ["aud"] = "gensis-td",
+            ["exp"] = new DateTimeOffset(expires).ToUnixTimeSeconds(),
+        });
+
+    private static string Unsigned() =>
+        $"{B64("{\"alg\":\"none\",\"typ\":\"JWT\"}")}.{B64(Payload(DateTime.UtcNow.AddHours(1), "gensis-td"))}.";
+
+    // TheoryData is built before the fixture exists, so signing waits until the test has the key.
+    private const string SignedMarker = "sign:";
+
+    private static string Signed(DateTime expires, string issuer = "gensis-td") =>
+        SignedMarker + $"{B64("{\"alg\":\"HS256\",\"typ\":\"JWT\"}")}.{B64(Payload(expires, issuer))}";
+
+    private static string Sign(string unsigned, string secret)
+    {
+        using var hmac = new System.Security.Cryptography.HMACSHA256(System.Text.Encoding.UTF8.GetBytes(secret));
+        return $"{unsigned}.{B64(hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(unsigned)))}";
+    }
+
+    private static string B64(string s) => B64(System.Text.Encoding.UTF8.GetBytes(s));
+
+    private static string B64(byte[] b) => Convert.ToBase64String(b).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }

@@ -27,6 +27,9 @@ public sealed class ApiFixture : IAsyncLifetime
     private string AppRole => $"gtd_it_app_{_suffix}";
     private readonly string _appPassword = Guid.NewGuid().ToString("N");
 
+    /// <summary>The API's session signing key, for tests that build their own tokens.</summary>
+    public string JwtSecret { get; } = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48));
+
     private WebApplicationFactory<Program> _factory = null!;
     private readonly Dictionary<string, HttpClient> _clients = [];
 
@@ -57,7 +60,7 @@ public sealed class ApiFixture : IAsyncLifetime
         var settings = new Dictionary<string, string>
         {
             ["ConnectionStrings__Default"] = app.ConnectionString,
-            ["Auth__JwtSecret"] = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48)),
+            ["Auth__JwtSecret"] = JwtSecret,
             ["Auth__SecureCookie"] = "false",
             ["Storage__Endpoint"] = Env("GTD_IT_STORAGE_URL"),
             ["Storage__AccessKey"] = Env("GTD_IT_STORAGE_KEY"),
