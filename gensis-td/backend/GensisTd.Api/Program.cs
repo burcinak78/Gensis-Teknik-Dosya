@@ -105,3 +105,6 @@ app.MapCatalogAdminEndpoints();
 app.MapNotificationEndpoints();
 
 app.Run();
+
+// Entry point type for the integration tests (WebApplicationFactory<Program>).
+public partial class Program;
