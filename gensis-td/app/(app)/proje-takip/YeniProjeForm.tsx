@@ -75,6 +75,9 @@ export default function YeniProjeForm({
   const [districts, setDistricts] = useState<District[]>(edit?.initialDistricts ?? []);
   const [files, setFiles] = useState<Record<string, File[]>>({});
   const [existingDocs, setExistingDocs] = useState<Doc[]>(edit?.docs ?? []);
+  // Kayıt açıldı ama dosya yüklemesi yarım kaldıysa tekrar Kaydet aynı kaydı günceller / revizyonu yeniden açmaz
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [revCreated, setRevCreated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -227,12 +230,27 @@ export default function YeniProjeForm({
     const all = Object.entries(files).filter(([kind]) => validKinds.has(kind));
     const total = all.reduce((n, [, arr]) => n + arr.length, 0);
     let done = 0;
+    const yuklenen = new Set<File>();
+    const yeniDocs: Doc[] = [];
     for (const [kind, arr] of all) {
       for (const file of arr) {
         setProgress(`Dosyalar yükleniyor… (${++done}/${total})`);
-        const up = await uploadTakipFile(supabase, targetId, kind, file);
+        let up: { ok: boolean; id?: string; error?: string };
+        try { up = await uploadTakipFile(supabase, targetId, kind, file); }
+        catch (e: any) { up = { ok: false, error: e?.message ?? "bağlantı hatası" }; }
         if (!up.ok) failed.push(`${file.name}: ${up.error}`);
+        else { yuklenen.add(file); if (up.id) yeniDocs.push({ id: up.id, kind, original_name: file.name }); }
       }
+    }
+    // Yüklenenler bekleyenden çıkar, mevcut dokümanlara geçer; tekrar Kaydet yalnız yüklenemeyenleri dener
+    if (yuklenen.size) {
+      setFiles((s) => {
+        const kalan: Record<string, File[]> = {};
+        for (const [k, l] of Object.entries(s)) { const r = l.filter((x) => !yuklenen.has(x)); if (r.length) kalan[k] = r; }
+        return kalan;
+      });
+      // Tek dosyalık türlerde yeni yükleme öncekinin yerine geçer ("diger" çoklu)
+      setExistingDocs((d) => [...d.filter((x) => x.kind === "diger" || !yeniDocs.some((n) => n.kind === x.kind)), ...yeniDocs]);
     }
     setProgress("");
     return failed;
@@ -244,19 +262,23 @@ export default function YeniProjeForm({
     // --- Revizyon ---
     if (revMode && edit) {
       if (!rev.rev_no.trim()) return setErr("Revizyon numarası zorunludur.");
-      setBusy(true); setProgress("Revizyon oluşturuluyor…");
-      const res = await createRevision(edit.id, {
-        rev_no: rev.rev_no.trim(),
-        rev_tarihi: rev.rev_tarihi || null,
-        fiyat: revFiyatNum,
-        fatura_tipi: rev.fatura_tipi as any,
-        rev_aciklama: rev.rev_aciklama || null,
-      });
-      if (!res.ok) { setBusy(false); setProgress(""); return setErr(res.error); }
+      setBusy(true);
+      if (!revCreated) {
+        setProgress("Revizyon oluşturuluyor…");
+        const res = await createRevision(edit.id, {
+          rev_no: rev.rev_no.trim(),
+          rev_tarihi: rev.rev_tarihi || null,
+          fiyat: revFiyatNum,
+          fatura_tipi: rev.fatura_tipi as any,
+          rev_aciklama: rev.rev_aciklama || null,
+        });
+        if (!res.ok) { setBusy(false); setProgress(""); return setErr(res.error); }
+        setRevCreated(true);
+      }
       // Yüklenen dosyalar orijinal (ana) kayıttaki dosyayı değiştirir — dokümanlar zorunlu değil
       const failed = await uploadStaged(edit.id);
       setBusy(false);
-      if (failed.length) return setErr("Revizyon oluşturuldu ancak bazı dosyalar yüklenemedi:\n" + failed.join("\n"));
+      if (failed.length) return setErr("Revizyon oluşturuldu ancak bazı dosyalar yüklenemedi (tekrar Kaydet yalnız bunları yükler, yeni revizyon açmaz):\n" + failed.join("\n"));
       router.push("/proje-takip"); router.refresh();
       return;
     }
@@ -271,15 +293,19 @@ export default function YeniProjeForm({
       const have = (files[s.kind] ?? []).length + existingDocs.filter((d) => d.kind === s.kind).length;
       if (s.required && have === 0) return setErr(`${s.label} zorunludur (bir dosya seçin).`);
     }
-    setBusy(true); setProgress(isEdit ? "Güncelleniyor…" : "Proje kaydı oluşturuluyor…");
+    // Yeni projede kayıt bir kez açıldıysa (yükleme yarım kaldı) artık o kayıt güncellenir
+    const mevcutId = edit?.id ?? createdId;
+    setBusy(true); setProgress(mevcutId ? "Güncelleniyor…" : "Proje kaydı oluşturuluyor…");
     const payload = buildPayload();
-    const res = isEdit ? await updateTakipProje(edit!.id, payload) : await createTakipProje(payload);
+    const res = mevcutId ? await updateTakipProje(mevcutId, payload) : await createTakipProje(payload);
     if (!res.ok) { setBusy(false); setProgress(""); return setErr(res.error); }
-    const id = isEdit ? edit!.id : res.id!;
+    const id = mevcutId ?? res.id!;
+    if (!mevcutId) setCreatedId(id);
     const failed = await uploadStaged(id);
     setBusy(false);
     if (failed.length) {
-      setErr((isEdit ? "Güncellendi" : "Proje oluşturuldu") + " ancak bazı dosyalar yüklenemedi:\n" + failed.join("\n"));
+      setErr((mevcutId ? "Güncellendi" : "Proje oluşturuldu") + " ancak bazı dosyalar yüklenemedi"
+        + (isEdit ? "" : " (tekrar Kaydet aynı projeye yalnız bunları yükler, yeni proje açmaz)") + ":\n" + failed.join("\n"));
       return;
     }
     router.push("/proje-takip"); router.refresh();
