@@ -181,6 +181,9 @@ export async function GET(req: NextRequest) {
       const nb = d.notifiedBodyId ? nbMap.get(d.notifiedBodyId) : null;
       return { belge_no: d.belgeNo ?? null, tarih: d.issueDate ?? null, onaylanmis_kurulus: nb?.name ?? null, kurulus_no: nb?.identityNo ?? null, nb_adres: nb?.address ?? null };
     };
+    // Mod G: kuruluş adresi kayıttaki kopyadan değil, anlık kuruluş kaydından (Yönetim'deki düzeltme hemen yansır)
+    const gNb = inp.modul_secim === "G" && inp.modul_g?.nb_id ? nbMap.get(inp.modul_g.nb_id) : null;
+    if (gNb) (ctx.input_data || ctx).modul_nb_adres = gNb.address ?? null; // belge inp'i böyle okur (buildCtx)
     const mH1 = pick("ce_h1"), mB = pick("ce_b"), mE = pick("ce_e");
     if (mH1) ctx.modulH1 = mH1;
     if (mB) ctx.modulB = mB;
