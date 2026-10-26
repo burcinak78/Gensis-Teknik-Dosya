@@ -102,15 +102,15 @@ export async function deleteTakipProje(id: string): Promise<Result> {
 }
 
 /** Upload straight to storage, then record the document (a single-file kind replaces the previous one). */
-export async function uploadTakipFile(takipId: string, kind: string, file: File): Promise<{ ok: boolean; error?: string }> {
+export async function uploadTakipFile(takipId: string, kind: string, file: File): Promise<{ ok: boolean; id?: string; error?: string }> {
   try {
     const up = await api<{ key: string; url: string; contentType: string }>(`/api/takip/${takipId}/documents/upload-url`, {
       method: "POST", body: JSON.stringify({ kind, fileName: file.name, contentType: file.type || null }),
     });
     const put = await fetch(up.url, { method: "PUT", headers: { "content-type": up.contentType }, body: file });
-    if (!put.ok) return { ok: false, error: "Depolamaya yüklenemedi." };
-    await api(`/api/takip/${takipId}/documents`, { method: "POST", body: JSON.stringify({ key: up.key, originalName: file.name }) });
-    return { ok: true };
+    if (!put.ok) return { ok: false, error: `Depolamaya yüklenemedi (HTTP ${put.status}).` };
+    const r = await api<{ id: string }>(`/api/takip/${takipId}/documents`, { method: "POST", body: JSON.stringify({ key: up.key, originalName: file.name }) });
+    return { ok: true, id: r.id };
   } catch (e) {
     const r = fail(e, "Dosya yüklenemedi.");
     return { ok: false, error: r.ok ? undefined : r.error };
