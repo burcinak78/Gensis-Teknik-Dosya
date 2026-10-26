@@ -286,7 +286,11 @@ export default function DataEntryWizard(props: Props) {
   const [savedId, setSavedId] = useState<string | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(init?.id ?? null); // ilk kayıttan sonra güncelleme yapılır
   const [savedToast, setSavedToast] = useState(false); // "Başarıyla Kaydedildi" pop-up
-  const [fullTdUyari, setFullTdUyari] = useState<{ eksik: string[]; evrak: string[]; suresi: string[] } | null>(null); // Full TD ön-uyarı
+  // Ön-uyarı penceresi: Full TD öncesi, Kaydet öncesi (eksik evrak) ve kayıttan sonra yüklenemeyen dosyalar
+  const [fullTdUyari, setFullTdUyari] = useState<{
+    tip: "fulltd" | "kaydet" | "yukleme"; eksik: string[]; evrak: string[]; suresi: string[];
+    opts?: { gotoBelge?: boolean; silent?: boolean; force?: boolean };
+  } | null>(null);
   // Muhasebe teslim edildi ise Dosya Tamamlama kilitli
   const muhasebeKilit = init?.muhasebeKilit === true;
   // Eksik alan/belge uyarı pop-up'ı (her adım sonunda)
@@ -682,8 +686,12 @@ export default function DataEntryWizard(props: Props) {
     if (!res.ok) { setSaving(false); setError(res.error); return null; }
     if (res.id && !currentId) setCurrentId(res.id); // ilk kayıttan sonra artık güncelle
 
-    // Staged dosyaları yükle
+    // Staged dosyaları yükle: yüklenen mevcut dosyalara geçer (ruhsat vb. kontroller görsün),
+    // yüklenemeyen bekleyende kalır ve pencerede gösterilir; tekrar kaydetmek yalnız onları yükler.
     if (res.id) {
+      const yuklenen: ProjectFile[] = [];
+      const yuklenenFile = new Set<File>();
+      const hatalar: string[] = [];
       for (const kind of Object.keys(pending)) {
         for (const file of pending[kind] ?? []) {
           const fd = new FormData();
@@ -694,10 +702,25 @@ export default function DataEntryWizard(props: Props) {
           } else if (kind === "fatura") { fd.set("fatura_no", faturaNo); fd.set("fatura_tarihi", faturaTarihi); }
           else if (kind === "periyodik_kontrol") { fd.set("report_date", periyodikTarihi); }
           else if (kind === "asansor_projesi") { fd.set("proje_no", dosyaNo); }
-          await uploadProjectFile(fd);
+          const r = await uploadProjectFile(fd);
+          if (r.ok && r.id) { yuklenen.push({ id: r.id, kind, original_name: file.name }); yuklenenFile.add(file); }
+          else hatalar.push(`${file.name}: ${r.error ?? "yüklenemedi"}`);
         }
       }
-      setPending({});
+      if (yuklenen.length) setExistingFiles((s) => [...s, ...yuklenen]);
+      setPending((p) => {
+        const kalan: Record<string, File[]> = {};
+        for (const [k, list] of Object.entries(p)) {
+          const l = list.filter((f) => !yuklenenFile.has(f));
+          if (l.length) kalan[k] = l;
+        }
+        return kalan;
+      });
+      if (hatalar.length) {
+        setSaving(false);
+        setFullTdUyari({ tip: "yukleme", eksik: [], evrak: hatalar, suresi: [], opts });
+        return null;
+      }
     }
 
     // Fiyat 0/boş ise ve daha önce muhasebeye düşmüşse, muhasebe kaydını kaldır (teslim edilmemişse)
@@ -737,21 +760,10 @@ export default function DataEntryWizard(props: Props) {
     return () => clearTimeout(t);
   }, [savedToast]);
 
-  // Full TD Oluştur öncesi: eksik bilgi + yüklenmeyen evrak + süresi geçmiş evrak uyarıları
-  function openFullTdUyari() {
-    const bugun = new Date().toISOString().slice(0, 10);
-    const expired = (vu: string | null | undefined) => !!vu && String(vu).slice(0, 10) < bugun;
-    const d10 = (vu: any) => String(vu).slice(0, 10);
+  // Yüklenmeyen / eksik evrak (tüm sekmeler) — Full TD ve Kaydet ön-uyarısı
+  function eksikEvrak(): string[] {
     const cdocs = (props.companyDocuments ?? []).filter((d) => d.company_id === companyId);
     const coDoc = (t: string) => cdocs.find((d) => d.doc_type === t);
-
-    // ---- Eksik bilgi (form alanları) ----
-    const eksik = [
-      ...missingText.map((k) => FIELD_LABELS[k] ?? k),
-      ...missingEquip.map((c) => c.label),
-    ];
-
-    // ---- Yüklenmeyen / eksik evrak (tüm sekmeler) ----
     const evrak: string[] = [];
     // Firma sekmesi
     if (!coDoc("imza_sirkuleri")) evrak.push("Firma: İmza Sirküleri");
@@ -773,6 +785,32 @@ export default function DataEntryWizard(props: Props) {
       const model = props.models.find((m) => m.id === sel.modelId);
       if (!model?.certificate_id) evrak.push(`Ekipmanlar: ${card.label} — sertifika yok`);
     }
+    return evrak;
+  }
+
+  // Kaydet: eksik evrak varsa önce pencerede göster (Vazgeç / Devam Et); zorunlu alan eksikse handleSave kendi uyarısını verir
+  function kaydet() {
+    const gecerli = isValid && !(modulSecim === "G" && !modulG.nb_id);
+    const evrak = gecerli ? eksikEvrak() : [];
+    if (evrak.length > 0) setFullTdUyari({ tip: "kaydet", eksik: [], evrak, suresi: [] });
+    else handleSave();
+  }
+
+  // Full TD Oluştur öncesi: eksik bilgi + yüklenmeyen evrak + süresi geçmiş evrak uyarıları
+  function openFullTdUyari() {
+    const bugun = new Date().toISOString().slice(0, 10);
+    const expired = (vu: string | null | undefined) => !!vu && String(vu).slice(0, 10) < bugun;
+    const d10 = (vu: any) => String(vu).slice(0, 10);
+    const cdocs = (props.companyDocuments ?? []).filter((d) => d.company_id === companyId);
+
+    // ---- Eksik bilgi (form alanları) ----
+    const eksik = [
+      ...missingText.map((k) => FIELD_LABELS[k] ?? k),
+      ...missingEquip.map((c) => c.label),
+    ];
+
+    // ---- Yüklenmeyen / eksik evrak (tüm sekmeler) ----
+    const evrak = eksikEvrak();
 
     // ---- Süresi geçmiş evrak (tüm sekmeler) ----
     const suresi: string[] = [];
@@ -803,7 +841,7 @@ export default function DataEntryWizard(props: Props) {
       }
     }
 
-    setFullTdUyari({ eksik, evrak, suresi });
+    setFullTdUyari({ tip: "fulltd", eksik, evrak, suresi });
   }
 
   if (savedId) {
@@ -882,12 +920,18 @@ export default function DataEntryWizard(props: Props) {
             <div className="flex items-start gap-3 px-6 pt-6">
               <span className="material-symbols-rounded text-[28px] text-amber-500">warning</span>
               <div>
-                <h2 className="font-extrabold text-lg leading-tight">Full TD oluşturulmadan önce</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Aşağıdaki eksikler tespit edildi. Yine de devam edebilirsiniz.</p>
+                <h2 className="font-extrabold text-lg leading-tight">
+                  {fullTdUyari.tip === "fulltd" ? "Full TD oluşturulmadan önce" : fullTdUyari.tip === "kaydet" ? "Kaydetmeden önce" : "Bazı dosyalar yüklenemedi"}
+                </h2>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {fullTdUyari.tip === "yukleme"
+                    ? "Proje kaydedildi; aşağıdaki dosyalar yüklenemedi ve yüklenmeyi bekliyor. Tekrar deneyebilirsiniz."
+                    : "Aşağıdaki eksikler tespit edildi. Yine de devam edebilirsiniz."}
+                </p>
               </div>
             </div>
             <div className="px-6 py-4 max-h-[55vh] overflow-auto space-y-3">
-              {fullTdUyari.eksik.length === 0 && fullTdUyari.evrak.length === 0 && fullTdUyari.suresi.length === 0 && (
+              {fullTdUyari.tip === "fulltd" && fullTdUyari.eksik.length === 0 && fullTdUyari.evrak.length === 0 && fullTdUyari.suresi.length === 0 && (
                 <div className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">Eksik bilgi veya evrak yok.</div>
               )}
               {fullTdUyari.eksik.length > 0 && (
@@ -898,8 +942,8 @@ export default function DataEntryWizard(props: Props) {
               )}
               {fullTdUyari.evrak.length > 0 && (
                 <div>
-                  <div className="text-xs font-bold text-slate-500 uppercase mb-1">Yüklenmeyen Evrak ({fullTdUyari.evrak.length})</div>
-                  <ul className="space-y-1">{fullTdUyari.evrak.map((a, i) => <li key={i} className="flex items-center gap-2 text-sm text-slate-700"><span className="material-symbols-rounded text-[16px] text-amber-500">upload_file</span>{a}</li>)}</ul>
+                  <div className="text-xs font-bold text-slate-500 uppercase mb-1">{fullTdUyari.tip === "yukleme" ? "Yüklenemeyen Dosyalar" : "Yüklenmeyen Evrak"} ({fullTdUyari.evrak.length})</div>
+                  <ul className="space-y-1">{fullTdUyari.evrak.map((a, i) => <li key={i} className="flex items-center gap-2 text-sm text-slate-700"><span className={"material-symbols-rounded text-[16px] " + (fullTdUyari.tip === "yukleme" ? "text-red-500" : "text-amber-500")}>{fullTdUyari.tip === "yukleme" ? "error" : "upload_file"}</span>{a}</li>)}</ul>
                 </div>
               )}
               {fullTdUyari.suresi.length > 0 && (
@@ -910,8 +954,15 @@ export default function DataEntryWizard(props: Props) {
               )}
             </div>
             <div className="px-6 pb-6 flex justify-end gap-2">
-              <button onClick={() => setFullTdUyari(null)} className="text-sm font-semibold text-slate-500 px-4 py-2.5">Vazgeç</button>
-              <button onClick={() => { setFullTdUyari(null); handleSave({ gotoBelge: true, force: true }); }} className="gs-btn text-sm font-bold px-5 py-2.5 rounded-xl">Yine de Devam Et</button>
+              <button onClick={() => setFullTdUyari(null)} className="text-sm font-semibold text-slate-500 px-4 py-2.5">{fullTdUyari.tip === "yukleme" ? "Kapat" : "Vazgeç"}</button>
+              {!(fullTdUyari.tip === "yukleme" && fullTdUyari.opts?.silent) && (
+                <button onClick={() => {
+                  const u = fullTdUyari; setFullTdUyari(null);
+                  if (u.tip === "fulltd") handleSave({ gotoBelge: true, force: true });
+                  else if (u.tip === "kaydet") handleSave();
+                  else handleSave(u.opts);
+                }} className="gs-btn text-sm font-bold px-5 py-2.5 rounded-xl">{fullTdUyari.tip === "yukleme" ? "Tekrar Dene" : "Yine de Devam Et"}</button>
+              )}
             </div>
           </div>
         </div>
@@ -930,7 +981,7 @@ export default function DataEntryWizard(props: Props) {
             <button onClick={goNext}
               className="gs-btn text-sm font-bold px-5 py-2 rounded-xl">İleri →</button>
           ) : (
-            <button onClick={() => handleSave()} disabled={saving}
+            <button onClick={kaydet} disabled={saving}
               className="text-sm font-bold px-5 py-2 rounded-xl text-white disabled:opacity-50"
               style={{ background: "linear-gradient(135deg,#16a34a,#15803d)", boxShadow: "0 6px 16px rgba(21,128,61,.26)" }}>
               {saving ? "Kaydediliyor…" : "✓ Kaydet"}
@@ -1588,13 +1639,13 @@ export default function DataEntryWizard(props: Props) {
                           className="gs-btn text-sm font-bold px-4 py-2.5 rounded-lg inline-flex items-center gap-1 disabled:opacity-50">
                           <span className="material-symbols-rounded text-[18px]">send</span> Muhasebeye Gönder
                         </button>
-                        <button type="button" disabled={saving} onClick={() => handleSave()}
+                        <button type="button" disabled={saving} onClick={kaydet}
                           className="text-sm font-bold px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1 disabled:opacity-50">
                           <span className="material-symbols-rounded text-[18px]">save</span> Kaydet
                         </button>
                       </>
                     ) : (
-                      <button type="button" disabled={saving} onClick={() => handleSave()}
+                      <button type="button" disabled={saving} onClick={kaydet}
                         className="gs-btn text-sm font-bold px-4 py-2.5 rounded-lg inline-flex items-center gap-1 disabled:opacity-50">
                         <span className="material-symbols-rounded text-[18px]">check</span> Tamamla ve Kaydet
                       </button>
