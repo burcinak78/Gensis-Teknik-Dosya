@@ -685,8 +685,12 @@ export default function DataEntryWizard(props: Props) {
     if (!res.ok) { setSaving(false); setError(res.error); return null; }
     if (res.id && !currentId) setCurrentId(res.id); // ilk kayıttan sonra artık güncelle
 
-    // Staged dosyaları yükle
+    // Staged dosyaları yükle: yüklenen mevcut dosyalara geçer (ruhsat vb. kontroller görsün),
+    // yüklenemeyen bekleyende kalır ve hata gösterilir; tekrar Kaydet yalnız onları yükler.
     if (res.id) {
+      const yuklenen: ProjectFile[] = [];
+      const yuklenenFile = new Set<File>();
+      const hatalar: string[] = [];
       for (const kind of Object.keys(pending)) {
         for (const file of pending[kind] ?? []) {
           const fd = new FormData();
@@ -697,10 +701,27 @@ export default function DataEntryWizard(props: Props) {
           } else if (kind === "fatura") { fd.set("fatura_no", faturaNo); fd.set("fatura_tarihi", faturaTarihi); }
           else if (kind === "periyodik_kontrol") { fd.set("report_date", periyodikTarihi); }
           else if (kind === "asansor_projesi") { fd.set("proje_no", dosyaNo); }
-          await uploadProjectFile(fd);
+          let r: { ok: boolean; id?: string; error?: string };
+          try { r = await uploadProjectFile(fd); }
+          catch { r = { ok: false, error: "sunucuya ulaşılamadı veya dosya çok büyük" }; } // ör. istek boyutu sınırı
+          if (r.ok && r.id) { yuklenen.push({ id: r.id, kind, original_name: file.name }); yuklenenFile.add(file); }
+          else hatalar.push(`${file.name}: ${r.error ?? "yüklenemedi"}`);
         }
       }
-      setPending({});
+      if (yuklenen.length) setExistingFiles((s) => [...s, ...yuklenen]);
+      setPending((p) => {
+        const kalan: Record<string, File[]> = {};
+        for (const [k, list] of Object.entries(p)) {
+          const l = list.filter((f) => !yuklenenFile.has(f));
+          if (l.length) kalan[k] = l;
+        }
+        return kalan;
+      });
+      if (hatalar.length) {
+        setSaving(false);
+        setError(`Kayıt yapıldı ancak ${hatalar.length} dosya yüklenemedi (tekrar Kaydet ile yeniden denenir): ${hatalar.join("; ")}`);
+        return null;
+      }
     }
 
     // Fiyat 0/boş ise ve daha önce muhasebeye düşmüşse, muhasebe kaydını kaldır (teslim edilmemişse)
