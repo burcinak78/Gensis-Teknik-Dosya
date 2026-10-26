@@ -171,6 +171,11 @@ export async function GET(req: NextRequest) {
         .filter((d: any) => d.storage_path && String(d.doc_type).startsWith("ce") && selCeIds.includes(d.id))
         .sort((a: any, b: any) => (ceRank[a.doc_type] ?? 9) - (ceRank[b.doc_type] ?? 9))
         .map((d: any) => d.storage_path as string);
+      // Mod G: kuruluş adresi kayıttaki kopyadan değil, anlık kuruluş kaydından (Yönetim'deki düzeltme hemen yansır)
+      if (inp.modul_secim === "G" && inp.modul_g?.nb_id) {
+        const { data: gNb } = await admin.from("notified_bodies").select("address").eq("id", inp.modul_g.nb_id).maybeSingle();
+        if (gNb) ((ctx as any).input_data || ctx).modul_nb_adres = gNb.address ?? null; // belge inp'i böyle okur (buildCtx)
+      }
       // Firma CE modül belgeleri (ce_h1 / ce_b / ce_e) → tescil + AB Uygunluk Beyanı
       const { data: ceDocs } = await admin.from("company_documents")
         .select("doc_type, belge_no, issue_date, notified_body_id")
