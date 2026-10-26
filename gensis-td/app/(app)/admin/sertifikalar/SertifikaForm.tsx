@@ -26,9 +26,11 @@ export default function SertifikaForm({ notifiedBodies, models }: { notifiedBodi
     fd.append("notified_body_id", nbId);
     fd.append("model_id", modelId);
     if (file) fd.append("file", file);
-    const res = await createCertificate(fd);
+    // A proxy/WAF rejection (e.g. Cloudflare 403) leaves the action without a result: say so instead of doing nothing.
+    const res = await createCertificate(fd).catch(() => undefined);
     setBusy(false);
-    if (res.ok) {
+    if (!res) setMsg({ ok: false, text: "Sunucu isteği reddetti (güvenlik duvarı olabilir); sertifika kaydedilmedi. Lütfen yöneticiye bildirin." });
+    else if (res.ok) {
       setMsg({ ok: true, text: res.message ?? "Kaydedildi." });
       setCertNo(""); setFile(null); setModelId("");
       router.refresh();

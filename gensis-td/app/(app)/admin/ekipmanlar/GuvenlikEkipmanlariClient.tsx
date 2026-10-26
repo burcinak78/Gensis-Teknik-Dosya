@@ -215,8 +215,10 @@ function SertifikaModal({ cert, categories, notifiedBodies, certFileMap, firmaOp
     fd.set("category_id", f.category_id); fd.set("belge_tipi", f.belge_tipi); fd.set("cert_no", f.cert_no.trim());
     fd.set("valid_until", suresiz ? "" : f.valid_until); fd.set("notified_body_id", f.notified_body_id); fd.set("firma_adi", f.firma_adi.trim());
     if (file) fd.set("file", file);
-    const res = isEdit ? await updateCertificate(fd) : await createCertificate(fd);
+    // A proxy/WAF rejection (e.g. Cloudflare 403) leaves the action without a result: say so instead of doing nothing.
+    const res = await (isEdit ? updateCertificate(fd) : createCertificate(fd)).catch(() => undefined);
     setBusy(false);
+    if (!res) return setErr("Sunucu isteği reddetti (güvenlik duvarı olabilir); sertifika kaydedilmedi. Lütfen yöneticiye bildirin.");
     if (!res.ok) return setErr(res.error);
     router.refresh(); onClose();
   }
