@@ -11,7 +11,7 @@ export default async function OnaylanmisKuruluslarPage() {
 
   const { data: bodies } = await supabase
     .from("notified_bodies")
-    .select("id, short_name, name, identity_no, city, country")
+    .select("id, short_name, name, identity_no, city, country, address")
     .order("short_name");
 
   return <OnaylanmisKuruluslarClient bodies={(bodies ?? []) as any} isAdmin={isAdmin} />;

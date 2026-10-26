@@ -11,6 +11,7 @@ export type OkNB = {
   identity_no: string | null;
   city: string | null;
   country: string | null;
+  address: string | null;
 };
 
 const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
@@ -30,6 +31,7 @@ export default function OkFormModal({
     identity_no: edit?.identity_no ?? "",
     country: edit?.country ?? "Türkiye",
     city: edit?.city ?? "",
+    address: edit?.address ?? "",
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export default function OkFormModal({
     setBusy(true);
     const payload = {
       short_name: f.short_name.trim(), name: f.name.trim(),
-      identity_no: f.identity_no.trim(), city: f.city.trim(), country: f.country.trim(),
+      identity_no: f.identity_no.trim(), city: f.city.trim(), country: f.country.trim(), address: f.address.trim(),
     };
     const res = isEdit ? await updateNotifiedBody(edit!.id, payload) : await createNotifiedBody(payload);
     setBusy(false);
@@ -53,6 +55,7 @@ export default function OkFormModal({
       id: isEdit ? edit!.id : ((res as any).id as string),
       short_name: payload.short_name, name: payload.name,
       identity_no: payload.identity_no || null, city: payload.city || null, country: payload.country || null,
+      address: payload.address || null,
     });
   }
 
@@ -96,6 +99,10 @@ export default function OkFormModal({
                 <input className={inp} value={f.city} onChange={(e) => set("city", e.target.value)} placeholder="Şehir" />
               )}
             </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Adres</label>
+            <textarea className={inp} rows={2} value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Kuruluşun açık adresi" />
           </div>
           {err && <div className="text-sm px-3 py-2 rounded-lg bg-red-50 text-red-600">{err}</div>}
           <div className="flex items-center justify-end gap-2 pt-1">

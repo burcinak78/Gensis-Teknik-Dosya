@@ -30,7 +30,7 @@ export default function OnaylanmisKuruluslarClient({ bodies, isAdmin }: { bodies
     return bodies
       .filter((b) => {
         if (s) {
-          const hay = [b.short_name, b.name, b.identity_no, b.city, b.country].map(tc).join(" ");
+          const hay = [b.short_name, b.name, b.identity_no, b.city, b.country, b.address].map(tc).join(" ");
           if (!hay.includes(s)) return false;
         }
         if (fil.kisa && !tc(b.short_name).includes(tc(fil.kisa))) return false;
@@ -58,7 +58,7 @@ export default function OnaylanmisKuruluslarClient({ bodies, isAdmin }: { bodies
         <button onClick={() => setModal({ edit: null })} className="gs-btn text-sm font-bold px-5 py-2.5 rounded-xl">+ Yeni OK Ekle</button>
         <div className="relative flex-1 max-w-md">
           <span className="material-symbols-rounded text-[20px] absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ara: kısa ad, ünvan, no, şehir, ülke…" className={inp + " pl-10"} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ara: kısa ad, ünvan, no, şehir, ülke, adres…" className={inp + " pl-10"} />
         </div>
         <button onClick={() => setShowFilters((v) => !v)}
           className={`inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg border ${showFilters ? "bg-brand-light text-brand border-brand/30" : "text-slate-600 border-slate-200 hover:bg-slate-50"}`}>
@@ -76,6 +76,7 @@ export default function OnaylanmisKuruluslarClient({ bodies, isAdmin }: { bodies
                 <th className={th}>Kuruluş No</th>
                 <th className={th}>Şehir</th>
                 <th className={th}>Ülke</th>
+                <th className={th}>Adres</th>
                 <th className={th}>İşlem</th>
               </tr>
               {showFilters && (
@@ -91,6 +92,7 @@ export default function OnaylanmisKuruluslarClient({ bodies, isAdmin }: { bodies
                     </select>
                   </th>
                   <th className={fTh}></th>
+                  <th className={fTh}></th>
                 </tr>
               )}
             </thead>
@@ -102,6 +104,7 @@ export default function OnaylanmisKuruluslarClient({ bodies, isAdmin }: { bodies
                   <td className={td + " text-slate-500"}>{b.identity_no || "—"}</td>
                   <td className={td + " text-slate-500"}>{b.city || "—"}</td>
                   <td className={td + " text-slate-500"}>{b.country || "—"}</td>
+                  <td className={td + " text-slate-500 max-w-xs truncate"} title={b.address ?? undefined}>{b.address || "—"}</td>
                   <td className={td + " text-right"}>
                     <div className="inline-flex items-center gap-3">
                       <button onClick={() => setModal({ edit: b })} className="text-xs font-bold text-brand hover:underline">Düzenle</button>
@@ -114,7 +117,7 @@ export default function OnaylanmisKuruluslarClient({ bodies, isAdmin }: { bodies
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok.</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={7} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -757,7 +757,7 @@ export async function createNotifiedBody(form: {
 }
 
 export async function updateNotifiedBody(id: string, form: {
-  name: string; identity_no?: string; short_name?: string; city?: string; country?: string;
+  name: string; identity_no?: string; short_name?: string; city?: string; country?: string; address?: string;
 }): Promise<Result> {
   try {
     await assertStaff();
@@ -770,6 +770,7 @@ export async function updateNotifiedBody(id: string, form: {
       identity_no: form.identity_no?.trim() || null,
       city: form.city?.trim() || null,
       country: form.country?.trim() || null,
+      address: form.address?.trim() || null,
     }).eq("id", id);
     if (error) return { ok: false, error: error.message };
     revalidatePath("/admin/ekipmanlar");
