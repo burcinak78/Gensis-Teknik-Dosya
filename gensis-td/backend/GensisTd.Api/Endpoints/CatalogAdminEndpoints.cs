@@ -211,19 +211,18 @@ public static class CatalogAdminEndpoints
         {
             if (string.IsNullOrWhiteSpace(input.Name)) return Invalid("name", "Ticari ünvan zorunlu.");
             var nb = new NotifiedBody { Id = Guid.NewGuid() };
-            ApplyNotifiedBody(nb, input, withAddress: true);
+            ApplyNotifiedBody(nb, input);
             db.NotifiedBodies.Add(nb);
             if (await ProjectWriteEndpoints.SaveAsync(db, ct) is { } failed) return failed;
             return Results.Ok(new { nb.Id, message = "Onaylanmış kuruluş eklendi." });
         });
 
-        // As before, editing does not change the address (the edit form has no address field).
         g.MapPut("/notified-bodies/{id:guid}", async (Guid id, NotifiedBodyInput input, AppDbContext db, CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(input.Name)) return Invalid("name", "Ticari ünvan zorunlu.");
             var nb = await db.NotifiedBodies.SingleOrDefaultAsync(n => n.Id == id, ct);
             if (nb is null) return Results.NotFound();
-            ApplyNotifiedBody(nb, input, withAddress: false);
+            ApplyNotifiedBody(nb, input);
             if (await ProjectWriteEndpoints.SaveAsync(db, ct) is { } failed) return failed;
             return Results.Ok(new { nb.Id, message = "Onaylanmış kuruluş güncellendi." });
         });
@@ -270,14 +269,14 @@ public static class CatalogAdminEndpoints
         c.UpdatedAt = DateTime.UtcNow;
     }
 
-    private static void ApplyNotifiedBody(NotifiedBody nb, NotifiedBodyInput i, bool withAddress)
+    private static void ApplyNotifiedBody(NotifiedBody nb, NotifiedBodyInput i)
     {
         nb.Name = i.Name!.Trim();
         nb.ShortName = Clean(i.ShortName) ?? nb.Name; // short name falls back to the title
         nb.IdentityNo = Clean(i.IdentityNo);
         nb.City = Clean(i.City);
         nb.Country = Clean(i.Country);
-        if (withAddress) nb.Address = Clean(i.Address);
+        nb.Address = Clean(i.Address);
     }
 
     private static async Task<IResult> DeleteAsync(AppDbContext db, string message, string inUse, CancellationToken ct)
