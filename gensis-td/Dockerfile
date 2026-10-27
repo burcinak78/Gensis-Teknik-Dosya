@@ -16,6 +16,9 @@ FROM node:22.23.3-alpine
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 RUN addgroup -S -g 1001 nextjs && adduser -S -u 1001 -G nextjs nextjs
+# The app runs with plain node; the package managers only add unpatched code to the image (KRR-029).
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-v* \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg
 # public/ holds the fonts and ready-made PDFs the PDF routes read from disk.
 COPY --from=build --chown=nextjs:nextjs /app/public ./public
 COPY --from=build --chown=nextjs:nextjs /app/.next/standalone ./
