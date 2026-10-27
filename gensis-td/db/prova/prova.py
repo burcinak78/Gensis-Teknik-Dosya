@@ -103,6 +103,10 @@ class Target:
         pre = "set -e; export MC_CONFIG_DIR=/tmp/mc; " \
               "mc alias set p http://storage:9000 \"$MINIO_ROOT_USER\" \"$MINIO_ROOT_PASSWORD\" >/dev/null; "
         args = ["docker", "run", "--rm", "--network", self.network, "-e", "MINIO_ROOT_USER", "-e", "MINIO_ROOT_PASSWORD"]
+        if mounts:
+            # The image runs as nonroot (65532); the copy is 600/700, so read it as its owner.
+            st = os.stat(mounts[0].split(":")[0])
+            args += ["--user", f"{st.st_uid}:{st.st_gid}"]
         for m in mounts:
             args += ["-v", m]
         return run([*args, "--entrypoint", "/bin/bash", MINIO_IMAGE, "-c", pre + script],

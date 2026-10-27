@@ -191,7 +191,9 @@ def api(token, path):
 
 
 def fetch(url):
-    with urllib.request.urlopen(url, timeout=60) as r:
+    # Cloudflare in front of the files host rejects the default Python-urllib User-Agent.
+    req = urllib.request.Request(url, headers={"User-Agent": "gensis-td-equivalence/1"})
+    with urllib.request.urlopen(req, timeout=60) as r:
         return r.read()
 
 
