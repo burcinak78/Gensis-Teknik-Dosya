@@ -1,5 +1,6 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet, Svg, Path, Image } from "@react-pdf/renderer";
+import { Document, View, StyleSheet, Svg, Path, Image } from "@react-pdf/renderer";
+import { Page, Text } from "./pdfText";
 import { TEKNIK_DOSYA_BELGELERI } from "./belgeler";
 import { SON_KONTROL } from "./belge_icerik";
 import { SON_KONTROL_NO } from "./son_kontrol_no";

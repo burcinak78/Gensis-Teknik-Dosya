@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import React from "react";
-import { Font, renderToBuffer } from "@react-pdf/renderer";
-import { PUBLIC_DIR } from "@/lib/pdf/assets";
+import { renderPdf, withPdfBusy } from "@/lib/pdf/render";
 import { getMe } from "@/lib/api/server";
 import { getProjeOnay } from "@/app/(app)/proje-onay/data";
 import { AvanProjeDilekceDoc } from "@/lib/pdf/AvanProjeDilekceDoc";
@@ -9,27 +8,13 @@ import { AvanProjeDilekceDoc } from "@/lib/pdf/AvanProjeDilekceDoc";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-let fontsRegistered = false;
-function registerFonts(base: string) {
-  if (fontsRegistered) return;
-  Font.register({
-    family: "Roboto",
-    fonts: [
-      { src: `${base}/fonts/Roboto-Regular.ttf` },
-      { src: `${base}/fonts/Roboto-Bold.ttf`, fontWeight: "bold" },
-    ],
-  });
-  Font.registerHyphenationCallback((word) => [word]);
-  fontsRegistered = true;
-}
-
 function frmtTarih(d: any): string {
   if (!d) return "";
   try { return new Date(d).toLocaleDateString("tr-TR"); } catch { return String(d); }
 }
 
 // Kayıtlı proje onay dosyasından dilekçe üretimi (detay/liste linkleri için)
-export async function GET(req: NextRequest) {
+async function handleGet(req: NextRequest) {
   if (!(await getMe().catch(() => null))) return new Response("Yetkisiz.", { status: 401 });
 
   const id = req.nextUrl.searchParams.get("id");
@@ -55,8 +40,7 @@ export async function GET(req: NextRequest) {
     durak_sayisi: row.durak_sayisi,
   };
 
-  registerFonts(PUBLIC_DIR);
-  const buffer = await renderToBuffer(React.createElement(AvanProjeDilekceDoc, { data }) as any);
+  const buffer = await renderPdf(React.createElement(AvanProjeDilekceDoc, { data }) as any);
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
@@ -66,7 +50,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   if (!(await getMe().catch(() => null))) return new Response("Yetkisiz.", { status: 401 });
 
   let body: any = {};
@@ -76,9 +60,8 @@ export async function POST(req: NextRequest) {
     return new Response("Geçersiz veri.", { status: 400 });
   }
 
-  registerFonts(PUBLIC_DIR);
 
-  const buffer = await renderToBuffer(
+  const buffer = await renderPdf(
     React.createElement(AvanProjeDilekceDoc, { data: body }) as any
   );
 
@@ -97,3 +80,6 @@ export async function POST(req: NextRequest) {
     },
   });
 }
+
+export const GET = withPdfBusy(handleGet);
+export const POST = withPdfBusy(handlePost);

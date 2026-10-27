@@ -1,5 +1,6 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
+import { Document, View, StyleSheet, Image } from "@react-pdf/renderer";
+import { Page, Text } from "./pdfText";
 
 // Proje Onay Dosyası belgeleri: Dilekçe + Makine/Elektrik Mühendis Taahhütnamesi.
 // Tek belge veya toplu (birleşik) PDF üretebilir. Font 'Roboto' route'ta register edilir.

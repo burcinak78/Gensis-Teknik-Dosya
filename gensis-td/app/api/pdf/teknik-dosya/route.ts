@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import React from "react";
-import { Font, renderToBuffer } from "@react-pdf/renderer";
+import { renderPdf, withPdfBusy } from "@/lib/pdf/render";
 import { PUBLIC_DIR, readAsset } from "@/lib/pdf/assets";
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
@@ -11,20 +11,6 @@ import { imzaToPngDataUri } from "@/lib/pdf/imzaUri";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-let fontsRegistered = false;
-function registerFonts(base: string) {
-  if (fontsRegistered) return;
-  Font.register({
-    family: "Roboto",
-    fonts: [
-      { src: `${base}/fonts/Roboto-Regular.ttf` },
-      { src: `${base}/fonts/Roboto-Bold.ttf`, fontWeight: "bold" },
-    ],
-  });
-  Font.registerHyphenationCallback((word) => [word]);
-  fontsRegistered = true;
-}
 
 // Rows from GET /api/projects/{id}/pdf-source (access-checked by the API).
 type PdfSource = {
@@ -40,7 +26,7 @@ type PdfSource = {
   certificateFiles: { certificateId: string; path: string }[];
 };
 
-export async function GET(req: NextRequest) {
+async function handleGet(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) return new Response("projectId gerekli.", { status: 400 });
 
@@ -54,7 +40,6 @@ export async function GET(req: NextRequest) {
 
   // Fonts, CE mark and ready-made PDFs come from public/ on disk.
   const assetBase = PUBLIC_DIR;
-  registerFonts(assetBase);
 
   const belgeler = req.nextUrl.searchParams.getAll("belge");
   const dl = req.nextUrl.searchParams.get("dl") === "1";
@@ -291,7 +276,7 @@ export async function GET(req: NextRequest) {
     } catch { /* bozuk dosyayı atla */ }
   }
   async function addDoc(code: string) {
-    const buf = await renderToBuffer(
+    const buf = await renderPdf(
       React.createElement(TeknikDosyaDoc, { data: ctx, only: code, assetBase }) as any
     );
     await addPdfBytes(new Uint8Array(buf));
@@ -466,3 +451,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withPdfBusy(handleGet);
