@@ -8,6 +8,8 @@ export type TakipPayload = {
   is_adi: string | null; asansor_sayisi: number | null; asansor_tipi: string | null; asansor_seri_no: string | null;
   province_id: number | null; district_id: string | null; il_adi: string | null; ilce_adi: string | null; fiyat: number | null;
   fatura_tipi: "faturali" | "faturasiz"; proje_sorumlusu_id: string | null; tahmini_tamamlanma: string | null; montaj_firma_id: string | null;
+  // Update only: completion details saved without completing the job.
+  tamamlanma_tarihi?: string | null; teslim_tipi?: string | null; hard_copy_adedi?: number | null;
 };
 export type RevizyonPayload = {
   rev_no: string | null; rev_tarihi: string | null; fiyat: number | null; fatura_tipi: "faturali" | "faturasiz"; rev_aciklama: string | null;
@@ -24,6 +26,7 @@ const takipBody = (p: TakipPayload) => JSON.stringify({
   provinceId: orNull(p.province_id), districtId: orNull(p.district_id), ilAdi: p.il_adi, ilceAdi: p.ilce_adi, fiyat: p.fiyat,
   faturaTipi: p.fatura_tipi, projeSorumlusuId: orNull(p.proje_sorumlusu_id), tahminiTamamlanma: orNull(p.tahmini_tamamlanma),
   montajFirmaId: orNull(p.montaj_firma_id),
+  tamamlanmaTarihi: orNull(p.tamamlanma_tarihi), teslimTipi: orNull(p.teslim_tipi), hardCopyAdedi: p.hard_copy_adedi ?? null,
 });
 
 export async function createTakipProje(p: TakipPayload): Promise<Result> {

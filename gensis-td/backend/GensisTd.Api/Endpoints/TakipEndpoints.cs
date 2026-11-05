@@ -36,7 +36,8 @@ public static class TakipEndpoints
     public record TakipInput(
         string? ProjeTipi, DateOnly? SiparisTarihi, Guid CompanyId, string? Ada, string? Parsel, string? IsAdi, int? AsansorSayisi,
         string? AsansorTipi, string? AsansorSeriNo, int? ProvinceId, string? DistrictId, string? IlAdi, string? IlceAdi, decimal? Fiyat,
-        string? FaturaTipi, Guid? ProjeSorumlusuId, DateOnly? TahminiTamamlanma, Guid? MontajFirmaId);
+        string? FaturaTipi, Guid? ProjeSorumlusuId, DateOnly? TahminiTamamlanma, Guid? MontajFirmaId,
+        DateOnly? TamamlanmaTarihi = null, string? TeslimTipi = null, int? HardCopyAdedi = null);
     public record RevisionInput(string? RevNo, DateOnly? RevTarihi, decimal? Fiyat, string? FaturaTipi, string? RevAciklama);
     public record BekliyorInput(string? Aciklama);
     public record CompleteInput(DateOnly? TamamlanmaTarihi, string? TeslimTipi, int? HardCopyAdedi);
@@ -109,6 +110,14 @@ public static class TakipEndpoints
             var row = await db.TakipProjelers.SingleOrDefaultAsync(t => t.Id == id && t.TdNo == null, ct);
             if (row is null) return Results.NotFound();
             Apply(row, input);
+            // Completion details may be saved before the job is completed. The status does not change here, and
+            // once /complete has run they are final (accounting works from them).
+            if (row.Durum != "TAMAMLANDI")
+            {
+                row.TamamlanmaTarihi = input.TamamlanmaTarihi;
+                row.TeslimTipi = input.TeslimTipi;
+                row.HardCopyAdedi = input.TeslimTipi == "hard_copy" ? input.HardCopyAdedi : null;
+            }
             row.UpdatedAt = DateTime.UtcNow;
             if (await ProjectWriteEndpoints.SaveAsync(db, ct) is { } failed) return failed;
             return Results.Ok(new { row.Id });
@@ -257,6 +266,8 @@ public static class TakipEndpoints
         if (i.CompanyId == Guid.Empty) errors["companyId"] = ["Firma seçilmedi."];
         if (i.ProjeTipi is null || !ProjeTipleri.Contains(i.ProjeTipi)) errors["projeTipi"] = ["Proje tipi seçilmedi."];
         if (i.FaturaTipi is not ("faturali" or "faturasiz")) errors["faturaTipi"] = ["Geçersiz fatura tipi."];
+        if (i.TeslimTipi is not (null or "hard_copy" or "dijital")) errors["teslimTipi"] = ["Geçersiz teslim tipi."];
+        if (i.HardCopyAdedi is < 1) errors["hardCopyAdedi"] = ["Hard Copy adedi giriniz."];
         return errors.Count == 0 ? null : Results.ValidationProblem(errors);
     }
 

@@ -30,6 +30,8 @@ type EditData = {
   hard_copy_adedi?: number | null;
   tamamlananDocs?: Doc[];
   kilitli?: boolean; // muhasebe teslim edildi → fiyat/fatura/teslim/tamamlanma kilitli
+  il_adi?: string | null; // saved names: older records may have them without a province/district id
+  ilce_adi?: string | null;
 };
 
 const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
@@ -125,6 +127,8 @@ export default function YeniProjeForm({
   const safeProvinces = (provinces ?? []).filter((p) => p && p.name != null);
   const safeDistricts = (districts ?? []).filter((d) => d && d.name != null);
   const cityOptions = safeProvinces.map((p) => p.name);
+  const sameProvince = !!edit && f.province_id === edit.values.province_id;
+  const sameDistrict = sameProvince && f.district_id === edit?.values.district_id;
 
   async function onProvince(v: string) {
     set("province_id", v); set("district_id", ""); setDistricts([]);
@@ -176,24 +180,65 @@ export default function YeniProjeForm({
   async function tamamla() {
     if (!edit) return;
     setTouched(true); setErr(null);
+    const invalid = formError();
+    if (invalid) return setErr(invalid);
     if (compExisting.length + compStaged.length === 0) return setErr("Tamamlanan projeyi yükleyin (DWG).");
     if (!compTarih) return setErr("Tamamlanma tarihi zorunludur.");
     if (!compTeslim) return setErr("Teslim tipi seçiniz.");
     if (compTeslim === "hard_copy" && (!compAdet || Number(compAdet) < 1)) return setErr("Hard Copy adedi giriniz.");
     setBusy(true);
-    for (let i = 0; i < compStaged.length; i++) {
-      setProgress(`Tamamlanan proje yükleniyor… (${i + 1}/${compStaged.length})`);
-      const up = await uploadTakipFile(edit.id, "tamamlanan_proje", compStaged[i]);
-      if (!up.ok) { setBusy(false); setProgress(""); return setErr(up.error); }
-    }
+    const stop = (message: string) => { setBusy(false); setProgress(""); setErr(message); };
+
+    // The form is saved first: if this fails the job must not be completed.
+    setProgress("Güncelleniyor…");
+    const saved = await updateTakipProje(edit.id, buildPayload());
+    if (!saved.ok) return stop(`Bilgiler kaydedilemedi, proje tamamlanmadı: ${saved.error}`);
+    const failed = await uploadStaged(edit.id);
+    if (failed.length) return stop("Bilgiler kaydedildi ancak bazı dosyalar yüklenemedi, proje tamamlanmadı (tekrar deneyince yalnız bunlar yüklenir):\n" + failed.join("\n"));
+
+    const uploadError = await uploadCompStaged(edit.id);
+    if (uploadError) return stop(`Bilgiler kaydedildi ancak tamamlanan proje yüklenemedi, proje tamamlanmadı: ${uploadError}`);
+
     setProgress("");
     const res = await completeTakipProje(edit.id, {
       tamamlanma_tarihi: compTarih, teslim_tipi: compTeslim as any,
       hard_copy_adedi: compTeslim === "hard_copy" ? Number(compAdet) : null,
     });
+    if (!res.ok) return stop(`Bilgiler kaydedildi ancak proje tamamlanamadı ve muhasebeye gönderilmedi: ${res.error}`);
     setBusy(false);
-    if (!res.ok) return setErr(res.error);
     router.push("/proje-takip"); router.refresh();
+  }
+
+  // Uploads the finished project files still waiting; a retry only sends what failed. Returns the error, if any.
+  async function uploadCompStaged(targetId: string): Promise<string | undefined> {
+    const uploaded = new Set<File>();
+    const uploadedDocs: Doc[] = [];
+    let error: string | undefined;
+    for (let i = 0; i < compStaged.length; i++) {
+      setProgress(`Tamamlanan proje yükleniyor… (${i + 1}/${compStaged.length})`);
+      const up = await uploadTakipFile(targetId, "tamamlanan_proje", compStaged[i]);
+      if (!up.ok) { error = up.error ?? "Dosya yüklenemedi."; break; }
+      uploaded.add(compStaged[i]);
+      if (up.id) uploadedDocs.push({ id: up.id, kind: "tamamlanan_proje", original_name: compStaged[i].name });
+    }
+    setCompStaged((s) => s.filter((x) => !uploaded.has(x)));
+    setCompExisting((d) => [...d, ...uploadedDocs]);
+    return error;
+  }
+
+  // Same rules for Güncelle and Tamamla. A delivered job's estimated date is locked, so it cannot block a save.
+  function formError(): string | null {
+    if (!f.company_id) return "Firma seçiniz.";
+    if (!f.proje_tipi) return "Proje tipi seçiniz.";
+    if (!kilitli) {
+      if (!f.tahmini_tamamlanma) return "Tahmini tamamlanma tarihi zorunludur.";
+      if (f.siparis_tarihi && f.tahmini_tamamlanma < f.siparis_tarihi) return "Tahmini tamamlanma tarihi, sipariş tarihinden önce olamaz.";
+    }
+    for (const s of slots) {
+      const have = (files[s.kind] ?? []).length + existingDocs.filter((d) => d.kind === s.kind).length;
+      if (s.required && have === 0) return `${s.label} zorunludur (bir dosya seçin).`;
+    }
+    return null;
   }
 
   function buildPayload(): TakipPayload {
@@ -211,13 +256,20 @@ export default function YeniProjeForm({
       asansor_seri_no: f.asansor_seri_no?.trim() || null,
       province_id: f.province_id ? Number(f.province_id) : null,
       district_id: f.district_id || null,
-      il_adi: prov?.name ?? null,
-      ilce_adi: dist?.name ?? null,
+      // Older records have only the names: they stay until another province or district is chosen.
+      il_adi: prov?.name ?? (sameProvince ? edit?.il_adi ?? null : null),
+      ilce_adi: dist?.name ?? (sameDistrict ? edit?.ilce_adi ?? null : null),
       fiyat: fiyatNum,
       fatura_tipi: f.fatura_tipi as any,
       proje_sorumlusu_id: f.proje_sorumlusu_id || null,
       tahmini_tamamlanma: f.tahmini_tamamlanma || null,
       montaj_firma_id: selectedIsDiger ? (f.montaj_firma_id || null) : null,
+      // The date field starts on today: an untouched box must not store it as if someone had entered it.
+      ...(isEdit && !isTamamlandi ? {
+        tamamlanma_tarihi: compTeslim || edit?.tamamlanma_tarihi || compTarih !== today ? compTarih || null : null,
+        teslim_tipi: compTeslim || null,
+        hard_copy_adedi: compTeslim === "hard_copy" && compAdet ? Number(compAdet) : null,
+      } : {}),
     };
   }
 
@@ -281,15 +333,8 @@ export default function YeniProjeForm({
     }
 
     // --- Yeni / Güncelle ---
-    if (!f.company_id) return setErr("Firma seçiniz.");
-    if (!f.proje_tipi) return setErr("Proje tipi seçiniz.");
-    if (!f.tahmini_tamamlanma) return setErr("Tahmini tamamlanma tarihi zorunludur.");
-    if (f.siparis_tarihi && f.tahmini_tamamlanma < f.siparis_tarihi)
-      return setErr("Tahmini tamamlanma tarihi, sipariş tarihinden önce olamaz.");
-    for (const s of slots) {
-      const have = (files[s.kind] ?? []).length + existingDocs.filter((d) => d.kind === s.kind).length;
-      if (s.required && have === 0) return setErr(`${s.label} zorunludur (bir dosya seçin).`);
-    }
+    const invalid = formError();
+    if (invalid) return setErr(invalid);
     // Yeni projede kayıt bir kez açıldıysa (yükleme yarım kaldı) artık o kayıt güncellenir
     const mevcutId = edit?.id ?? createdId;
     setBusy(true); setProgress(mevcutId ? "Güncelleniyor…" : "Proje kaydı oluşturuluyor…");
@@ -299,7 +344,11 @@ export default function YeniProjeForm({
     const id = mevcutId ?? res.id!;
     if (!mevcutId) setCreatedId(id);
     const failed = await uploadStaged(id);
-    setBusy(false);
+    if (isEdit && !isTamamlandi) {
+      const compError = await uploadCompStaged(id);
+      if (compError) failed.push(`Tamamlanan proje: ${compError}`);
+    }
+    setBusy(false); setProgress("");
     if (failed.length) {
       setErr((mevcutId ? "Güncellendi" : "Proje oluşturuldu") + " ancak bazı dosyalar yüklenemedi"
         + (isEdit ? "" : " (tekrar Kaydet aynı projeye yalnız bunları yükler, yeni proje açmaz)") + ":\n" + failed.join("\n"));
@@ -455,13 +504,13 @@ export default function YeniProjeForm({
               <div className="grid grid-cols-2 gap-4">
                 <Field label="İl">
                   <select className={inp} value={f.province_id} onChange={(e) => onProvince(e.target.value)}>
-                    <option value="">İl seçiniz…</option>
+                    <option value="">{(sameProvince && edit?.il_adi) || "İl seçiniz…"}</option>
                     {safeProvinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </Field>
                 <Field label="İlçe">
                   <select className={inp} value={f.district_id} onChange={(e) => set("district_id", e.target.value)} disabled={safeDistricts.length === 0}>
-                    <option value="">{f.province_id ? "İlçe seçiniz…" : "Önce il seçin"}</option>
+                    <option value="">{(sameDistrict && edit?.ilce_adi) || (f.province_id ? "İlçe seçiniz…" : "Önce il seçin")}</option>
                     {safeDistricts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </Field>

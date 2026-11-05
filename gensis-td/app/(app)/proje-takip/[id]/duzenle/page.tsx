@@ -51,7 +51,7 @@ export default async function DuzenlePage(props: { params: Promise<{ id: string 
       edit={{
         id: p.id, proje_no: p.proje_no, values, initialDistricts, docs: slotDocs as any,
         durum: p.durum, tamamlanma_tarihi: p.tamamlanma_tarihi, teslim_tipi: p.teslim_tipi, hard_copy_adedi: p.hard_copy_adedi,
-        tamamlananDocs: tamamlananDocs as any, kilitli,
+        tamamlananDocs: tamamlananDocs as any, kilitli, il_adi: p.il_adi, ilce_adi: p.ilce_adi,
       }}
     />
   );
