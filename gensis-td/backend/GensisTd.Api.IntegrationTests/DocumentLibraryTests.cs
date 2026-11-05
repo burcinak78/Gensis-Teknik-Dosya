@@ -210,6 +210,9 @@ public class DocumentLibraryTests(ApiFixture api)
         Assert.True(status.GetProperty("posted").GetBoolean());
 
         Assert.Equal(HttpStatusCode.Conflict, await staff.SendAsync("PUT", $"/api/projects/{ProjectA3}", ProjectInput(CompanyB)));
+        // The lock answers first: the old company's engineer does not turn this into an engineer error.
+        Assert.Equal(HttpStatusCode.Conflict, await staff.SendAsync("PUT", $"/api/projects/{ProjectA3}",
+            new { companyId = CompanyB, dosyaNo = "DL-KILIT", makineMuhendisId = EngineerA, inputData = new { } }));
 
         Assert.Equal(CompanyA, await api.ScalarAsync<Guid>("SELECT company_id FROM projects WHERE id = $1", ProjectA3));
         Assert.True((await staff.JsonAsync($"/api/projects/{ProjectA3}/muhasebe")).GetProperty("posted").GetBoolean());

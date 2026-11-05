@@ -283,6 +283,9 @@ export default function DataEntryWizard(props: Props) {
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Kaydet üstte, hata kutusu son adımın altında: görünür olmazsa kayıt olmuş sanılır.
+  const errorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (error) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }, [error]);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(init?.id ?? null); // ilk kayıttan sonra güncelleme yapılır
   const [savedToast, setSavedToast] = useState(false); // "Başarıyla Kaydedildi" pop-up
@@ -1655,7 +1658,7 @@ export default function DataEntryWizard(props: Props) {
                 <p className="text-[11px] text-slate-400">Fiyat 0 veya boşsa kayıt muhasebeye düşmez; yalnızca dosya kaydedilir.</p>
               </div>
 
-              {error && <div className="mt-1 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
+              {error && <div ref={errorRef} role="alert" className="mt-1 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
               <p className="text-xs text-slate-400">Kaydetmek için sağ üstteki {isEdit ? "Güncelle" : "Kaydet"} düğmesini kullanın. Yüklediğiniz dosyalar (Yapı Ruhsatı, Modül G, Fatura, Periyodik, DWG) kayıtla birlikte yüklenir.</p>
             </Section>
           )}

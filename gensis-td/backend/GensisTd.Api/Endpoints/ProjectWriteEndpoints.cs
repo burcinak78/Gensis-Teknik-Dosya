@@ -58,12 +58,12 @@ public static partial class ProjectWriteEndpoints
             if (project is null) return Results.NotFound();
             // RLS WITH CHECK: the project may not be moved to a company the user does not belong to.
             if (!actor.CanAccessCompany(input.CompanyId)) return Results.Forbid();
-            if (await EngineerRule.ValidateAsync(db, input.CompanyId, input.MakineMuhendisId, input.ElektrikMuhendisId, gensis.Id, ct) is { } badEngineer) return badEngineer;
-
             // A delivered file stays with its company: moving it would orphan the accounting lock (KRR-034).
+            // Before the engineer check, so nobody fixes engineers for a move that cannot happen.
             var companyChanged = project.CompanyId != input.CompanyId;
             if (companyChanged && await DocumentLibraryEndpoints.IsPostedAsync(db, project.TdNo, ct))
                 return Results.Conflict(new { error = "Muhasebe teslim etti: bu teknik dosyanın firması değiştirilemez." });
+            if (await EngineerRule.ValidateAsync(db, input.CompanyId, input.MakineMuhendisId, input.ElektrikMuhendisId, gensis.Id, ct) is { } badEngineer) return badEngineer;
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             Apply(project, input);
