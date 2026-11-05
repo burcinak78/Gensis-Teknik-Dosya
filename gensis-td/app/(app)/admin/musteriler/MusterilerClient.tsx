@@ -1,12 +1,13 @@
 "use client";
 
+import { formatMobile } from "@/lib/phone";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument, deleteCompanyDocument, createNotifiedBody } from "../api";
 
 type Company = {
   id: string; short_name: string; legal_name: string | null; address: string | null;
-  phone: string | null; mobile_phone: string | null; email: string | null; city: string | null;
+  phone: string | null; mobile_phone: string | null; contact_mobile_phone?: string | null; email: string | null; city: string | null;
   authorized_person: string | null; registered_brand: string | null; industry_reg_no: string | null; ce_module: string | null;
   category?: string | null; sector?: string | null;
 };
@@ -20,7 +21,7 @@ type DocsState = { logo: Row; imza_sirkuleri: Row; sanayi_sicil: Row; tse_hyb: R
 
 const BLANK: Record<string, string> = {
   short_name: "", legal_name: "", authorized_person: "", registered_brand: "",
-  city: "", phone: "", mobile_phone: "", email: "", industry_reg_no: "", address: "", sector: "",
+  city: "", phone: "", mobile_phone: "", contact_mobile_phone: "", email: "", industry_reg_no: "", address: "", sector: "",
 };
 const B_TIPLERI = [
   { v: "mr", ad: "Mod B MR — Elektrikli Makine Daireli" },
@@ -167,7 +168,7 @@ export default function MusterilerClient({
     const f = {
       short_name: c.short_name ?? "", legal_name: c.legal_name ?? "", authorized_person: c.authorized_person ?? "",
       registered_brand: c.registered_brand ?? "", city: c.city ?? "", phone: c.phone ?? "",
-      mobile_phone: c.mobile_phone ?? "", email: c.email ?? "", industry_reg_no: c.industry_reg_no ?? "", address: c.address ?? "",
+      mobile_phone: c.mobile_phone ?? "", contact_mobile_phone: c.contact_mobile_phone ?? "", email: c.email ?? "", industry_reg_no: c.industry_reg_no ?? "", address: c.address ?? "",
       sector: c.sector ?? "",
     };
     setForm(f);
@@ -310,7 +311,8 @@ export default function MusterilerClient({
           {provinces.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
-      <div><L>Cep Telefonu *</L><input type="tel" className={inp + reqCls("mobile_phone")} value={form.mobile_phone} onChange={(e) => set("mobile_phone", fmtPhone(e.target.value))} placeholder="0 5xx xxx xx xx" /></div>
+      <div><L>Şirket Telefonu *</L><input type="tel" className={inp + reqCls("mobile_phone")} value={form.mobile_phone} onChange={(e) => set("mobile_phone", fmtPhone(e.target.value))} placeholder="0 xxx xxx xx xx" /></div>
+      <div><L>Cep Telefonu (opsiyonel, belgelere yansımaz)</L><input type="tel" className={inp} value={form.contact_mobile_phone} onChange={(e) => set("contact_mobile_phone", formatMobile(e.target.value))} placeholder="05XX XXX XX XX" /></div>
       <div><L>E-Posta (opsiyonel)</L><input type="email" className={inp} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="ornek@firma.com" /></div>
       <div className="md:col-span-2"><L>Adres *</L><input className={inp + reqCls("address")} value={form.address} onChange={(e) => set("address", e.target.value)} /></div>
     </div>
@@ -328,7 +330,8 @@ export default function MusterilerClient({
         </select>
       </div>
       <div><L>Sanayi Sicil No *</L><input className={inp + reqCls("industry_reg_no")} value={form.industry_reg_no} onChange={(e) => set("industry_reg_no", e.target.value)} /></div>
-      <div><L>Cep Telefonu</L><input type="tel" className={inp} value={form.mobile_phone} onChange={(e) => set("mobile_phone", fmtPhone(e.target.value))} placeholder="0 5xx xxx xx xx" /></div>
+      <div><L>Şirket Telefonu</L><input type="tel" className={inp} value={form.mobile_phone} onChange={(e) => set("mobile_phone", fmtPhone(e.target.value))} placeholder="0 xxx xxx xx xx" /></div>
+      <div><L>Cep Telefonu (opsiyonel, belgelere yansımaz)</L><input type="tel" className={inp} value={form.contact_mobile_phone} onChange={(e) => set("contact_mobile_phone", formatMobile(e.target.value))} placeholder="05XX XXX XX XX" /></div>
       <div><L>Müşteri E-posta (opsiyonel)</L><input type="email" className={inp} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="ornek@firma.com" /></div>
       <div className="md:col-span-2"><L>Adres *</L><input className={inp + reqCls("address")} value={form.address} onChange={(e) => set("address", e.target.value)} /></div>
     </div>

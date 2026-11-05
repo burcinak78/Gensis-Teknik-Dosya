@@ -36,6 +36,8 @@ public partial class AppDbContext
             e.Property(x => x.LastNo).HasColumnName("last_no");
         });
 
+        b.Entity<Company>().Property(x => x.ContactMobilePhone).HasColumnName("contact_mobile_phone");
+
         b.Entity<User>().Property(x => x.TokenVersion).HasColumnName("token_version").HasDefaultValueSql("0");
 
         b.Entity<PasswordResetToken>(e =>

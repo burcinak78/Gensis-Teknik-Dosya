@@ -30,7 +30,7 @@ const companyBody = (form: Record<string, string>) => JSON.stringify({
   shortName: form.short_name, legalName: form.legal_name, address: form.address, phone: form.phone,
   mobilePhone: form.mobile_phone, city: form.city, authorizedPerson: form.authorized_person,
   registeredBrand: form.registered_brand, industryRegNo: form.industry_reg_no, email: form.email,
-  ceModule: form.ce_module, category: form.category, sector: form.sector,
+  ceModule: form.ce_module, category: form.category, sector: form.sector, contactMobilePhone: form.contact_mobile_phone,
 });
 
 export async function createCompany(form: Record<string, string>): Promise<Result> {
@@ -50,7 +50,7 @@ export async function updateCompany(id: string, form: Record<string, string>): P
         shortName: form.short_name, legalName: form.legal_name, address: form.address, phone: form.phone,
         mobilePhone: form.mobile_phone, city: form.city, authorizedPerson: form.authorized_person,
         registeredBrand: form.registered_brand, industryRegNo: form.industry_reg_no, email: form.email,
-        ceModule: form.ce_module, category: form.category, sector: form.sector,
+        ceModule: form.ce_module, category: form.category, sector: form.sector, contactMobilePhone: form.contact_mobile_phone,
       }),
     });
     return done(r, "Firma güncellemesi onaya gönderildi.", "Müşteri güncellendi.");

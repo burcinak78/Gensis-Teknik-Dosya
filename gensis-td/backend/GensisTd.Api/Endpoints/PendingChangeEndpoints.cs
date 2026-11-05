@@ -81,7 +81,7 @@ public static class PendingChangeEndpoints
                     {
                         var company = await db.Companies.SingleOrDefaultAsync(c => c.Id == pc.TargetId && c.Id == pc.CompanyId, ct)
                             ?? throw new Invalid("Hedef firma bulunamadı.");
-                        ApplyCompanyEdit(company, new Dictionary<string, object?>
+                        var cols = new Dictionary<string, object?>
                         {
                             ["short_name"] = Str(p, "short_name") ?? throw new Invalid("Kısa ad eksik."),
                             ["legal_name"] = Str(p, "legal_name") ?? throw new Invalid("Ünvan eksik."),
@@ -90,7 +90,9 @@ public static class PendingChangeEndpoints
                             ["registered_brand"] = Str(p, "registered_brand"), ["industry_reg_no"] = Str(p, "industry_reg_no"),
                             ["email"] = Str(p, "email"), ["ce_module"] = Str(p, "ce_module"),
                             ["category"] = Str(p, "category") ?? "asansor", ["sector"] = Str(p, "sector"),
-                        });
+                        };
+                        if (p.TryGetProperty(ContactMobileKey, out _)) cols[ContactMobileKey] = Str(p, ContactMobileKey);
+                        ApplyCompanyEdit(company, cols);
                         break;
                     }
                     case "engineer_new":
@@ -156,6 +158,7 @@ public static class PendingChangeEndpoints
                 pc.ReviewedBy = actor.UserId;
                 pc.ReviewedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync(ct);
+                await ForgetContactMobileAsync(db, id, ct);
                 await tx.CommitAsync(ct);
             }
             catch (Invalid ex)
@@ -179,6 +182,7 @@ public static class PendingChangeEndpoints
         g.MapPost("/{id:guid}/reject", async (Guid id, RejectInput? input, Actor actor, AppDbContext db, StorageService storage,
             ILoggerFactory logs, CancellationToken ct) =>
         {
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
             var changed = await db.PendingChanges.Where(p => p.Id == id && p.Status == "pending").ExecuteUpdateAsync(s => s
                 .SetProperty(p => p.Status, "rejected")
                 .SetProperty(p => p.Note, Clean(input?.Note))
@@ -188,6 +192,8 @@ public static class PendingChangeEndpoints
                 return await db.PendingChanges.AnyAsync(p => p.Id == id, ct)
                     ? Results.Conflict(new { error = "Bu kayıt zaten işlenmiş." })
                     : Results.NotFound();
+            await ForgetContactMobileAsync(db, id, ct);
+            await tx.CommitAsync(ct);
             var path = await db.PendingChanges.Where(p => p.Id == id).Select(p => p.StoragePath).SingleAsync(ct);
             if (path is not null && path.StartsWith(UploadKeys.PendingPrefix))
                 await storage.DeleteQuietlyAsync(FileEndpoints.DocumentsBucket, [path], logs.CreateLogger(nameof(PendingChangeEndpoints)));
@@ -209,6 +215,10 @@ public static class PendingChangeEndpoints
         await storage.CopyAsync(FileEndpoints.DocumentsBucket, key, final, ct);
         return final;
     }
+
+    // A reviewed change stays as a record, but a personal number must not outlive the review there.
+    private static Task ForgetContactMobileAsync(AppDbContext db, Guid id, CancellationToken ct) =>
+        db.Database.ExecuteSqlAsync($"UPDATE public.pending_changes SET payload = payload - 'contact_mobile_phone' WHERE id = {id}", ct);
 
     private static string ValidKind(string? kind) => UploadKeys.IsValidKind(kind) ? kind! : throw new Invalid("Belge türü geçersiz.");
 

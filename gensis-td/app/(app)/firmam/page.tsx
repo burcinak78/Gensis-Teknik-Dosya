@@ -5,7 +5,7 @@ import MusterilerClient from "../admin/musteriler/MusterilerClient";
 export const dynamic = "force-dynamic";
 
 type CompanyApi = {
-  id: string; shortName: string; legalName: string; address: string | null; phone: string | null; mobilePhone: string | null;
+  id: string; shortName: string; legalName: string; address: string | null; phone: string | null; mobilePhone: string | null; contactMobilePhone: string | null;
   email: string | null; city: string | null; authorizedPerson: string | null; registeredBrand: string | null;
   industryRegNo: string | null; ceModule: string | null; category: string; sector: string | null;
 };
@@ -33,7 +33,7 @@ export default async function FirmamPage() {
       <MusterilerClient
         companies={[{
           id: company.id, short_name: company.shortName, legal_name: company.legalName, address: company.address,
-          phone: company.phone, mobile_phone: company.mobilePhone, email: company.email, city: company.city,
+          phone: company.phone, mobile_phone: company.mobilePhone, contact_mobile_phone: company.contactMobilePhone, email: company.email, city: company.city,
           authorized_person: company.authorizedPerson, registered_brand: company.registeredBrand,
           industry_reg_no: company.industryRegNo, ce_module: company.ceModule, category: company.category, sector: company.sector,
         }]}

@@ -45,7 +45,7 @@ const BRANS: Record<string, string> = { makine: "Makine Müh.", elektrik: "Elekt
 const COMPANY_FIELD: Record<string, string> = {
   short_name: "Kısa Ad", legal_name: "Ünvan", authorized_person: "Yetkili",
   registered_brand: "Tescilli Marka", city: "Şehir", phone: "Telefon",
-  mobile_phone: "Cep Telefonu", industry_reg_no: "Sanayi Sicil No", address: "Adres", ce_module: "CE Modülü",
+  mobile_phone: "Şirket Telefonu", contact_mobile_phone: "Cep Telefonu", industry_reg_no: "Sanayi Sicil No", address: "Adres", ce_module: "CE Modülü",
 };
 
 const tr = (s?: string | null) => (s ? new Date(s).toLocaleDateString("tr-TR") : "—");
@@ -84,8 +84,9 @@ function detaylar(it: Item): { l: string; v: string }[] {
     return [
       { l: "Firma", v: it.companyName },
       ...Object.keys(COMPANY_FIELD)
-        .filter((k) => p[k] != null && String(p[k]).trim() !== "")
-        .map((k) => ({ l: COMPANY_FIELD[k], v: String(p[k]) })),
+        // The mobile number is shown when it is being emptied too; older changes do not have the key at all.
+        .filter((k) => (p[k] != null && String(p[k]).trim() !== "") || (k === "contact_mobile_phone" && k in p))
+        .map((k) => ({ l: COMPANY_FIELD[k], v: p[k] == null ? "Boş bırakıldı" : String(p[k]) })),
     ];
   return [{ l: "Firma", v: it.companyName }];
 }

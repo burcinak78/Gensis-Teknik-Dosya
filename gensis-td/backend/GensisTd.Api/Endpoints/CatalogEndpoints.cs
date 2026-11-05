@@ -14,7 +14,7 @@ public static class CatalogEndpoints
     public record CompanyDto(
         Guid Id, string ShortName, string LegalName, string? Address, string? Phone, string? Fax, string? MobilePhone,
         string? Email, string? City, string? AuthorizedPerson, string? RegisteredBrand, string? IndustryRegNo,
-        DateOnly? IndustryRegDate, DateOnly? HybDate, string? CeModule, string Category, string? Sector, bool IsActive);
+        DateOnly? IndustryRegDate, DateOnly? HybDate, string? CeModule, string Category, string? Sector, bool IsActive, string? ContactMobilePhone);
 
     // Office screens (proje takip, muhasebe) list every company by name; no contact data.
     public record CompanyNameDto(Guid Id, string ShortName, string LegalName, string? City, string Category);
@@ -143,5 +143,5 @@ public static class CatalogEndpoints
 
     private static readonly System.Linq.Expressions.Expression<Func<Data.Entities.Company, CompanyDto>> ToCompanyDto = c => new CompanyDto(
         c.Id, c.ShortName, c.LegalName, c.Address, c.Phone, c.Fax, c.MobilePhone, c.Email, c.City, c.AuthorizedPerson,
-        c.RegisteredBrand, c.IndustryRegNo, c.IndustryRegDate, c.HybDate, c.CeModule, c.Category, c.Sector, c.IsActive);
+        c.RegisteredBrand, c.IndustryRegNo, c.IndustryRegDate, c.HybDate, c.CeModule, c.Category, c.Sector, c.IsActive, c.ContactMobilePhone);
 }

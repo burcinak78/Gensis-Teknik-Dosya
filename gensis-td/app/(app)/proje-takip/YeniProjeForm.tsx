@@ -12,6 +12,7 @@ import { createCompany } from "@/app/(app)/admin/api";
 import { loadDistricts } from "@/app/(app)/yeni/api";
 import { api } from "@/lib/api/client";
 import { toSnake } from "@/lib/api/case";
+import { formatMobile } from "@/lib/phone";
 
 type Company = { id: string; short_name: string; legal_name: string | null; city: string | null; category?: string | null };
 type Province = { id: number; name: string };
@@ -650,7 +651,7 @@ function YeniMusteriModal({ provinces, onClose, onCreated }: {
   const [category, setCategory] = useState("asansor");
   const [f, setF] = useState<Record<string, string>>({
     short_name: "", legal_name: "", authorized_person: "", registered_brand: "", city: "",
-    industry_reg_no: "", sector: "", mobile_phone: "", email: "", address: "",
+    industry_reg_no: "", sector: "", mobile_phone: "", contact_mobile_phone: "", email: "", address: "",
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -703,9 +704,10 @@ function YeniMusteriModal({ provinces, onClose, onCreated }: {
               </select>
             </Field>
             {category === "diger"
-              ? <Field label="Cep Telefonu *"><input className={inp + rc("mobile_phone")} value={f.mobile_phone} onChange={(e) => set("mobile_phone", e.target.value)} placeholder="0 5xx xxx xx xx" /></Field>
+              ? <Field label="Şirket Telefonu *"><input className={inp + rc("mobile_phone")} value={f.mobile_phone} onChange={(e) => set("mobile_phone", e.target.value)} placeholder="0 xxx xxx xx xx" /></Field>
               : <Field label="Sanayi Sicil No *"><input className={inp + rc("industry_reg_no")} value={f.industry_reg_no} onChange={(e) => set("industry_reg_no", e.target.value)} /></Field>}
-            {category !== "diger" && <Field label="Cep Telefonu"><input className={inp} value={f.mobile_phone} onChange={(e) => set("mobile_phone", e.target.value)} placeholder="0 5xx xxx xx xx" /></Field>}
+            {category !== "diger" && <Field label="Şirket Telefonu"><input className={inp} value={f.mobile_phone} onChange={(e) => set("mobile_phone", e.target.value)} placeholder="0 xxx xxx xx xx" /></Field>}
+            <Field label="Cep Telefonu (opsiyonel, belgelere yansımaz)"><input type="tel" className={inp} value={f.contact_mobile_phone} onChange={(e) => set("contact_mobile_phone", formatMobile(e.target.value))} placeholder="05XX XXX XX XX" /></Field>
             <Field label="E-Posta (opsiyonel)"><input type="email" className={inp} value={f.email} onChange={(e) => set("email", e.target.value)} /></Field>
             <div className="md:col-span-2"><Field label="Adres *"><input className={inp + rc("address")} value={f.address} onChange={(e) => set("address", e.target.value)} /></Field></div>
           </div>

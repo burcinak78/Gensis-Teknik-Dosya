@@ -56,3 +56,6 @@ public partial class VProjectOverview { public ProjectStatus? Status { get; set;
 
 // KRR-024: bumped when the password changes or the user is deactivated; sessions carry it and stop working.
 public partial class User { public int TokenVersion { get; set; } }
+
+// Contact person's mobile: on purpose not mobile_phone, which documents use as a phone fallback. Never on documents.
+public partial class Company { public string? ContactMobilePhone { get; set; } }

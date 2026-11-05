@@ -18,7 +18,7 @@ public static class CompanyWriteEndpoints
     public record CompanyInput(
         string? ShortName, string? LegalName, string? Address, string? Phone, string? MobilePhone, string? City,
         string? AuthorizedPerson, string? RegisteredBrand, string? IndustryRegNo, string? Email, string? CeModule,
-        string? Category, string? Sector);
+        string? Category, string? Sector, string? ContactMobilePhone = null);
 
     public record UploadUrlRequest(string? DocType, string? FileName, string? ContentType);
     public record UploadUrl(string Key, string Url, string ContentType, DateTime ExpiresAt);
@@ -31,6 +31,7 @@ public static class CompanyWriteEndpoints
     public record WriteResult(bool Pending, Guid? Id);
 
     public const string Folder = "musteri";
+    public const string ContactMobileKey = "contact_mobile_phone";
 
     public static void MapCompanyWriteEndpoints(this WebApplication app)
     {
@@ -39,6 +40,7 @@ public static class CompanyWriteEndpoints
         {
             if (string.IsNullOrWhiteSpace(input.ShortName) || string.IsNullOrWhiteSpace(input.LegalName))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["shortName"] = ["Kısa ad ve ünvan zorunlu."] });
+            if (InvalidContactMobile(input) is { } badMobile) return badMobile;
             var company = new Company { Id = Guid.NewGuid() };
             ApplyCompanyEdit(company, Columns(input));
             db.Companies.Add(company);
@@ -111,6 +113,7 @@ public static class CompanyWriteEndpoints
         {
             if (string.IsNullOrWhiteSpace(input.ShortName) || string.IsNullOrWhiteSpace(input.LegalName))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["shortName"] = ["Kısa ad ve ünvan zorunlu."] });
+            if (InvalidContactMobile(input) is { } badMobile) return badMobile;
             var company = await db.Companies.VisibleTo(actor).SingleOrDefaultAsync(c => c.Id == id, ct);
             if (company is null) return Results.NotFound();
 
@@ -197,7 +200,14 @@ public static class CompanyWriteEndpoints
         ["registered_brand"] = Clean(input.RegisteredBrand), ["industry_reg_no"] = Clean(input.IndustryRegNo),
         ["email"] = Clean(input.Email), ["ce_module"] = Clean(input.CeModule),
         ["category"] = Clean(input.Category) ?? "asansor", ["sector"] = Clean(input.Sector),
+        [ContactMobileKey] = Clean(input.ContactMobilePhone),
     };
+
+    // The value itself is never echoed.
+    private static IResult? InvalidContactMobile(CompanyInput input) =>
+        Clean(input.ContactMobilePhone) is { } v && (v.Length > 32 || !v.All(c => char.IsAsciiDigit(c) || c is ' ' or '+' or '(' or ')' or '-'))
+            ? Results.ValidationProblem(new Dictionary<string, string[]> { ["contactMobilePhone"] = ["Cep telefonu geçersiz."] })
+            : null;
 
     public static PendingChange Pending(Actor actor, string kind, Guid? companyId, Dictionary<string, object?> payload) => new()
     {
@@ -250,6 +260,8 @@ public static class CompanyWriteEndpoints
         c.CeModule = (string?)cols["ce_module"];
         c.Category = (string)cols["category"]!;
         c.Sector = (string?)cols["sector"];
+        // Changes queued before this field existed have no key: they must not erase a newer value.
+        if (cols.TryGetValue(ContactMobileKey, out var contactMobile)) c.ContactMobilePhone = (string?)contactMobile;
     }
 
     /// <summary>Applies the document fields; returns the previous file's key when a new file replaces it.</summary>

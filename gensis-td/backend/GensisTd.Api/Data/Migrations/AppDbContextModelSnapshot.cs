@@ -265,6 +265,10 @@ namespace GensisTd.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("city");
 
+                    b.Property<string>("ContactMobilePhone")
+                        .HasColumnType("text")
+                        .HasColumnName("contact_mobile_phone");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
