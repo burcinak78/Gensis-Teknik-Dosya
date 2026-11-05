@@ -158,10 +158,16 @@ public static class TakipEndpoints
         {
             if (string.IsNullOrWhiteSpace(input.Aciklama))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["aciklama"] = ["Açıklama zorunludur."] });
-            var n = await db.TakipProjelers.Where(t => t.Id == id && t.TdNo == null).ExecuteUpdateAsync(s => s
+            // A completed or delivered job does not go back to waiting: that would reopen its locked details (KRR-032).
+            var n = await db.TakipProjelers.Where(t => t.Id == id && t.TdNo == null && t.Durum != "TAMAMLANDI"
+                    && (t.TakipMuhasebe == null || !t.TakipMuhasebe.CariyeIslendi))
+                .ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.Durum, "BEKLIYOR").SetProperty(t => t.BekliyorAciklama, input.Aciklama.Trim())
                 .SetProperty(t => t.UpdatedAt, DateTime.UtcNow), ct);
-            return n == 0 ? Results.NotFound() : Results.Ok(new { message = "Açıklama kaydedildi." });
+            if (n > 0) return Results.Ok(new { message = "Açıklama kaydedildi." });
+            return await db.TakipProjelers.AnyAsync(t => t.Id == id && t.TdNo == null, ct)
+                ? Results.Conflict(new { error = "Tamamlanmış proje beklemeye alınamaz." })
+                : Results.NotFound();
         });
 
         // Complete the job and send it to accounting; the finished project must be uploaded first.

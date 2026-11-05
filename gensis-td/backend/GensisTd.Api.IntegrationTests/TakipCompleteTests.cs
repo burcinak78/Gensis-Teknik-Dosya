@@ -219,6 +219,31 @@ public class TakipCompleteTests(ApiFixture api)
     }
 
     [Fact]
+    public async Task Open_job_can_wait_but_completed_or_delivered_job_cannot()
+    {
+        var staff = await api.As(Staff);
+        var note = new { aciklama = "Gecikme" };
+        var open = await NewJobAsync(staff);
+        Assert.Equal(HttpStatusCode.OK, await staff.SendAsync("POST", $"/api/takip/{open}/bekliyor", note));
+        Assert.Equal("BEKLIYOR", await api.ScalarAsync<string>("SELECT durum FROM takip_projeler WHERE id = $1", open));
+
+        var completed = await NewJobAsync(staff);
+        await AddFinishedProjectAsync(completed);
+        Assert.Equal(HttpStatusCode.OK, await staff.SendAsync("POST", $"/api/takip/{completed}/complete", Complete));
+        Assert.Equal(HttpStatusCode.Conflict, await staff.SendAsync("POST", $"/api/takip/{completed}/bekliyor", note));
+        Assert.Equal("TAMAMLANDI", await api.ScalarAsync<string>("SELECT durum FROM takip_projeler WHERE id = $1", completed));
+
+        var delivered = await DeliveredJobAsync(staff);
+        Assert.Equal(HttpStatusCode.Conflict, await staff.SendAsync("POST", $"/api/takip/{delivered}/bekliyor", note));
+        // Even when its status was already changed by older data, a delivered job stays closed.
+        await api.ExecAsync("UPDATE takip_projeler SET durum = 'HAZIRLANIYOR' WHERE id = $1", delivered);
+        Assert.Equal(HttpStatusCode.Conflict, await staff.SendAsync("POST", $"/api/takip/{delivered}/bekliyor", note));
+        Assert.Equal("HAZIRLANIYOR", await api.ScalarAsync<string>("SELECT durum FROM takip_projeler WHERE id = $1", delivered));
+
+        Assert.Equal(HttpStatusCode.NotFound, await staff.SendAsync("POST", $"/api/takip/{Guid.NewGuid()}/bekliyor", note));
+    }
+
+    [Fact]
     public async Task Completing_needs_the_finished_project()
     {
         var staff = await api.As(Staff);
