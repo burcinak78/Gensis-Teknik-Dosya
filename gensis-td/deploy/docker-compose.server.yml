@@ -24,6 +24,9 @@ services:
     image: ${REGISTRY:-repo.nomateknoloji.com}/gensis-td/gensis-td_frontend:${IMAGE_TAG:-latest}
     profiles: ["frontend"]
     restart: unless-stopped
+    # Shared server: PDF assembly holds attachments in memory (KRR-035). Swap equal to the limit, so it cannot grow past it.
+    mem_limit: 4g
+    memswap_limit: 4g
     environment:
       BACKEND_INTERNAL_URL: http://backend:8080
     depends_on:
