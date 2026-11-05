@@ -18,7 +18,7 @@ type Row = {
   rev_tarihi: string | null; rev_aciklama: string | null;
   proje_tipi: string; siparis_tarihi: string | null;
   company_id: string | null; montaj_firma_id: string | null; ada_parsel: string | null; is_adi: string | null;
-  asansor_sayisi: number | null; asansor_tipi: string | null;
+  asansor_sayisi: number | null; asansor_tipi: string | null; asansor_seri_no: string | null;
   il_adi: string | null; ilce_adi: string | null; fiyat: number | null;
   fatura_tipi: string | null; toplam_tutar: number | null; proje_sorumlusu_id: string | null;
   tahmini_tamamlanma: string | null; durum: string; bekliyor_aciklama: string | null;
@@ -52,7 +52,7 @@ export default function ProjeTakipClient({
   const router = useRouter();
   const [q, setQ] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [f, setF] = useState({ projeNo: "", adaParsel: "", tip: "", firma: "", isAdi: "", sorumlu: "", durum: "" });
+  const [f, setF] = useState({ projeNo: "", adaParsel: "", tip: "", firma: "", isAdi: "", seriNo: "", sorumlu: "", durum: "" });
   const [durumRow, setDurumRow] = useState<Row | null>(null);
   const setFilter = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
 
@@ -66,7 +66,7 @@ export default function ProjeTakipClient({
     const s = q.trim().toLocaleLowerCase("tr");
     return rows.filter((r) => {
       if (s) {
-        const hay = [String(r.proje_no), firmaAd(r.company_id), r.is_adi, r.ada_parsel, sorumluAd(r.proje_sorumlusu_id)]
+        const hay = [String(r.proje_no), firmaAd(r.company_id), r.is_adi, r.asansor_seri_no, r.ada_parsel, sorumluAd(r.proje_sorumlusu_id)]
           .map(tc).join(" ");
         if (!hay.includes(s)) return false;
       }
@@ -75,6 +75,7 @@ export default function ProjeTakipClient({
       if (f.tip && r.proje_tipi !== f.tip) return false;
       if (f.firma && r.company_id !== f.firma) return false;
       if (f.isAdi && !tc(r.is_adi).includes(tc(f.isAdi))) return false;
+      if (f.seriNo && !tc(r.asansor_seri_no).includes(tc(f.seriNo))) return false;
       if (f.sorumlu && r.proje_sorumlusu_id !== f.sorumlu) return false;
       if (f.durum && r.durum !== f.durum) return false;
       return true;
@@ -112,7 +113,7 @@ export default function ProjeTakipClient({
         <div className="mb-4 flex items-center gap-3">
           <div className="relative flex-1 max-w-md">
             <span className="material-symbols-rounded text-[20px] absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ara: proje no, firma, işin adı, ada/parsel, sorumlu…" className={inp + " pl-10"} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ara: proje no, firma, işin adı, seri no, ada/parsel, sorumlu…" className={inp + " pl-10"} />
           </div>
           <button onClick={() => setShowFilters((v) => !v)}
             className={`inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg border ${showFilters ? "bg-brand-light text-brand border-brand/30" : "text-slate-600 border-slate-200 hover:bg-slate-50"}`}>
@@ -131,6 +132,7 @@ export default function ProjeTakipClient({
                   <th className={th}>Tip</th>
                   <th className={th}>Firma</th>
                   <th className={th}>İşin Adı</th>
+                  <th className={th}>Asansör Seri No</th>
                   <th className={th}>Sipariş Tar.</th>
                   <th className={th}>Sorumlu</th>
                   <th className={th}>Tamamlanma Tar.</th>
@@ -157,6 +159,7 @@ export default function ProjeTakipClient({
                       </select>
                     </th>
                     <th className={fTh}><input className={fInp} value={f.isAdi} onChange={(e) => setFilter("isAdi", e.target.value)} placeholder="İşin adı" /></th>
+                    <th className={fTh}><input className={fInp} value={f.seriNo} onChange={(e) => setFilter("seriNo", e.target.value)} placeholder="Seri no" /></th>
                     <th className={fTh}></th>
                     <th className={fTh}>
                       <select className={fInp} value={f.sorumlu} onChange={(e) => setFilter("sorumlu", e.target.value)}>
@@ -202,6 +205,7 @@ export default function ProjeTakipClient({
                       )}
                     </td>
                     <td className={td}>{r.is_adi ?? "—"}</td>
+                    <td className={td + " text-slate-600"}>{r.asansor_seri_no ?? "—"}</td>
                     <td className={td + " text-slate-500"}>{dt(r.siparis_tarihi)}</td>
                     <td className={td + " text-slate-600"}>{sorumluAd(r.proje_sorumlusu_id)}</td>
                     <td className={td + " text-slate-500"}>{r.durum === "TAMAMLANDI" ? dt(r.tamamlanma_tarihi) : ""}</td>
@@ -213,7 +217,7 @@ export default function ProjeTakipClient({
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={10} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok. Sağ üstten “Yeni Proje” ile başlayın.</td></tr>
+                  <tr><td colSpan={11} className="px-5 py-8 text-center text-sm text-slate-400">Kayıt yok. Sağ üstten “Yeni Proje” ile başlayın.</td></tr>
                 )}
               </tbody>
             </table>
