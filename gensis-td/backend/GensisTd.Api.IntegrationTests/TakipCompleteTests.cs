@@ -135,6 +135,89 @@ public class TakipCompleteTests(ApiFixture api)
         }));
     }
 
+    private async Task<Guid> DeliveredJobAsync(HttpClient staff)
+    {
+        var id = await NewJobAsync(staff);
+        Assert.Equal(HttpStatusCode.OK, await staff.SendAsync("PUT", $"/api/takip/{id}", new
+        {
+            projeTipi = "mimari", companyId = CompanyA, faturaTipi = "faturali", tahminiTamamlanma = "2030-01-01", fiyat = 1000,
+        }));
+        await AddFinishedProjectAsync(id);
+        Assert.Equal(HttpStatusCode.OK, await staff.SendAsync("POST", $"/api/takip/{id}/complete", Complete));
+        Assert.Equal(HttpStatusCode.OK, await (await api.As(Muhasebeci)).SendAsync("PUT", $"/api/muhasebe/{id}", new { teslimTarihi = "2026-11-05" }));
+        return id;
+    }
+
+    // KRR-032
+    [Theory]
+    [InlineData(2000, "faturali", "2030-01-01")]
+    [InlineData(1000, "faturasiz", "2030-01-01")]
+    [InlineData(1000, "faturali", "2031-01-01")]
+    public async Task Delivered_job_refuses_locked_changes(int fiyat, string faturaTipi, string tahmini)
+    {
+        var staff = await api.As(Staff);
+        var id = await DeliveredJobAsync(staff);
+
+        Assert.Equal(HttpStatusCode.Conflict, await staff.SendAsync("PUT", $"/api/takip/{id}", new
+        {
+            projeTipi = "mimari", companyId = CompanyA, faturaTipi, tahminiTamamlanma = tahmini, fiyat, isAdi = "Degismemeli",
+        }));
+
+        var row = (await staff.JsonAsync($"/api/takip/{id}")).GetProperty("row");
+        Assert.Equal(1000m, row.GetProperty("fiyat").GetDecimal());
+        Assert.Equal(1200m, row.GetProperty("toplamTutar").GetDecimal());
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("isAdi").ValueKind);
+    }
+
+    [Fact]
+    public async Task Delivered_job_still_accepts_other_fields()
+    {
+        var staff = await api.As(Staff);
+        var id = await DeliveredJobAsync(staff);
+
+        Assert.Equal(HttpStatusCode.OK, await staff.SendAsync("PUT", $"/api/takip/{id}", new
+        {
+            projeTipi = "mimari", companyId = CompanyA, faturaTipi = "faturali", tahminiTamamlanma = "2030-01-01", fiyat = 1000.00m, isAdi = "Sonradan",
+        }));
+
+        var row = (await staff.JsonAsync($"/api/takip/{id}")).GetProperty("row");
+        Assert.Equal("Sonradan", row.GetProperty("isAdi").GetString());
+        Assert.Equal("tamamlandi", row.GetProperty("muhasebeDurumu").GetString());
+    }
+
+    // The form sends "faturasiz" for an older record without an invoice type; the stored values stay as they are.
+    [Fact]
+    public async Task Delivered_older_job_without_invoice_type_can_be_saved()
+    {
+        var staff = await api.As(Staff);
+        var id = await DeliveredJobAsync(staff);
+        await api.ExecAsync("UPDATE takip_projeler SET fatura_tipi = NULL, toplam_tutar = 1234 WHERE id = $1", id);
+
+        Assert.Equal(HttpStatusCode.OK, await staff.SendAsync("PUT", $"/api/takip/{id}", new
+        {
+            projeTipi = "mimari", companyId = CompanyA, faturaTipi = "faturasiz", tahminiTamamlanma = "2030-01-01", fiyat = 1000, isAdi = "Eski",
+        }));
+
+        var row = (await staff.JsonAsync($"/api/takip/{id}")).GetProperty("row");
+        Assert.Equal("Eski", row.GetProperty("isAdi").GetString());
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("faturaTipi").ValueKind);
+        Assert.Equal(1234m, row.GetProperty("toplamTutar").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Completing_again_is_refused_and_changes_nothing()
+    {
+        var staff = await api.As(Staff);
+        var id = await DeliveredJobAsync(staff);
+
+        Assert.Equal(HttpStatusCode.Conflict, await staff.SendAsync("POST", $"/api/takip/{id}/complete",
+            new { tamamlanmaTarihi = "2020-01-01", teslimTipi = "dijital" }));
+
+        var row = (await staff.JsonAsync($"/api/takip/{id}")).GetProperty("row");
+        Assert.Equal("tamamlandi", row.GetProperty("muhasebeDurumu").GetString());
+        Assert.Equal("2026-11-05", row.GetProperty("tamamlanmaTarihi").GetString());
+    }
+
     [Fact]
     public async Task Completing_needs_the_finished_project()
     {

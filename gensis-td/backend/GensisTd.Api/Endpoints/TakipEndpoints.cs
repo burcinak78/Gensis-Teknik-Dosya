@@ -107,12 +107,20 @@ public static class TakipEndpoints
         write.MapPut("/{id:guid}", async (Guid id, TakipInput input, AppDbContext db, CancellationToken ct) =>
         {
             if (Validate(input) is { } invalid) return invalid;
-            var row = await db.TakipProjelers.SingleOrDefaultAsync(t => t.Id == id && t.TdNo == null, ct);
+            var row = await db.TakipProjelers.Include(t => t.TakipMuhasebe).SingleOrDefaultAsync(t => t.Id == id && t.TdNo == null, ct);
             if (row is null) return Results.NotFound();
+            // Delivered by accounting: price, invoice type and estimated date are final (KRR-032). An older record
+            // without an invoice type gets the form's default back, which is not a change.
+            var posted = row.TakipMuhasebe?.CariyeIslendi == true;
+            if (posted && (row.Fiyat != input.Fiyat || row.TahminiTamamlanma != input.TahminiTamamlanma
+                || (row.FaturaTipi is not null && row.FaturaTipi != input.FaturaTipi)))
+                return Results.Conflict(new { error = "Muhasebe teslim etti: fiyat, fatura tipi ve tahmini tarih değiştirilemez." });
+            var (faturaTipi, toplamTutar) = (row.FaturaTipi, row.ToplamTutar);
             Apply(row, input);
+            if (posted) (row.FaturaTipi, row.ToplamTutar) = (faturaTipi, toplamTutar);
             // Completion details may be saved before the job is completed. The status does not change here, and
             // once /complete has run they are final (accounting works from them).
-            if (row.Durum != "TAMAMLANDI")
+            if (row.Durum != "TAMAMLANDI" && !posted)
             {
                 row.TamamlanmaTarihi = input.TamamlanmaTarihi;
                 row.TeslimTipi = input.TeslimTipi;
@@ -164,8 +172,11 @@ public static class TakipEndpoints
             if (input.TeslimTipi is not ("hard_copy" or "dijital")) errors["teslimTipi"] = ["Teslim tipi seçilmelidir."];
             else if (input.TeslimTipi == "hard_copy" && input.HardCopyAdedi is null or < 1) errors["hardCopyAdedi"] = ["Hard Copy adedi giriniz."];
             if (errors.Count > 0) return Results.ValidationProblem(errors);
-            var row = await db.TakipProjelers.SingleOrDefaultAsync(t => t.Id == id && t.TdNo == null, ct);
+            var row = await db.TakipProjelers.Include(t => t.TakipMuhasebe).SingleOrDefaultAsync(t => t.Id == id && t.TdNo == null, ct);
             if (row is null) return Results.NotFound();
+            // Completing again would put a job accounting has already handled back to "bekliyor" (KRR-032).
+            if (row.Durum == "TAMAMLANDI" || row.TakipMuhasebe?.CariyeIslendi == true)
+                return Results.Conflict(new { error = "Proje zaten tamamlandı." });
             if (!await db.TakipDokumanlars.AnyAsync(d => d.TakipId == id && d.Kind == "tamamlanan_proje", ct))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["dokuman"] = ["Önce tamamlanan projeyi yükleyin."] });
             row.Durum = "TAMAMLANDI";
