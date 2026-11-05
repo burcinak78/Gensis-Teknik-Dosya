@@ -67,6 +67,7 @@ public static class CompanyWriteEndpoints
                 .Select(d => d.StoragePath!).ToListAsync(ct));
             paths.AddRange(await db.PendingChanges.Where(p => p.CompanyId == id && p.StoragePath != null && p.Status == "pending")
                 .Select(p => p.StoragePath!).ToListAsync(ct));
+            paths.AddRange(await db.LibraryDocuments.Where(d => d.CompanyId == id).Select(d => d.StoragePath).ToListAsync(ct));
 
             await db.CompanyDocuments.Where(d => d.CompanyId == id).ExecuteDeleteAsync(ct);
             await db.EngineerDocuments.Where(d => engineerIds.Contains(d.EngineerId)).ExecuteDeleteAsync(ct);
@@ -84,6 +85,7 @@ public static class CompanyWriteEndpoints
                 .SetProperty(p => p.CompanyId, (Guid?)null).SetProperty(p => p.IsActive, false), ct);
             try
             {
+                await db.LibraryDocuments.Where(d => d.CompanyId == id).ExecuteDeleteAsync(ct);
                 await db.Companies.Where(c => c.Id == id).ExecuteDeleteAsync(ct);
             }
             catch (Npgsql.PostgresException pg) when (pg.SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation)

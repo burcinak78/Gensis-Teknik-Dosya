@@ -44,6 +44,8 @@ public static partial class ProjectWriteEndpoints
             Apply(project, input);
             db.Projects.Add(project);
             db.ProjectEquipments.AddRange(ToEquipment(project.Id, input.Equipment));
+            // Library defaults are fixed now; a later change of default does not touch this project.
+            await DocumentLibraryEndpoints.PinDefaultsAsync(db, project.Id, project.CompanyId, actor.UserId, ct);
             if (await SaveAsync(db, ct) is { } failed) return failed;
             await tx.CommitAsync(ct);
             return Results.Created($"/api/projects/{project.Id}", new CreatedProject(project.Id, project.TdNo!));
@@ -58,8 +60,19 @@ public static partial class ProjectWriteEndpoints
             if (!actor.CanAccessCompany(input.CompanyId)) return Results.Forbid();
             if (await EngineerRule.ValidateAsync(db, input.CompanyId, input.MakineMuhendisId, input.ElektrikMuhendisId, gensis.Id, ct) is { } badEngineer) return badEngineer;
 
+            // A delivered file stays with its company: moving it would orphan the accounting lock (KRR-034).
+            var companyChanged = project.CompanyId != input.CompanyId;
+            if (companyChanged && await DocumentLibraryEndpoints.IsPostedAsync(db, project.TdNo, ct))
+                return Results.Conflict(new { error = "Muhasebe teslim etti: bu teknik dosyanın firması değiştirilemez." });
+
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             Apply(project, input);
+            // Choices belong to the old company's documents; the new company's defaults take their place.
+            if (companyChanged)
+            {
+                await db.ProjectDocumentChoices.Where(c => c.ProjectId == id).ExecuteDeleteAsync(ct);
+                await DocumentLibraryEndpoints.PinDefaultsAsync(db, id, input.CompanyId, actor.UserId, ct);
+            }
             // Equipment is replaced as a whole, as before, but now inside the transaction.
             await db.ProjectEquipments.Where(e => e.ProjectId == id).ExecuteDeleteAsync(ct);
             db.ProjectEquipments.AddRange(ToEquipment(id, input.Equipment));
@@ -78,7 +91,7 @@ public static partial class ProjectWriteEndpoints
             // Read before the cascade removes the rows; the objects go once the delete is committed.
             var paths = await db.ProjectFiles.Where(f => f.ProjectId == id).Select(f => f.StoragePath).ToListAsync(ct);
             await TakipCleanup.RemoveUnpostedAsync(db, project, ct);
-            db.Projects.Remove(project); // project_equipment, project_files cascade in the database
+            db.Projects.Remove(project); // project_equipment, project_files, project_document_choices cascade in the database
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             await storage.DeleteQuietlyAsync(FileEndpoints.DocumentsBucket, paths, logs.CreateLogger(nameof(ProjectWriteEndpoints)));

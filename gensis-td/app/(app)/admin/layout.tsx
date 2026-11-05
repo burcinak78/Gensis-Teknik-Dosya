@@ -2,7 +2,8 @@ import { requireMe } from "@/lib/api/server";
 import AdminTabs from "./AdminTabs";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  // Admin ve Kullanıcı (gensis) Yönetim'e erişir; Kullanıcı'da silme yoktur (aksiyon/buton bazında engellenir)
+  // Admin ve Kullanıcı (gensis) Yönetim'e erişir; Kullanıcı'da silme yoktur (aksiyon/buton bazında engellenir).
+  // İstisna: Dokümanlar sekmesinde gensis de siler ve arşivler (kullanıcı kararı 2026-11-05).
   const me = await requireMe(["admin", "gensis"]);
 
   return (

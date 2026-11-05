@@ -24,11 +24,13 @@ public static class PdfSourceEndpoints
     public record CategoryPart(string Code, string Name, string DriveType);
     public record EquipmentPart(string Slot, string CategoryCode, string? BrandName, Guid? CertificateId, JsonElement? SeriList);
     public record CertificateFileRef(Guid CertificateId, string Path);
+    public record DocumentChoiceRef(string DocType, string Path);
 
     public record TeknikDosyaSource(
         JsonElement Context, ProjectPart Project, CompanyPart? Company, List<ProjectFileRef> ProjectFiles,
         List<EngineerDocRef> EngineerDocs, List<CompanyDocRef> CompanyDocs, List<NotifiedBodyPart> NotifiedBodies,
-        List<CategoryPart> EquipmentCategories, List<EquipmentPart> Equipment, List<CertificateFileRef> CertificateFiles);
+        List<CategoryPart> EquipmentCategories, List<EquipmentPart> Equipment, List<CertificateFileRef> CertificateFiles,
+        List<DocumentChoiceRef> DocumentChoices);
 
     public static void MapPdfSourceEndpoints(this WebApplication app)
     {
@@ -66,7 +68,11 @@ public static class PdfSourceEndpoints
                 equipment.Select(e => new EquipmentPart(e.Slot, e.CategoryCode, e.BrandName, e.CertificateId,
                     e.SeriList is null ? null : ParseJson(e.SeriList))).ToList(),
                 await db.CertificateFiles.AsNoTracking().Where(f => f.IsCurrent && certIds.Contains(f.CertificateId))
-                    .Select(f => new CertificateFileRef(f.CertificateId, f.StoragePath)).ToListAsync(ct)));
+                    .Select(f => new CertificateFileRef(f.CertificateId, f.StoragePath)).ToListAsync(ct),
+                // Goes to every role that can see the project: the path only, no file name or library id.
+                await db.ProjectDocumentChoices.AsNoTracking()
+                    .Where(c => c.ProjectId == id && c.LibraryDocument.CompanyId == p.CompanyId)
+                    .Select(c => new DocumentChoiceRef(c.DocType, c.LibraryDocument.StoragePath)).ToListAsync(ct)));
         });
 
         g.MapGet("/file", async (Guid id, string? bucket, string? path, Actor actor, AppDbContext db, StorageService storage,
@@ -99,7 +105,10 @@ public static class PdfSourceEndpoints
         var engineerIds = new[] { makine, elektrik }.OfType<Guid>().ToList();
         return await db.ProjectFiles.AnyAsync(f => f.ProjectId == projectId && f.StoragePath == path, ct)
             || await db.EngineerDocuments.AnyAsync(d => d.StoragePath == path && engineerIds.Contains(d.EngineerId), ct)
-            || await db.CompanyDocuments.AnyAsync(d => d.StoragePath == path && d.CompanyId == companyId, ct);
+            || await db.CompanyDocuments.AnyAsync(d => d.StoragePath == path && d.CompanyId == companyId, ct)
+            // Library files only through this project's choice, not "any document of the company".
+            || await db.ProjectDocumentChoices.AnyAsync(c => c.ProjectId == projectId
+                && c.LibraryDocument.StoragePath == path && c.LibraryDocument.CompanyId == companyId, ct);
     }
 
     private static JsonElement ParseJson(string? json)

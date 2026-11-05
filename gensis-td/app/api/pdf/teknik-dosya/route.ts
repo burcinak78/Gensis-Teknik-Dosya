@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api/server";
 import { TeknikDosyaDoc } from "@/lib/pdf/TeknikDosyaDoc";
 import { TEKNIK_DOSYA_BELGELERI } from "@/lib/pdf/belgeler";
 import { imzaToPngDataUri } from "@/lib/pdf/imzaUri";
+import { belgeBasligi } from "@/lib/pdf/belgeler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ type PdfSource = {
   equipmentCategories: { code: string; name: string; driveType: string }[];
   equipment: { slot: string; categoryCode: string; brandName: string | null; certificateId: string | null; seriList: unknown }[];
   certificateFiles: { certificateId: string; path: string }[];
+  documentChoices: { docType: string; path: string }[];
 };
 
 async function handleGet(req: NextRequest) {
@@ -397,7 +399,33 @@ async function handleGet(req: NextRequest) {
     } catch { await addDoc("son_kontrol_formu"); }
   }
 
+  // Doküman Kütüphanesi: dosya olduğu gibi girer. Açılamayan veya şifreli dosya sessizce atlanmaz, sistem
+  // üretimine de dönülmez: belge eksik ya da yanlış çıkacağına istek hata verir.
+  async function addLibraryDocument(path: string): Promise<boolean> {
+    const bytes = await download("documents", path);
+    if (!bytes) return false;
+    try {
+      const doc = await PDFDocument.load(bytes);
+      if (doc.getPageCount() === 0) return false;
+      const pages = await finalDoc.copyPages(doc, doc.getPageIndices());
+      pages.forEach((p) => finalDoc.addPage(p));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  const libraryPaths = new Map((src.documentChoices ?? []).map((c) => [c.docType, c.path]));
+
   for (const code of codes) {
+    // Öncelik: Modül G raporu (Son Kontrol), sonra bu TD'nin kütüphane seçimi, sonra sistem üretimi.
+    const usesReport = code === "son_kontrol_formu" && attach.isG && !!attach.pf["modul_g_rapor"]?.length;
+    const libraryPath = usesReport ? undefined : libraryPaths.get(code);
+    if (libraryPath) {
+      if (!(await addLibraryDocument(libraryPath)))
+        return new Response(`${belgeBasligi(code)} dosyası açılamadı. Belgeler ekranından dosyayı değiştirin.`, { status: 502 });
+      continue;
+    }
+
     // Kullanma ve Bakım Kılavuzu: üretilmez; hazır PDF (firma footer'lı) eklenir
     if (code === "kullanma_bakim_klavuzu") { await addKilavuz(); continue; }
 

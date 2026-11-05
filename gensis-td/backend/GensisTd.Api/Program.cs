@@ -104,6 +104,7 @@ app.MapTakipEndpoints();
 app.MapMuhasebeEndpoints();
 app.MapUserEndpoints();
 app.MapCatalogAdminEndpoints();
+app.MapDocumentLibraryEndpoints();
 app.MapNotificationEndpoints();
 
 app.Run();

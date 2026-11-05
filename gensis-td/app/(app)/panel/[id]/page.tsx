@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { apiGet } from "@/lib/api/server";
-import BelgeListesi from "./BelgeListesi";
+import { apiGet, getMe, isStaff } from "@/lib/api/server";
+import BelgeListesi, { type DocumentChoices } from "./BelgeListesi";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,9 @@ export default async function ProjeDetay(props: { params: Promise<{ id: string }
   }>(`/api/projects/${encodeURIComponent(params.id)}`);
   if (!p) notFound();
   const status = p.status;
+  // Kütüphane seçimleri yalnız admin + gensis'e; diğer rollerde liste bugünkü gibidir.
+  const me = await getMe();
+  const choices = me && isStaff(me.role) ? await apiGet<DocumentChoices>(`/api/projects/${encodeURIComponent(p.id)}/document-choices`) : null;
 
   return (
     <div className="px-8 py-6 gs-fade">
@@ -42,7 +45,7 @@ export default async function ProjeDetay(props: { params: Promise<{ id: string }
       </div>
 
       <div className="max-w-3xl">
-        <BelgeListesi projectId={p.id} />
+        <BelgeListesi projectId={p.id} choices={choices} />
         <p className="text-xs text-slate-400 mt-3">Not: Veri girişinde doldurulmayan alanlar belgede boş görünür.</p>
       </div>
     </div>

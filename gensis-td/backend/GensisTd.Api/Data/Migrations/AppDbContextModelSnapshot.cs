@@ -1107,6 +1107,81 @@ namespace GensisTd.Api.Data.Migrations
                     b.ToTable("ilgili_idareler", (string)null);
                 });
 
+            modelBuilder.Entity("GensisTd.Api.Data.Entities.LibraryDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<Guid?>("ArchivedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("archived_by");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
+                    b.Property<string>("DocType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("doc_type");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
+                    b.Property<string>("OriginalName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("original_name");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("StoragePath")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("storage_path");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at");
+
+                    b.Property<Guid?>("UploadedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by");
+
+                    b.HasKey("Id")
+                        .HasName("document_library_pkey");
+
+                    b.HasIndex("ArchivedBy");
+
+                    b.HasIndex("UploadedBy");
+
+                    b.HasIndex(new[] { "CompanyId", "DocType" }, "document_library_one_default_key")
+                        .IsUnique()
+                        .HasFilter("is_default AND archived_at IS NULL");
+
+                    b.HasIndex(new[] { "StoragePath" }, "document_library_storage_path_key")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "CompanyId", "DocType" }, "idx_document_library_company_type");
+
+                    b.ToTable("document_library", null, t =>
+                        {
+                            t.HasCheckConstraint("document_library_archived_not_default_check", "NOT (is_default AND archived_at IS NOT NULL)");
+
+                            t.HasCheckConstraint("document_library_doc_type_check", "doc_type IN ('bakim_sozlesmesi','son_kontrol_formu','kullanma_bakim_klavuzu','seyir_defteri','egitim_tutanagi','teslim_tutanagi')");
+                        });
+                });
+
             modelBuilder.Entity("GensisTd.Api.Data.Entities.LookupValue", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1760,6 +1835,38 @@ namespace GensisTd.Api.Data.Migrations
                         {
                             t.HasComment("Teknik dosya projesi — input_data = Veri Girişi anlık görüntüsü.");
                         });
+                });
+
+            modelBuilder.Entity("GensisTd.Api.Data.Entities.ProjectDocumentChoice", b =>
+                {
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<string>("DocType")
+                        .HasColumnType("text")
+                        .HasColumnName("doc_type");
+
+                    b.Property<Guid>("LibraryDocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("library_document_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("ProjectId", "DocType")
+                        .HasName("project_document_choices_pkey");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex(new[] { "LibraryDocumentId" }, "idx_project_document_choices_document");
+
+                    b.ToTable("project_document_choices", (string)null);
                 });
 
             modelBuilder.Entity("GensisTd.Api.Data.Entities.ProjectEquipment", b =>
@@ -2890,6 +2997,30 @@ namespace GensisTd.Api.Data.Migrations
                     b.Navigation("Province");
                 });
 
+            modelBuilder.Entity("GensisTd.Api.Data.Entities.LibraryDocument", b =>
+                {
+                    b.HasOne("GensisTd.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ArchivedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("document_library_archived_by_fkey");
+
+                    b.HasOne("GensisTd.Api.Data.Entities.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("document_library_company_id_fkey");
+
+                    b.HasOne("GensisTd.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UploadedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("document_library_uploaded_by_fkey");
+
+                    b.Navigation("Company");
+                });
+
             modelBuilder.Entity("GensisTd.Api.Data.Entities.Notlar", b =>
                 {
                     b.HasOne("GensisTd.Api.Data.Entities.User", "User")
@@ -3065,6 +3196,31 @@ namespace GensisTd.Api.Data.Migrations
                     b.Navigation("MakineMuhendis");
 
                     b.Navigation("Province");
+                });
+
+            modelBuilder.Entity("GensisTd.Api.Data.Entities.ProjectDocumentChoice", b =>
+                {
+                    b.HasOne("GensisTd.Api.Data.Entities.LibraryDocument", "LibraryDocument")
+                        .WithMany()
+                        .HasForeignKey("LibraryDocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("project_document_choices_library_document_id_fkey");
+
+                    b.HasOne("GensisTd.Api.Data.Entities.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("project_document_choices_project_id_fkey");
+
+                    b.HasOne("GensisTd.Api.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("project_document_choices_updated_by_fkey");
+
+                    b.Navigation("LibraryDocument");
                 });
 
             modelBuilder.Entity("GensisTd.Api.Data.Entities.ProjectEquipment", b =>

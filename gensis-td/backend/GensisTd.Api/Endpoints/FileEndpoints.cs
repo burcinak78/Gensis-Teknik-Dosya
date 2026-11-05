@@ -47,6 +47,12 @@ public static class FileEndpoints
                 await db.CertificateFiles.AsNoTracking().Where(f => f.CertificateId == certificateId && f.IsCurrent)
                     .Select(f => f.StoragePath).SingleOrDefaultAsync(ct)));
 
+        // Document library: staff only; others get a chosen file only inside their teknik dosya output.
+        g.MapGet("/library/{id:guid}", async (Guid id, AppDbContext db, StorageService storage, CancellationToken ct) =>
+            await RedirectAsync(storage, DocumentsBucket,
+                await db.LibraryDocuments.AsNoTracking().Where(d => d.Id == id).Select(d => d.StoragePath).SingleOrDefaultAsync(ct)))
+            .RequireAuthorization(Policies.Staff);
+
         // belge/takip: office roles only.
         g.MapGet("/takip/{id:guid}", async (Guid id, AppDbContext db, StorageService storage, CancellationToken ct) =>
             await RedirectAsync(storage, DocumentsBucket,

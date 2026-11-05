@@ -22,3 +22,9 @@ export const TEKNIK_DOSYA_BELGELERI: BelgeMeta[] = [
   { code: "egitim_tutanagi", title: "Eğitim Tutanağı", hazir: true },
   { code: "teslim_tutanagi", title: "Teslim Tutanağı", hazir: true },
 ];
+
+// Doküman Kütüphanesi'nden gelebilen belgeler (API: DocumentLibraryEndpoints.DocTypes ile aynı).
+export const KUTUPHANE_KODLARI = [
+  "bakim_sozlesmesi", "son_kontrol_formu", "kullanma_bakim_klavuzu", "seyir_defteri", "egitim_tutanagi", "teslim_tutanagi",
+];
+export const belgeBasligi = (code: string) => TEKNIK_DOSYA_BELGELERI.find((b) => b.code === code)?.title ?? code;

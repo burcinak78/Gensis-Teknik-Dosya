@@ -108,6 +108,15 @@ public sealed class ApiFixture : IAsyncLifetime
             await s3.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest { BucketName = "documents", Key = key, ContentBody = key });
     }
 
+    /// <summary>Puts an object the way a browser's presigned PUT would, without going through the URL.</summary>
+    public async Task PutObjectAsync(string key, byte[] content)
+    {
+        using var s3 = new AmazonS3Client(new BasicAWSCredentials(Env("GTD_IT_STORAGE_KEY"), Env("GTD_IT_STORAGE_SECRET")),
+            new AmazonS3Config { ServiceURL = Env("GTD_IT_STORAGE_URL"), ForcePathStyle = true, AuthenticationRegion = "us-east-1" });
+        using var body = new MemoryStream(content);
+        await s3.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest { BucketName = "documents", Key = key, InputStream = body, ContentType = "application/pdf" });
+    }
+
     /// <summary>The running API's services (app role connection), for calling its code directly.</summary>
     public IServiceProvider Services => _factory.Services;
 

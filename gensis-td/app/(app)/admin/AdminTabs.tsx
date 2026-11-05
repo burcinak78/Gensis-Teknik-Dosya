@@ -10,6 +10,7 @@ const TABS = [
   { href: "/admin/onaylanmis-kuruluslar", label: "Onaylanmış Kuruluşlar", icon: "verified" },
   { href: "/admin/ekipmanlar", label: "Güvenlik Ekipmanları", icon: "verified_user" },
   { href: "/admin/ilgili-idareler", label: "İlgili İdareler", icon: "account_balance" },
+  { href: "/admin/dokumanlar", label: "Dokümanlar", icon: "folder_open" },
 ];
 
 export default function AdminTabs({ role = "admin" }: { role?: string }) {

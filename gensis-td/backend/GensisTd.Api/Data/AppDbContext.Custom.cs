@@ -24,6 +24,10 @@ public partial class AppDbContext
 
     public virtual DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
+    public virtual DbSet<LibraryDocument> LibraryDocuments { get; set; }
+
+    public virtual DbSet<ProjectDocumentChoice> ProjectDocumentChoices { get; set; }
+
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
         var b = modelBuilder;
@@ -39,6 +43,56 @@ public partial class AppDbContext
         b.Entity<Company>().Property(x => x.ContactMobilePhone).HasColumnName("contact_mobile_phone");
 
         b.Entity<User>().Property(x => x.TokenVersion).HasColumnName("token_version").HasDefaultValueSql("0");
+
+        b.Entity<LibraryDocument>(e =>
+        {
+            e.ToTable("document_library", t =>
+            {
+                t.HasCheckConstraint("document_library_doc_type_check",
+                    "doc_type IN ('bakim_sozlesmesi','son_kontrol_formu','kullanma_bakim_klavuzu','seyir_defteri','egitim_tutanagi','teslim_tutanagi')");
+                t.HasCheckConstraint("document_library_archived_not_default_check", "NOT (is_default AND archived_at IS NOT NULL)");
+            });
+            e.HasKey(x => x.Id).HasName("document_library_pkey");
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.CompanyId).HasColumnName("company_id");
+            e.Property(x => x.DocType).HasColumnName("doc_type");
+            e.Property(x => x.StoragePath).HasColumnName("storage_path");
+            e.Property(x => x.OriginalName).HasColumnName("original_name");
+            e.Property(x => x.SizeBytes).HasColumnName("size_bytes");
+            e.Property(x => x.IsDefault).HasColumnName("is_default");
+            e.Property(x => x.ArchivedAt).HasColumnName("archived_at");
+            e.Property(x => x.ArchivedBy).HasColumnName("archived_by");
+            e.Property(x => x.UploadedBy).HasColumnName("uploaded_by");
+            e.Property(x => x.UploadedAt).HasColumnName("uploaded_at");
+            e.HasIndex(x => x.StoragePath, "document_library_storage_path_key").IsUnique();
+            e.HasIndex(x => new { x.CompanyId, x.DocType }, "idx_document_library_company_type");
+            e.HasIndex(x => new { x.CompanyId, x.DocType }, "document_library_one_default_key").IsUnique()
+                .HasFilter("is_default AND archived_at IS NULL");
+            e.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("document_library_company_id_fkey");
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UploadedBy).OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("document_library_uploaded_by_fkey");
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.ArchivedBy).OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("document_library_archived_by_fkey");
+        });
+
+        b.Entity<ProjectDocumentChoice>(e =>
+        {
+            e.ToTable("project_document_choices");
+            e.HasKey(x => new { x.ProjectId, x.DocType }).HasName("project_document_choices_pkey");
+            e.Property(x => x.ProjectId).HasColumnName("project_id");
+            e.Property(x => x.DocType).HasColumnName("doc_type");
+            e.Property(x => x.LibraryDocumentId).HasColumnName("library_document_id");
+            e.Property(x => x.UpdatedBy).HasColumnName("updated_by");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            e.HasIndex(x => x.LibraryDocumentId, "idx_project_document_choices_document");
+            e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("project_document_choices_project_id_fkey");
+            e.HasOne(x => x.LibraryDocument).WithMany().HasForeignKey(x => x.LibraryDocumentId).OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("project_document_choices_library_document_id_fkey");
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UpdatedBy).OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("project_document_choices_updated_by_fkey");
+        });
 
         b.Entity<PasswordResetToken>(e =>
         {
