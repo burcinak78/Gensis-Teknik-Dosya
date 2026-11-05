@@ -1,5 +1,6 @@
 // react-pdf rendering shared by the PDF routes.
 import { Font, renderToBuffer } from "@react-pdf/renderer";
+import { PdfBusyError } from "./limits";
 import { PUBLIC_DIR } from "./assets";
 
 // react-pdf 4 keeps the loaded font object in a process-wide store and reusing it for the next document drops
@@ -23,8 +24,7 @@ const MAX_WAITING = 20;      // renders queued behind the running one; more are 
 const WAIT_MS = 60_000;      // longest a render waits for its turn
 const RENDER_MS = 30_000;    // longest one render may hold the turn
 
-/** Too many PDF renders queued, or one waited / ran too long. The routes answer 503. */
-export class PdfBusyError extends Error {}
+export { PdfBusyError };
 
 let busy = false;
 const waiting: (() => void)[] = [];

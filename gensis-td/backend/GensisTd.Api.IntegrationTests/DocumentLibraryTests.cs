@@ -375,6 +375,26 @@ public class DocumentLibraryTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.NotFound, await (await api.As(Muhasebeci)).SendAsync("GET", File(project, notChosenPath!)));
     }
 
+    // Same company, another project's choice: neither listed in this project's source nor served through it.
+    [Fact]
+    public async Task Pdf_source_holds_only_this_projects_choices()
+    {
+        await ForgetDefaultsAsync();
+        var staff = await api.As(Staff);
+        var mine = await UploadAsync(CompanyA, "seyir_defteri");
+        var theirs = await UploadAsync(CompanyA, "teslim_tutanagi");
+        var project = await NewProjectAsync(Staff, CompanyA);
+        var other = await NewProjectAsync(Staff, CompanyA);
+        Assert.Equal(HttpStatusCode.OK, await staff.SendAsync("PUT", $"/api/projects/{project}/document-choices/seyir_defteri", new { libraryDocumentId = mine }));
+        Assert.Equal(HttpStatusCode.OK, await staff.SendAsync("PUT", $"/api/projects/{other}/document-choices/teslim_tutanagi", new { libraryDocumentId = theirs }));
+        var minePath = await api.ScalarAsync<string>("SELECT storage_path FROM document_library WHERE id = $1", mine);
+        var theirsPath = await api.ScalarAsync<string>("SELECT storage_path FROM document_library WHERE id = $1", theirs);
+
+        var choices = (await staff.JsonAsync($"/api/projects/{project}/pdf-source")).GetProperty("documentChoices");
+        Assert.Equal(new[] { minePath }, choices.Ids("path"));
+        Assert.Equal(HttpStatusCode.NotFound, await staff.SendAsync("GET", $"/api/projects/{project}/pdf-source/file?bucket=documents&path={theirsPath}"));
+    }
+
     [Fact]
     public async Task Choice_never_serves_another_companys_file_even_if_the_row_is_wrong()
     {

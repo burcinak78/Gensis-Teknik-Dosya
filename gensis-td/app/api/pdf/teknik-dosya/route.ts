@@ -8,7 +8,9 @@ import { apiFetch } from "@/lib/api/server";
 import { TeknikDosyaDoc } from "@/lib/pdf/TeknikDosyaDoc";
 import { TEKNIK_DOSYA_BELGELERI } from "@/lib/pdf/belgeler";
 import { imzaToPngDataUri } from "@/lib/pdf/imzaUri";
+import { getMe, isStaff } from "@/lib/api/server";
 import { belgeBasligi } from "@/lib/pdf/belgeler";
+import { ByteBudget, TaskLimiter } from "@/lib/pdf/limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +30,11 @@ type PdfSource = {
   documentChoices: { docType: string; path: string }[];
 };
 
+// KRR-035: merging keeps every attachment in memory. The wait stays under the proxy's 60 s read timeout, so people
+// get the readable 503 and not a gateway error.
+const assembly = new TaskLimiter({ max: 2, maxWaiting: 10, waitMs: 45_000, holdMs: 120_000 });
+const MAX_DOWNLOAD_BYTES = 500 * 1024 * 1024;
+
 async function handleGet(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) return new Response("projectId gerekli.", { status: 400 });
@@ -38,7 +45,16 @@ async function handleGet(req: NextRequest) {
   if (srcRes.status === 404) return new Response("Proje bulunamadı veya yetkiniz yok.", { status: 404 });
   if (!srcRes.ok) return new Response("Veri alınamadı.", { status: 500 });
   const src = (await srcRes.json()) as PdfSource;
+  return assembly.run((signal) => buildPdf(req, projectId, src, signal), req.signal);
+}
+
+async function buildPdf(req: NextRequest, projectId: string, src: PdfSource, signal: AbortSignal) {
   const ctx: any = src.context;
+  const budget = new ByteBudget(MAX_DOWNLOAD_BYTES);
+  const tooLarge = () => new Response(
+    "Bu teknik dosyanın ekleri çok büyük olduğu için PDF oluşturulamadı. Lütfen Gensis ile iletişime geçin.",
+    { status: 413 },
+  );
 
   // Fonts, CE mark and ready-made PDFs come from public/ on disk.
   const assetBase = PUBLIC_DIR;
@@ -60,7 +76,10 @@ async function handleGet(req: NextRequest) {
     try {
       const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId!)}/pdf-source/file?bucket=${bucket}&path=${encodeURIComponent(path)}`);
       if (!res.ok) return null;
-      return new Uint8Array(await res.arrayBuffer());
+      // Over the limit nothing more is read; the assembly loop answers 413 instead of leaving files out.
+      if (budget.exceeded) return null;
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      return budget.take(bytes.length) ? bytes : null;
     } catch { return null; }
   }
 
@@ -417,12 +436,19 @@ async function handleGet(req: NextRequest) {
   const libraryPaths = new Map((src.documentChoices ?? []).map((c) => [c.docType, c.path]));
 
   for (const code of codes) {
+    if (budget.exceeded) return tooLarge();
+    if (signal.aborted) return new Response(null, { status: 499 }); // nobody is waiting for it
+
     // Öncelik: Modül G raporu (Son Kontrol), sonra bu TD'nin kütüphane seçimi, sonra sistem üretimi.
     const usesReport = code === "son_kontrol_formu" && attach.isG && !!attach.pf["modul_g_rapor"]?.length;
     const libraryPath = usesReport ? undefined : libraryPaths.get(code);
     if (libraryPath) {
-      if (!(await addLibraryDocument(libraryPath)))
-        return new Response(`${belgeBasligi(code)} dosyası açılamadı. Belgeler ekranından dosyayı değiştirin.`, { status: 502 });
+      if (!(await addLibraryDocument(libraryPath))) {
+        if (budget.exceeded) return tooLarge(); // the file is fine, the request ran out of room
+        const me = await getMe().catch(() => null);
+        const next = me && isStaff(me.role) ? "Belgeler ekranından dosyayı değiştirin." : "Lütfen Gensis ile iletişime geçin.";
+        return new Response(`${belgeBasligi(code)} dosyası açılamadı. ${next}`, { status: 502 });
+      }
       continue;
     }
 
@@ -467,6 +493,7 @@ async function handleGet(req: NextRequest) {
     }
   }
 
+  if (budget.exceeded) return tooLarge();
   const out = await finalDoc.save();
 
   const dosyaNo = (ctx as any)?.dosya_no ?? projectId;
