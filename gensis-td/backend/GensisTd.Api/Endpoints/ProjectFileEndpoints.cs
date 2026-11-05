@@ -20,6 +20,9 @@ public static partial class ProjectFileEndpoints
     public static readonly string[] Kinds =
         ["yapi_ruhsati", "modul_g_belge", "modul_g_rapor", "fatura", "periyodik_kontrol", "asansor_projesi"];
     public const long MaxBytes = 50 * 1024 * 1024;
+    /// <summary>Attachments per project, all kinds together (KRR-035; prod's largest had 5, user decision 2026-11-06).</summary>
+    public const int MaxFilesPerProject = 20;
+    public const string TooManyFiles = "Bu teknik dosyaya en çok 20 ek yüklenebilir. Yeni ek için önce bir eki silin.";
     public static readonly TimeSpan UploadLifetime = TimeSpan.FromMinutes(10);
 
     public record UploadUrlRequest(string? Kind, string? FileName, string? ContentType);
@@ -52,6 +55,9 @@ public static partial class ProjectFileEndpoints
             if (req.Kind is null || !Kinds.Contains(req.Kind))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["kind"] = ["Geçersiz dosya türü."] });
             if (!await db.Projects.VisibleTo(actor).AnyAsync(p => p.Id == projectId, ct)) return Results.NotFound();
+            // Early answer before the browser uploads anything; the confirm step enforces it.
+            if (await db.ProjectFiles.CountAsync(f => f.ProjectId == projectId, ct) >= MaxFilesPerProject)
+                return Results.Conflict(new { error = TooManyFiles });
 
             var key = NewKey(projectId, req.Kind, req.FileName);
             var contentType = string.IsNullOrWhiteSpace(req.ContentType) ? "application/octet-stream" : req.ContentType.Trim();
@@ -82,6 +88,16 @@ public static partial class ProjectFileEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["key"] = ["Dosya 50 MB'den büyük olamaz."] });
             }
 
+            // Counted under a lock on the project row, so two uploads at the same time cannot both take the last place.
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            await db.Database.ExecuteSqlAsync($"SELECT 1 FROM public.projects WHERE id = {projectId} FOR UPDATE", ct);
+            if (await db.ProjectFiles.CountAsync(f => f.ProjectId == projectId, ct) >= MaxFilesPerProject)
+            {
+                await tx.RollbackAsync(ct);
+                await storage.DeleteAsync(FileEndpoints.DocumentsBucket, input.Key!, ct);
+                return Results.Conflict(new { error = TooManyFiles });
+            }
+
             var file = new ProjectFile
             {
                 Id = Guid.NewGuid(),
@@ -104,6 +120,7 @@ public static partial class ProjectFileEndpoints
             };
             db.ProjectFiles.Add(file);
             await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
             return Results.Created($"/api/files/project/{file.Id}", new { file.Id });
         });
 
