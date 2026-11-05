@@ -6,7 +6,7 @@ import { saveDraftProject, updateDraftProject, uploadProjectFile, deleteProjectF
 
 type Company = {
   id: string; short_name: string; legal_name: string; address: string | null;
-  phone: string | null; fax: string | null; city: string | null;
+  mobile_phone: string | null; fax: string | null; city: string | null;
   authorized_person: string | null; registered_brand: string | null; industry_reg_no: string | null;
 };
 type Category = { id: string; code: string; name: string; sort_order: number; drive_type?: string };
@@ -1071,7 +1071,7 @@ export default function DataEntryWizard(props: Props) {
                 <div className="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
                   <div className="text-xs font-bold text-slate-500 uppercase mb-2">Otomatik dolan bilgiler</div>
                   <AutoRow k="Ünvan" v={company.legal_name} /><AutoRow k="Adres" v={company.address} />
-                  <AutoRow k="Telefon" v={company.phone} /><AutoRow k="Şehir" v={company.city} />
+                  <AutoRow k="Şirket Telefonu" v={company.mobile_phone} /><AutoRow k="Şehir" v={company.city} />
                   <AutoRow k="Yetkili" v={company.authorized_person} /><AutoRow k="Tescilli marka" v={company.registered_brand} />
                   <AutoRow k="Sanayi sicil no" v={company.industry_reg_no} />
                 </div>

@@ -29,7 +29,7 @@ async function handleGet(req: NextRequest) {
   const r = row as any;
   const inp = (r.input_data ?? {}) as any;
   const data = {
-    firma: { unvan: r.companies?.legal_name, kisa_ad: r.companies?.short_name, adres: r.companies?.address, sehir: r.companies?.city, telefon: r.companies?.phone || r.companies?.mobile_phone || "", email: r.companies?.email || "" },
+    firma: { unvan: r.companies?.legal_name, kisa_ad: r.companies?.short_name, adres: r.companies?.address, sehir: r.companies?.city, telefon: r.companies?.mobile_phone || "", email: r.companies?.email || "" },
     firma_adi: r.companies?.short_name || r.companies?.legal_name || "",
     il: r.provinces?.name || inp.il || "",
     belediye: r.districts?.name || inp.belediye || "",

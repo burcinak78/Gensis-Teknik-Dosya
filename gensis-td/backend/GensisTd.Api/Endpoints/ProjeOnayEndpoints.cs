@@ -24,7 +24,7 @@ public static class ProjeOnayEndpoints
         Guid Id, string? DosyaNo, string Status, string? YapiSahibi, int? BeyanYukuKg, int? DurakSayisi, DateOnly? DilekceTarihi,
         DateTime CreatedAt, JsonElement InputData, string? CompanyShortName);
 
-    public record CompanyPart(string ShortName, string LegalName, string? Address, string? City, string? Phone, string? MobilePhone, string? Email);
+    public record CompanyPart(string ShortName, string LegalName, string? Address, string? City, string? MobilePhone, string? Email);
     public record EngineerPart(string FullName, string? ChamberRegNo, string? Address, string? Phone);
     public record Detail(
         Guid Id, Guid CompanyId, string Status, string? DosyaNo, DateOnly? DilekceTarihi, short? ProvinceId, Guid? DistrictId,
@@ -55,7 +55,7 @@ public static class ProjeOnayEndpoints
                 .Select(x => new
                 {
                     Row = x,
-                    Company = new CompanyPart(x.Company.ShortName, x.Company.LegalName, x.Company.Address, x.Company.City, x.Company.Phone,
+                    Company = new CompanyPart(x.Company.ShortName, x.Company.LegalName, x.Company.Address, x.Company.City,
                         x.Company.MobilePhone, x.Company.Email),
                     ProvinceName = x.Province != null ? x.Province.Name : null,
                     DistrictName = x.District != null ? x.District.Name : null,

@@ -3,7 +3,7 @@
 import { apiGet } from "@/lib/api/server";
 
 type CompanyApi = {
-  id: string; shortName: string; legalName: string; address: string | null; phone: string | null; fax: string | null;
+  id: string; shortName: string; legalName: string; address: string | null; mobilePhone: string | null; fax: string | null;
   city: string | null; authorizedPerson: string | null; registeredBrand: string | null; industryRegNo: string | null;
 };
 type EquipmentApi = {
@@ -47,7 +47,7 @@ export async function loadWizardReference() {
 
   return {
     companies: (companies ?? []).map((c) => ({
-      id: c.id, short_name: c.shortName, legal_name: c.legalName, address: c.address, phone: c.phone, fax: c.fax,
+      id: c.id, short_name: c.shortName, legal_name: c.legalName, address: c.address, mobile_phone: c.mobilePhone, fax: c.fax,
       city: c.city, authorized_person: c.authorizedPerson, registered_brand: c.registeredBrand, industry_reg_no: c.industryRegNo,
     })),
     categories: (equipment?.categories ?? []).map((c) => ({ id: c.id, code: c.code, name: c.name, sort_order: c.sortOrder, drive_type: c.driveType })),

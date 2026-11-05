@@ -8,7 +8,7 @@ type Detail = {
   ada: string | null; parsel: string | null; beyanYukuKg: number | null; kisiSayisi: number | null; beyanHizi: number | null;
   durakSayisi: number | null; makineMuhendisId: string | null; elektrikMuhendisId: string | null; ilgiliIdareId: string | null;
   inputData: Record<string, any>; createdAt: string; updatedAt: string;
-  company: { shortName: string; legalName: string; address: string | null; city: string | null; phone: string | null; mobilePhone: string | null; email: string | null };
+  company: { shortName: string; legalName: string; address: string | null; city: string | null; mobilePhone: string | null; email: string | null };
   provinceName: string | null; districtName: string | null;
   makine: { fullName: string; chamberRegNo: string | null; address: string | null; phone: string | null } | null;
   elektrik: { fullName: string; chamberRegNo: string | null; address: string | null; phone: string | null } | null;
@@ -34,7 +34,7 @@ export async function getProjeOnay(id: string) {
     created_at: d.createdAt, updated_at: d.updatedAt,
     companies: {
       short_name: d.company.shortName, legal_name: d.company.legalName, address: d.company.address, city: d.company.city,
-      phone: d.company.phone, mobile_phone: d.company.mobilePhone, email: d.company.email,
+      mobile_phone: d.company.mobilePhone, email: d.company.email,
     },
     provinces: d.provinceName ? { name: d.provinceName } : null,
     districts: d.districtName ? { name: d.districtName } : null,

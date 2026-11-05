@@ -150,13 +150,13 @@ export default function MusterilerClient({
     const s = q.trim().toLocaleLowerCase("tr");
     return companies.filter((c) => {
       if (s) {
-        const hay = [c.short_name, c.legal_name, c.city, c.authorized_person, c.mobile_phone, c.phone, (c.category || "asansor") === "diger" ? "diğer" : "asansör"].map(tc).join(" ");
+        const hay = [c.short_name, c.legal_name, c.city, c.authorized_person, c.mobile_phone, (c.category || "asansor") === "diger" ? "diğer" : "asansör"].map(tc).join(" ");
         if (!hay.includes(s)) return false;
       }
       if (fil.firma && !tc(c.short_name).includes(tc(fil.firma))) return false;
       if (fil.sehir && tc(c.city) !== tc(fil.sehir)) return false;
       if (fil.yetkili && !tc(c.authorized_person).includes(tc(fil.yetkili))) return false;
-      if (fil.telefon && !tc(c.mobile_phone || c.phone).includes(tc(fil.telefon))) return false;
+      if (fil.telefon && !tc(c.mobile_phone).includes(tc(fil.telefon))) return false;
       if (fil.kategori && (c.category || "asansor") !== fil.kategori) return false;
       return true;
     });
@@ -514,7 +514,7 @@ export default function MusterilerClient({
                   <td className={td + " font-semibold"}>{c.short_name}</td>
                   <td className={td + " text-slate-500"}>{c.city ?? "—"}</td>
                   <td className={td + " text-slate-500"}>{c.authorized_person ?? "—"}</td>
-                  <td className={td + " text-slate-500"}>{c.mobile_phone || c.phone || "—"}</td>
+                  <td className={td + " text-slate-500"}>{c.mobile_phone || "—"}</td>
                   <td className={td}><span className="text-xs bg-brand-light text-brand px-2 py-1 rounded-full font-semibold">{(c.category || "asansor") === "diger" ? "Diğer" : "Asansör"}</span></td>
                   <td className={td + " text-right"}><button onClick={() => selectCompany(c)} className="text-xs font-bold text-brand hover:underline">Düzenle</button></td>
                 </tr>

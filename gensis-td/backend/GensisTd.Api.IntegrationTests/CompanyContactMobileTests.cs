@@ -60,6 +60,32 @@ public class CompanyContactMobileTests(ApiFixture api)
         }
     }
 
+    // Documents take the company phone only from mobile_phone (Şirket Telefonu, z8qgvcc10h): the PDF sources do not
+    // offer the legacy phone column, and the Next routes overwrite the render context's copy of it.
+    [Fact]
+    public async Task Document_sources_offer_only_the_company_phone()
+    {
+        var phone = await api.ScalarAsync<string>("SELECT phone FROM companies WHERE id = $1", CompanyA);
+        var mobile = await api.ScalarAsync<string>("SELECT mobile_phone FROM companies WHERE id = $1", CompanyA);
+        await api.ExecAsync("UPDATE companies SET phone = '0599 000 12 01', mobile_phone = '0599 000 12 02', contact_mobile_phone = '0599 000 12 03' WHERE id = $1", CompanyA);
+        try
+        {
+            var staff = await api.As(Staff);
+            foreach (var path in new[] { $"/api/projects/{ProjectA}/pdf-source", $"/api/proje-onay/{OnayA}" })
+            {
+                var company = (await staff.JsonAsync(path)).GetProperty("company");
+                Assert.False(company.TryGetProperty("phone", out _), path);
+                Assert.Equal("0599 000 12 02", company.GetProperty("mobilePhone").GetString());
+                Assert.DoesNotContain("0599 000 12 03", company.GetRawText());
+            }
+        }
+        finally
+        {
+            await api.ExecAsync("UPDATE companies SET phone = $1, mobile_phone = $2, contact_mobile_phone = NULL WHERE id = $3",
+                (object?)phone ?? DBNull.Value, (object?)mobile ?? DBNull.Value, CompanyA);
+        }
+    }
+
     [Fact]
     public async Task Readers_see_it_with_the_other_contact_details()
     {

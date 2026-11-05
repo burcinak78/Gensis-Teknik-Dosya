@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 type PdfSource = {
   context: any;
   project: { makineMuhendisId: string | null; elektrikMuhendisId: string | null; companyId: string; inputData: Record<string, any>; binaAdi: string | null; tdNo: string | null };
-  company: { phone: string | null; mobilePhone: string | null; email: string | null } | null;
+  company: { mobilePhone: string | null; email: string | null } | null;
   projectFiles: { kind: string; path: string; sortOrder: number }[];
   engineerDocs: { engineerId: string; docType: string; path: string }[];
   companyDocs: { id: string; docType: string; path: string | null; belgeNo: string | null; issueDate: string | null; notifiedBodyId: string | null }[];
@@ -87,11 +87,12 @@ async function handleGet(req: NextRequest) {
     // Kapakta Bina Adı — render context'te yoksa projects tablosundan tamamla
     if (prow.binaAdi && !ctx.bina_adi) ctx.bina_adi = prow.binaAdi;
     attach.isG = inp.modul_secim === "G";
-    // Firma Bilgileri: Telefon/E-posta render context'te boşsa companies tablosundan tamamla
+    // Firma telefonu yalnız Şirket Telefonu'ndan (mobile_phone); render context'in c.phone değeri kullanılmaz.
+    // E-posta render context'te boşsa companies tablosundan tamamlanır.
     const crow = src.company;
     if (crow) {
       ctx.firma = ctx.firma || {};
-      if (!ctx.firma.telefon) ctx.firma.telefon = crow.phone || crow.mobilePhone || null;
+      ctx.firma.telefon = crow.mobilePhone || null;
       if (!ctx.firma.email) ctx.firma.email = crow.email || null;
     }
     // Müşteri logosu (company_documents doc_type=logo) → header'da kısa ad yerine

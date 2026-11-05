@@ -16,7 +16,7 @@ public static class PdfSourceEndpoints
 {
     public record ProjectPart(
         Guid? MakineMuhendisId, Guid? ElektrikMuhendisId, Guid CompanyId, JsonElement InputData, string? BinaAdi, string? TdNo);
-    public record CompanyPart(string? Phone, string? MobilePhone, string? Email);
+    public record CompanyPart(string? MobilePhone, string? Email);
     public record ProjectFileRef(string Kind, string Path, int SortOrder);
     public record EngineerDocRef(Guid EngineerId, string DocType, string Path);
     public record CompanyDocRef(Guid Id, string DocType, string? Path, string? BelgeNo, DateOnly? IssueDate, Guid? NotifiedBodyId);
@@ -51,7 +51,7 @@ public static class PdfSourceEndpoints
                 ParseJson(context),
                 new ProjectPart(p.MakineMuhendisId, p.ElektrikMuhendisId, p.CompanyId, ParseJson(p.InputData), p.BinaAdi, p.TdNo),
                 await db.Companies.AsNoTracking().Where(c => c.Id == p.CompanyId)
-                    .Select(c => new CompanyPart(c.Phone, c.MobilePhone, c.Email)).SingleOrDefaultAsync(ct),
+                    .Select(c => new CompanyPart(c.MobilePhone, c.Email)).SingleOrDefaultAsync(ct),
                 await db.ProjectFiles.AsNoTracking().Where(f => f.ProjectId == id).OrderBy(f => f.SortOrder)
                     .Select(f => new ProjectFileRef(f.Kind, f.StoragePath, f.SortOrder)).ToListAsync(ct),
                 await db.EngineerDocuments.AsNoTracking().Where(d => engineerIds.Contains(d.EngineerId) && d.StoragePath != null)
