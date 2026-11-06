@@ -33,6 +33,9 @@ SELECT length(:'seed_password') >= 10 AS seed_password_ok \gset
 
 BEGIN;
 
+-- crypt()/gen_salt() for the test users' passwords; the EF schema does not create it.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- ---------- Reference data (kept by rollback.sql) ----------
 
 INSERT INTO public.provinces (id, name) VALUES
@@ -142,20 +145,21 @@ INSERT INTO public.engineers (id, full_name, discipline, title, chamber_reg_no, 
   ('7e570003-0000-4000-8000-000000000006', 'TEST-Can Beta',        'mekatronik', 'Mekatronik Mühendisi', 'TEST-MMO-0003', '7e570001-0000-4000-8000-000000000003', 'Test Adres 6', '0500 000 10 06')
 ON CONFLICT DO NOTHING;
 
--- One certificate per category, one brand per category, two models per brand.
+-- One certificate per category, one brand per category, two models per brand. Categories are found by code,
+-- so a database that already has them (other ids) works too.
 INSERT INTO public.certificates (id, cert_no, notified_body_id, issue_date, valid_until, belge_tipi, category_id, firma_adi)
 SELECT ('7e570007-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid, 'TEST-CERT-' || lpad(n::text, 3, '0'),
        CASE WHEN n % 2 = 0 THEN '7e570002-0000-4000-8000-000000000002' ELSE '7e570002-0000-4000-8000-000000000001' END::uuid,
        '2024-01-01'::date, '2029-01-01'::date, CASE WHEN n % 3 = 0 THEN 'uygunluk_beyani' ELSE 'mod_b' END,
-       ('7e570004-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid, 'TEST-Üretici ' || n
-FROM generate_series(1, 9) n
+       c.id, 'TEST-Üretici ' || n
+FROM (VALUES (1,'kabin'),(2,'motor'),(3,'kapi_kilidi'),(4,'kabin_kilidi'),(5,'tampon'),(6,'regulator'),(7,'fren'),(8,'kumanda'),(9,'hidrolik_unite')) k(n, code)
+JOIN public.equipment_categories c ON c.code = k.code
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.equipment_brands (id, category_id, name)
-SELECT ('7e570005-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid,
-       ('7e570004-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid, 'TEST-Marka ' || c.name
-FROM generate_series(1, 9) n
-JOIN public.equipment_categories c ON c.id = ('7e570004-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid
+SELECT ('7e570005-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid, c.id, 'TEST-Marka ' || c.name
+FROM (VALUES (1,'kabin'),(2,'motor'),(3,'kapi_kilidi'),(4,'kabin_kilidi'),(5,'tampon'),(6,'regulator'),(7,'fren'),(8,'kumanda'),(9,'hidrolik_unite')) k(n, code)
+JOIN public.equipment_categories c ON c.code = k.code
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.equipment_models (id, brand_id, name, certificate_id)
