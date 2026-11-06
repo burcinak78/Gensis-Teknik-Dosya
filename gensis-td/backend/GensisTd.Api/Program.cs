@@ -101,6 +101,7 @@ app.MapEngineerWriteEndpoints();
 app.MapPendingChangeEndpoints();
 app.MapProjeOnayEndpoints();
 app.MapTakipEndpoints();
+app.MapTakipSecimEndpoints();
 app.MapMuhasebeEndpoints();
 app.MapUserEndpoints();
 app.MapCatalogAdminEndpoints();

@@ -1797,6 +1797,10 @@ namespace GensisTd.Api.Data.Migrations
                         .HasColumnType("project_status")
                         .HasColumnName("status");
 
+                    b.Property<Guid?>("TakipId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("takip_id");
+
                     b.Property<string>("TdNo")
                         .HasColumnType("text")
                         .HasColumnName("td_no");
@@ -1825,6 +1829,8 @@ namespace GensisTd.Api.Data.Migrations
                     b.HasIndex(new[] { "CreatedBy" }, "idx_projects_created_by");
 
                     b.HasIndex(new[] { "Status" }, "idx_projects_status");
+
+                    b.HasIndex(new[] { "TakipId" }, "idx_projects_takip");
 
                     b.HasIndex(new[] { "TdNo" }, "idx_projects_td_no");
 
@@ -3183,6 +3189,12 @@ namespace GensisTd.Api.Data.Migrations
                         .HasForeignKey("ProvinceId")
                         .HasConstraintName("projects_province_id_fkey");
 
+                    b.HasOne("GensisTd.Api.Data.Entities.TakipProjeler", "Takip")
+                        .WithMany()
+                        .HasForeignKey("TakipId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("projects_takip_id_fkey");
+
                     b.Navigation("AssignedEngineerNavigation");
 
                     b.Navigation("Company");
@@ -3196,6 +3208,8 @@ namespace GensisTd.Api.Data.Migrations
                     b.Navigation("MakineMuhendis");
 
                     b.Navigation("Province");
+
+                    b.Navigation("Takip");
                 });
 
             modelBuilder.Entity("GensisTd.Api.Data.Entities.ProjectDocumentChoice", b =>

@@ -966,6 +966,8 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.TdNo, "idx_projects_td_no");
 
+            entity.HasIndex(e => e.TakipId, "idx_projects_takip");
+
             entity.HasIndex(e => new { e.CompanyId, e.DosyaNo }, "projects_company_id_dosya_no_key").IsUnique();
 
             entity.Property(e => e.Id)
@@ -999,6 +1001,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Notes).HasColumnName("notes");
             entity.Property(e => e.ProvinceId).HasColumnName("province_id");
             entity.Property(e => e.TdNo).HasColumnName("td_no");
+            entity.Property(e => e.TakipId).HasColumnName("takip_id");
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("updated_at");
@@ -1031,6 +1034,11 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Province).WithMany(p => p.Projects)
                 .HasForeignKey(d => d.ProvinceId)
                 .HasConstraintName("projects_province_id_fkey");
+
+            entity.HasOne(d => d.Takip).WithMany()
+                .HasForeignKey(d => d.TakipId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("projects_takip_id_fkey");
         });
 
         modelBuilder.Entity<ProjectEquipment>(entity =>

@@ -24,7 +24,7 @@ public static class ProjectEndpoints
         DateOnly? DosyaTarihi, string? TdNo, ProjectStatus Status, ModuleType? CertificationModule, string? BinaAdi,
         string? MontajAdresi, short? ProvinceId, Guid? DistrictId, Guid? ElektrikMuhendisId, Guid? MakineMuhendisId,
         int? BeyanYukuKg, int? KisiSayisi, decimal? BeyanHizi, int? KatAdedi, int? DurakAdedi, int? ImalYili,
-        JsonElement InputData, string? Notes, DateTime CreatedAt, DateTime UpdatedAt);
+        JsonElement InputData, string? Notes, DateTime CreatedAt, DateTime UpdatedAt, Guid? TakipId);
 
     public static void MapProjectEndpoints(this WebApplication app)
     {
@@ -83,7 +83,7 @@ public static class ProjectEndpoints
                 p.Id, p.CompanyId, p.Company.ShortName, p.CreatedBy, p.AssignedEngineer, p.DosyaNo, p.DosyaTarihi, p.TdNo,
                 p.Status, p.CertificationModule, p.BinaAdi, p.MontajAdresi, p.ProvinceId, p.DistrictId, p.ElektrikMuhendisId,
                 p.MakineMuhendisId, p.BeyanYukuKg, p.KisiSayisi, p.BeyanHizi, p.KatAdedi, p.DurakAdedi, p.ImalYili,
-                ReadInput(p.InputData), p.Notes, p.CreatedAt, p.UpdatedAt));
+                ReadInput(p.InputData), p.Notes, p.CreatedAt, p.UpdatedAt, p.TakipId));
         });
     }
 

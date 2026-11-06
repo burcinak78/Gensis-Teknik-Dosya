@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveDraftProject, updateDraftProject, uploadProjectFile, deleteProjectFile, sendProjectToMuhasebe, removeProjectFromMuhasebe, loadDistricts, uploadEngineerDocument, type DraftPayload } from "./api";
+import type { TakipSecim } from "./reference";
 
 type Company = {
   id: string; short_name: string; legal_name: string; address: string | null;
@@ -49,6 +50,7 @@ export type InitialData = {
   faturali?: string; fiyat?: string; teslimDurumu?: string; teslimTarihi?: string; teslimTipi?: string;
   muhasebeKilit?: boolean; // muhasebe teslim edildi → Dosya Tamamlama kilitli
   files?: ProjectFile[];
+  takipId?: string; // Proje Takip job the file was opened from (z8qgvcc7xf); "" for older files
 };
 
 type Props = {
@@ -60,6 +62,7 @@ type Props = {
   companyDocuments?: CompanyDoc[];
   engineerDocuments?: { engineer_id: string; doc_type: string; valid_until: string | null }[];
   initial?: InitialData | null;
+  takipProjects?: TakipSecim[];
 };
 
 const STEPS = ["Firma", "Yapı Ruhsatı", "Belgeler", "Asansör", "Ekipmanlar", "Dosya İşlemleri"];
@@ -166,6 +169,23 @@ function buildFloors(start: string, count: number): string[] {
   return out;
 }
 
+// Proje Takip dokümanları TD'ye kopyalanmaz: bağlantıyla açılır (z8qgvcc7xf).
+const TAKIP_DOC_LABEL: Record<string, string> = {
+  mimari_proje: "Mimari Proje", elektrik_projesi: "Elektrik Projesi", statik_projesi: "Statik Projesi", olcu_formu: "Ölçü Formu",
+  yapi_ruhsati: "Yapı Ruhsatı", diger: "Diğer", tamamlanan_proje: "Tamamlanan Proje", revize_proje: "Revize Proje",
+};
+
+function TakipDocLink({ doc, prefix }: { doc: { id: string; kind: string; originalName: string | null }; prefix: string }) {
+  return (
+    <div className="text-xs text-emerald-700 mt-1">
+      {prefix}{" "}
+      <a href={`/api/files/takip-secim/${doc.id}`} target="_blank" rel="noreferrer" className="font-semibold text-navy hover:underline">
+        {doc.originalName || TAKIP_DOC_LABEL[doc.kind] || doc.kind}
+      </a>
+    </div>
+  );
+}
+
 export default function DataEntryWizard(props: Props) {
   const router = useRouter();
 
@@ -175,6 +195,10 @@ export default function DataEntryWizard(props: Props) {
   const [step, setStep] = useState(0);
   const [companyId, setCompanyId] = useState(init?.companyId ?? "");
   const [dosyaNo, setDosyaNo] = useState(init?.dosyaNo ?? "");
+  // Proje Takip bağı: seçilince ortak bilgiler dolar; hepsi sonradan değiştirilebilir, takip kaydı değişmez.
+  const [takipId, setTakipId] = useState(init?.takipId ?? "");
+  const takipList = props.takipProjects ?? [];
+  const takip = takipList.find((t) => t.id === takipId) ?? null;
   const [dosyaTarihi, setDosyaTarihi] = useState(init?.dosyaTarihi ?? new Date().toISOString().slice(0, 10));
   const [binaAdi, setBinaAdi] = useState(init?.binaAdi ?? "");
   const [montajAdresi, setMontajAdresi] = useState(init?.montajAdresi ?? "");
@@ -367,7 +391,14 @@ export default function DataEntryWizard(props: Props) {
     : { motorGucu, karsiAgirlikYeri };
 
   // Yapı ruhsatı dosyası yüklü mü (staged veya kayıtlı) — zorunlu
-  const yapiRuhsatiVar = (pending["yapi_ruhsati"]?.length ?? 0) > 0 || existingFiles.some((f) => f.kind === "yapi_ruhsati");
+  const kendiRuhsatVar = (pending["yapi_ruhsati"]?.length ?? 0) > 0 || existingFiles.some((f) => f.kind === "yapi_ruhsati");
+  // TD'nin kendi ruhsatı yoksa Proje Takip'teki geçer (PDF'e de o girer); 20 ek sınırına sayılmaz.
+  const takipRuhsat = takip?.docs.find((d) => d.kind === "yapi_ruhsati") ?? null;
+  const yapiRuhsatiVar = kendiRuhsatVar || !!takipRuhsat;
+  const takipDigerDocs = (takip?.docs ?? []).filter((d) => d.kind !== "yapi_ruhsati");
+  // Projeye bağlı diğer TD'ler (düzenlenen TD hariç); asansör sayısı aşılırsa yalnız uyarı.
+  const takipBagliTd = takip ? takip.linkedTdCount - (init?.takipId === takip.id ? 1 : 0) : 0;
+  const takipSiniriAsildi = !!takip && takip.asansorSayisi != null && takipBagliTd >= takip.asansorSayisi;
   // zorunlu alanlar
   const requiredMap: Record<string, any> = {
     companyId, dosyaNo, dosyaTarihi, makineMuhId, elektrikMuhId, binaAdi, montajAdresi, provinceId, districtId,
@@ -517,6 +548,37 @@ export default function DataEntryWizard(props: Props) {
     setIlgiliIdareId(""); // il değişince ilgili idare seçimini sıfırla
     if (id !== "") {
       setDistricts(await loadDistricts(id));
+    }
+  }
+
+  // Proje Takip'ten proje seç: firma, proje no, bina adı, ada/parsel, il/ilçe, seri no ve asansör tipi dolar.
+  async function pickTakip(id: string) {
+    setTakipId(id);
+    const t = takipList.find((x) => x.id === id);
+    if (!t) return;
+    if (t.companyId) setCompanyId(t.companyId);
+    setDosyaNo(String(t.projeNo));
+    if (t.isAdi) setBinaAdi(t.isAdi);
+    if (t.ada) setAda(t.ada);
+    if (t.parsel) setParsel(t.parsel);
+    if (t.asansorSeriNo) setAsansorSeriNo(t.asansorSeriNo);
+    if (t.asansorTipi === "MR" || t.asansorTipi === "MRL") {
+      setAsansorTipi("elektrik");
+      setMakineDairesi(t.asansorTipi === "MR" ? "var" : "yok");
+    } else if (t.asansorTipi === "HD_INSAN" || t.asansorTipi === "HD_YUK") {
+      setAsansorTipi("hidrolik");
+      setAsansorSinifi(t.asansorTipi === "HD_INSAN" ? "Sınıf I: İnsan Asansörü" : "Sınıf IV: Yük Asansörü");
+    }
+    if (t.provinceId != null) {
+      setProvinceId(t.provinceId);
+      setDistrictId("");
+      setIlgiliIdareId("");
+      // Takip'te ilçe id'si metin olarak durur; id değilse il + ilçe adıyla eşle.
+      const list = await loadDistricts(t.provinceId);
+      setDistricts(list);
+      const d = list.find((x) => x.id === t.districtId)
+        ?? list.find((x) => t.ilceAdi && x.name.toLocaleLowerCase("tr") === t.ilceAdi.trim().toLocaleLowerCase("tr"));
+      if (d) setDistrictId(d.id);
     }
   }
 
@@ -683,6 +745,7 @@ export default function DataEntryWizard(props: Props) {
         ub_e_belge_no: ceE?.belge_no ?? "", ub_e_nb: eNb.ad, ub_e_nb_no: eNb.no, ub_e_nb_adres: eNb.adres,
       },
       equipment,
+      takip_id: takipId || null,
     };
 
     const res = currentId ? await updateDraftProject(currentId, payload) : await saveDraftProject(payload);
@@ -1044,11 +1107,32 @@ export default function DataEntryWizard(props: Props) {
                 <p className="text-xs text-slate-400 mt-1">Seçime göre asansör alanları ve ekipman listesi (motor ↔ hidrolik valfler) değişir.</p>
               </Field>
               <Field label="Montaj / Mimarlık Firması *">
-                <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} className={"inp" + ec(companyId)}>
+                <select value={companyId} onChange={(e) => { setCompanyId(e.target.value); if (takip && takip.companyId !== e.target.value) setTakipId(""); }} className={"inp" + ec(companyId)}>
                   <option value="">Firma seçiniz…</option>
                   {props.companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
                 </select>
               </Field>
+              {takipList.length > 0 && (
+                <Field label="Proje Takip'ten seç">
+                  <select className="inp" value={takip ? takipId : ""} onChange={(e) => (e.target.value ? pickTakip(e.target.value) : setTakipId(""))}>
+                    <option value="">— Proje Takip'te yok / elle gir —</option>
+                    {takipList.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.projeNo} · {props.companies.find((c) => c.id === t.companyId)?.short_name ?? "—"}{t.isAdi ? ` · ${t.isAdi}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-slate-400 mt-1">Tamamlanan projeler listelenir. Seçince ortak bilgiler ve dokümanlar gelir; gelen bilgileri değiştirebilirsiniz.</p>
+                  {takipSiniriAsildi && (
+                    <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-1">
+                      Bu projeye zaten {takipBagliTd} teknik dosya bağlı; asansör sayısı {takip!.asansorSayisi}. Yine de kaydedebilirsiniz.
+                    </p>
+                  )}
+                </Field>
+              )}
+              {takipId && !takip && (
+                <p className="text-[11px] text-slate-500">Bu teknik dosya bir Proje Takip projesine bağlı (listede görünmüyor).</p>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Proje No *"><input className={"inp" + ec(dosyaNo)} value={dosyaNo} onChange={(e) => setDosyaNo(e.target.value)} placeholder="Proje No" /></Field>
                 <Field label="Tarih *"><input type="date" className={"inp" + ec(dosyaTarihi)} value={dosyaTarihi} onChange={(e) => setDosyaTarihi(e.target.value)} /></Field>
@@ -1089,7 +1173,14 @@ export default function DataEntryWizard(props: Props) {
                   staged={pending["yapi_ruhsati"] ?? []} existing={existingFiles.filter((f) => f.kind === "yapi_ruhsati")}
                   onAdd={(l) => addFiles("yapi_ruhsati", l)} onRemoveStaged={(i) => removeStaged("yapi_ruhsati", i)} onDelete={silExisting} />
                 {showErrors && !yapiRuhsatiVar && <p className="text-[11px] text-red-600 mt-1">Yapı ruhsatı dosyası zorunludur.</p>}
+                {takipRuhsat && !kendiRuhsatVar && <TakipDocLink doc={takipRuhsat} prefix="✓ Yüklendi — Proje Takip'ten:" />}
               </div>
+              {takipDigerDocs.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <div className="text-xs font-bold text-slate-500 uppercase mb-1">Proje dokümanları (Proje Takip {takip?.projeNo})</div>
+                  {takipDigerDocs.map((d) => <TakipDocLink key={d.id} doc={d} prefix={`✓ ${TAKIP_DOC_LABEL[d.kind] ?? d.kind}:`} />)}
+                </div>
+              )}
               <Field label="Bina Adı *"><input className={"inp" + ec(binaAdi)} value={binaAdi} onChange={(e) => setBinaAdi(e.target.value)} /></Field>
               <Field label="Montaj Adresi *"><input className={"inp" + ec(montajAdresi)} value={montajAdresi} onChange={(e) => setMontajAdresi(e.target.value)} /></Field>
               <div className="grid grid-cols-2 gap-4">

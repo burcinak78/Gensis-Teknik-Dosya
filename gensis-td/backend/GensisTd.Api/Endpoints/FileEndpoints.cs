@@ -58,6 +58,10 @@ public static class FileEndpoints
             await RedirectAsync(storage, DocumentsBucket,
                 await db.TakipDokumanlars.AsNoTracking().Where(d => d.Id == id).Select(d => d.StoragePath).SingleOrDefaultAsync(ct)))
             .RequireAuthorization(Policies.Office);
+
+        // A Proje Takip document linked to a teknik dosya (z8qgvcc7xf): whoever may pick the job, customers included.
+        g.MapGet("/takip-secim/{id:guid}", async (Guid id, Actor actor, AppDbContext db, StorageService storage, CancellationToken ct) =>
+            await RedirectAsync(storage, DocumentsBucket, await TakipSecimEndpoints.DocumentKeyAsync(db, actor, id, ct)));
     }
 
     private static async Task<IResult> RedirectAsync(StorageService storage, string bucket, string? key) =>

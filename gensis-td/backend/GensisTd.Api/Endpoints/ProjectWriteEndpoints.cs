@@ -24,7 +24,7 @@ public static partial class ProjectWriteEndpoints
         Guid CompanyId, string? DosyaNo, DateOnly? DosyaTarihi, Guid? MakineMuhendisId, Guid? ElektrikMuhendisId,
         string? BinaAdi, string? MontajAdresi, short? ProvinceId, Guid? DistrictId, int? BeyanYukuKg, int? KisiSayisi,
         decimal? BeyanHizi, int? KatAdedi, int? DurakAdedi, int? ImalYili, JsonElement? InputData,
-        List<EquipmentInput>? Equipment);
+        List<EquipmentInput>? Equipment, Guid? TakipId = null);
 
     public record CreatedProject(Guid Id, string TdNo);
 
@@ -38,6 +38,7 @@ public static partial class ProjectWriteEndpoints
             // RLS p_projects_insert: staff, or a member of the project's company.
             if (!actor.CanAccessCompany(input.CompanyId)) return Results.Forbid();
             if (await EngineerRule.ValidateAsync(db, input.CompanyId, input.MakineMuhendisId, input.ElektrikMuhendisId, gensis.Id, ct) is { } badEngineer) return badEngineer;
+            if (await TakipSecimEndpoints.ValidateLinkAsync(db, actor, input.TakipId, input.CompanyId, null, ct) is { } badLink) return badLink;
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             var project = new Project { Id = Guid.NewGuid(), CreatedBy = actor.UserId, TdNo = await NextTdNoAsync(db, ct) };
@@ -64,6 +65,7 @@ public static partial class ProjectWriteEndpoints
             if (companyChanged && await DocumentLibraryEndpoints.IsPostedAsync(db, project.TdNo, ct))
                 return Results.Conflict(new { error = "Muhasebe teslim etti: bu teknik dosyanın firması değiştirilemez." });
             if (await EngineerRule.ValidateAsync(db, input.CompanyId, input.MakineMuhendisId, input.ElektrikMuhendisId, gensis.Id, ct) is { } badEngineer) return badEngineer;
+            if (await TakipSecimEndpoints.ValidateLinkAsync(db, actor, input.TakipId, input.CompanyId, project.TakipId, ct) is { } badLink) return badLink;
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             Apply(project, input);
@@ -129,6 +131,7 @@ public static partial class ProjectWriteEndpoints
         p.KatAdedi = i.KatAdedi;
         p.DurakAdedi = i.DurakAdedi;
         p.ImalYili = i.ImalYili;
+        p.TakipId = i.TakipId;
         p.InputData = i.InputData is { ValueKind: JsonValueKind.Object } json ? json.GetRawText() : "{}";
     }
 

@@ -12,6 +12,7 @@ type ProjectApi = {
   montajAdresi: string | null; provinceId: number | null; districtId: string | null; elektrikMuhendisId: string | null;
   makineMuhendisId: string | null; beyanYukuKg: number | null; kisiSayisi: number | null; beyanHizi: number | null;
   katAdedi: number | null; durakAdedi: number | null; imalYili: number | null; inputData: Record<string, any>;
+  takipId: string | null;
 };
 type EquipmentApi = { categoryId: string; slot: string; brandId: string | null; modelId: string | null; seriNo: string | null; seriList: unknown };
 
@@ -61,6 +62,7 @@ export default async function DuzenlePage(props: { params: Promise<{ id: string 
   const initial: InitialData = {
     id: project.id,
     companyId: project.company_id ?? "",
+    takipId: p.takipId ?? "",
     dosyaNo: project.dosya_no ?? "",
     dosyaTarihi: project.dosya_tarihi ? String(project.dosya_tarihi).slice(0, 10) : new Date().toISOString().slice(0, 10),
     binaAdi: project.bina_adi ?? "",

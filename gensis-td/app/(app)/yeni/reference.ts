@@ -25,9 +25,16 @@ type CompanyDocApi = {
   notifiedBodyId: string | null; originalName: string | null;
 };
 type EngineerDocApi = { id: string; engineerId: string; docType: string; validUntil: string | null };
+// Completed Proje Takip jobs the user may open a TD from (z8qgvcc7xf); customers get only their own company's.
+export type TakipSecim = {
+  id: string; projeNo: number; companyId: string | null; isAdi: string | null; ada: string | null; parsel: string | null;
+  provinceId: number | null; districtId: string | null; ilAdi: string | null; ilceAdi: string | null;
+  asansorSayisi: number | null; asansorTipi: string | null; asansorSeriNo: string | null; linkedTdCount: number;
+  docs: { id: string; kind: string; originalName: string | null }[];
+};
 
 export async function loadWizardReference() {
-  const [companies, equipment, certificates, notifiedBodies, provinces, idareler, capacity, lookups, engineers, companyDocs, engDocs] =
+  const [companies, equipment, certificates, notifiedBodies, provinces, idareler, capacity, lookups, engineers, companyDocs, engDocs, takip] =
     await Promise.all([
       apiGet<CompanyApi[]>("/api/catalog/companies"),
       apiGet<EquipmentApi>("/api/catalog/equipment"),
@@ -41,6 +48,7 @@ export async function loadWizardReference() {
       apiGet<CompanyDocApi[]>("/api/catalog/company-documents"),
       // Staff only (as Supabase RLS); customers get an empty list, so no signature preview for them.
       apiGet<EngineerDocApi[]>("/api/catalog/engineer-documents"),
+      apiGet<TakipSecim[]>("/api/takip-secim"),
     ]);
 
   const imzaByEng = new Map((engDocs ?? []).filter((d) => d.docType === "imza").map((d) => [d.engineerId, d.id]));
@@ -71,5 +79,6 @@ export async function loadWizardReference() {
       valid_until: d.validUntil, notified_body_id: d.notifiedBodyId, original_name: d.originalName,
     })),
     engineerDocuments: (engDocs ?? []).map((d) => ({ engineer_id: d.engineerId, doc_type: d.docType, valid_until: d.validUntil })),
+    takipProjects: takip ?? [],
   };
 }

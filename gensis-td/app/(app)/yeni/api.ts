@@ -17,6 +17,7 @@ export type DraftPayload = {
   kat_adedi: number | null; durak_adedi: number | null; imal_yili: number | null;
   input_data: Record<string, unknown>;
   equipment: EquipmentSel[];
+  takip_id: string | null; // Proje Takip job the file was opened from (z8qgvcc7xf)
 };
 
 const errorText = (e: unknown, fallback: string) =>
@@ -31,7 +32,7 @@ function toProjectInput(p: DraftPayload) {
     binaAdi: p.bina_adi, montajAdresi: p.montaj_adresi, provinceId: orNull(p.province_id), districtId: orNull(p.district_id),
     beyanYukuKg: p.beyan_yuku_kg, kisiSayisi: p.kisi_sayisi, beyanHizi: p.beyan_hizi,
     katAdedi: p.kat_adedi, durakAdedi: p.durak_adedi, imalYili: p.imal_yili,
-    inputData: p.input_data,
+    inputData: p.input_data, takipId: orNull(p.takip_id),
     equipment: p.equipment.map((e) => ({
       categoryId: e.category_id, slot: e.slot, brandId: orNull(e.brand_id), modelId: orNull(e.model_id),
       certificateId: orNull(e.certificate_id), seriNo: e.seri_no, seriList: e.seri_list ?? null,

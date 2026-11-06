@@ -54,6 +54,11 @@ public partial class Project
 
     public string? TdNo { get; set; }
 
+    /// <summary>Proje Takip job (root row) this file was opened from; null for older files (z8qgvcc7xf).</summary>
+    public Guid? TakipId { get; set; }
+
+    public virtual TakipProjeler? Takip { get; set; }
+
     public virtual Profile? AssignedEngineerNavigation { get; set; }
 
     public virtual Company Company { get; set; } = null!;

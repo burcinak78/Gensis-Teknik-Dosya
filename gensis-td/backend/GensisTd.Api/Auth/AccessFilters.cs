@@ -66,6 +66,16 @@ public static class AccessFilters
         : gensisCompanyId is { } gid ? q.Where(x => x.CompanyId == cid || x.CompanyId == gid)
         : q.Where(x => x.CompanyId == cid);
 
+    // TD wizard "Proje No" (z8qgvcc7xf): completed Proje Takip jobs a teknik dosya may be opened from. Root rows only
+    // (no revision, no accounting row of a TD). Staff see all; a customer only jobs whose company is theirs, not
+    // jobs where it is the montaj firm (user decision 2026-11-06). The accountant is not staff: like any company
+    // user, only its own company's jobs. A user without a company: nothing.
+    public static IQueryable<TakipProjeler> SelectableBy(this IQueryable<TakipProjeler> q, Actor a)
+    {
+        var roots = q.Where(t => t.ParentId == null && t.TdNo == null && t.Durum == "TAMAMLANDI");
+        return a.IsStaff ? roots : a.CompanyId is { } cid ? roots.Where(t => t.CompanyId == cid) : roots.Where(_ => false);
+    }
+
     // p_profiles_select: own profile, staff see all
     public static IQueryable<Profile> VisibleTo(this IQueryable<Profile> q, Actor a) =>
         a.IsStaff ? q : q.Where(x => x.Id == a.UserId);

@@ -48,14 +48,19 @@ public static class PdfSourceEndpoints
                 .Select(e => new { e.Slot, CategoryCode = e.Category.Code, BrandName = e.Brand != null ? e.Brand.Name : null, e.CertificateId, e.SeriList })
                 .ToListAsync(ct);
             var certIds = equipment.Select(e => e.CertificateId).OfType<Guid>().Distinct().ToList();
+            var files = await db.ProjectFiles.AsNoTracking().Where(f => f.ProjectId == id).OrderBy(f => f.SortOrder)
+                .Select(f => new ProjectFileRef(f.Kind, f.StoragePath, f.SortOrder)).ToListAsync(ct);
+            // No yapı ruhsatı of its own: the linked Proje Takip job's goes in (z8qgvcc7xf, same bucket).
+            if (!files.Any(f => f.Kind == "yapi_ruhsati"))
+                files.AddRange((await TakipSecimEndpoints.LinkedYapiRuhsatiAsync(db, p.TakipId, p.CompanyId, ct))
+                    .Select(path => new ProjectFileRef("yapi_ruhsati", path, int.MaxValue)));
 
             return Results.Ok(new TeknikDosyaSource(
                 ParseJson(context),
                 new ProjectPart(p.MakineMuhendisId, p.ElektrikMuhendisId, p.CompanyId, ParseJson(p.InputData), p.BinaAdi, p.TdNo),
                 await db.Companies.AsNoTracking().Where(c => c.Id == p.CompanyId)
                     .Select(c => new CompanyPart(c.MobilePhone, c.Email)).SingleOrDefaultAsync(ct),
-                await db.ProjectFiles.AsNoTracking().Where(f => f.ProjectId == id).OrderBy(f => f.SortOrder)
-                    .Select(f => new ProjectFileRef(f.Kind, f.StoragePath, f.SortOrder)).ToListAsync(ct),
+                files,
                 await db.EngineerDocuments.AsNoTracking().Where(d => engineerIds.Contains(d.EngineerId) && d.StoragePath != null)
                     .Select(d => new EngineerDocRef(d.EngineerId, d.DocType, d.StoragePath!)).ToListAsync(ct),
                 await db.CompanyDocuments.AsNoTracking().Where(d => d.CompanyId == p.CompanyId)
@@ -81,9 +86,9 @@ public static class PdfSourceEndpoints
             if (string.IsNullOrEmpty(path) || bucket is not (FileEndpoints.DocumentsBucket or FileEndpoints.CertificatesBucket))
                 return Results.NotFound();
             var p = await db.Projects.AsNoTracking().VisibleTo(actor)
-                .Select(x => new { x.Id, x.CompanyId, x.MakineMuhendisId, x.ElektrikMuhendisId })
+                .Select(x => new { x.Id, x.CompanyId, x.MakineMuhendisId, x.ElektrikMuhendisId, x.TakipId })
                 .SingleOrDefaultAsync(x => x.Id == id, ct);
-            if (p is null || !await BelongsToProjectAsync(db, p.Id, p.CompanyId, p.MakineMuhendisId, p.ElektrikMuhendisId, bucket, path, ct))
+            if (p is null || !await BelongsToProjectAsync(db, p.Id, p.CompanyId, p.MakineMuhendisId, p.ElektrikMuhendisId, p.TakipId, bucket, path, ct))
                 return Results.NotFound();
 
             var obj = await storage.OpenReadAsync(bucket, path, ct);
@@ -96,7 +101,7 @@ public static class PdfSourceEndpoints
     }
 
     private static async Task<bool> BelongsToProjectAsync(AppDbContext db, Guid projectId, Guid companyId, Guid? makine, Guid? elektrik,
-        string bucket, string path, CancellationToken ct)
+        Guid? takipId, string bucket, string path, CancellationToken ct)
     {
         if (bucket == FileEndpoints.CertificatesBucket)
             return await db.CertificateFiles.AnyAsync(f => f.IsCurrent && f.StoragePath == path
@@ -108,7 +113,10 @@ public static class PdfSourceEndpoints
             || await db.CompanyDocuments.AnyAsync(d => d.StoragePath == path && d.CompanyId == companyId, ct)
             // Library files only through this project's choice, not "any document of the company".
             || await db.ProjectDocumentChoices.AnyAsync(c => c.ProjectId == projectId
-                && c.LibraryDocument.StoragePath == path && c.LibraryDocument.CompanyId == companyId, ct);
+                && c.LibraryDocument.StoragePath == path && c.LibraryDocument.CompanyId == companyId, ct)
+            // The linked Proje Takip permit, only when it is the one pdf-source hands out (z8qgvcc7xf).
+            || (!await db.ProjectFiles.AnyAsync(f => f.ProjectId == projectId && f.Kind == "yapi_ruhsati", ct)
+                && (await TakipSecimEndpoints.LinkedYapiRuhsatiAsync(db, takipId, companyId, ct)).Contains(path));
     }
 
     private static JsonElement ParseJson(string? json)
