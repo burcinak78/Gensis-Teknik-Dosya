@@ -97,17 +97,20 @@ public static class CompanyWriteEndpoints
             return Results.Ok(new { message = "Müşteri, belgeleri ve bağlı mühendisleri silindi." });
         }).RequireAuthorization(Policies.Staff);
 
+        // Deletes a company document with its file. A Modül B document's "Ek" rows go with it (parent_id cascade), and now
+        // their files too: before, the cascade left them in storage. Used by the edit form on save and by "Sil" (z8qgvcccd1).
         app.MapDelete("/api/companies/documents/{docId:guid}", async (Guid docId, AppDbContext db, StorageService storage,
             ILoggerFactory logs, CancellationToken ct) =>
         {
-            var doc = await db.CompanyDocuments.SingleOrDefaultAsync(d => d.Id == docId, ct);
-            if (doc is null) return Results.NotFound();
-            db.CompanyDocuments.Remove(doc);
+            var rows = await db.CompanyDocuments.Where(d => d.Id == docId || d.ParentId == docId).ToListAsync(ct);
+            if (!rows.Any(d => d.Id == docId)) return Results.NotFound();
+            var paths = rows.Select(d => d.StoragePath).OfType<string>().ToList();
+            db.CompanyDocuments.RemoveRange(rows);
             await db.SaveChangesAsync(ct);
-            if (doc.StoragePath is { } path)
-                await storage.DeleteQuietlyAsync(FileEndpoints.DocumentsBucket, [path], logs.CreateLogger(nameof(CompanyWriteEndpoints)));
+            // Files go once the rows are gone; a failed object delete leaves an orphan, never a row without a file.
+            await storage.DeleteQuietlyAsync(FileEndpoints.DocumentsBucket, paths, logs.CreateLogger(nameof(CompanyWriteEndpoints)));
             return Results.Ok(new { message = "Belge silindi." });
-        }).RequireAuthorization(Policies.Staff);
+        }).RequireAuthorization(DeleteDocumentPolicy);
 
         var g = app.MapGroup("/api/companies/{id:guid}").RequireAuthorization();
 
@@ -191,7 +194,41 @@ public static class CompanyWriteEndpoints
                 await storage.DeleteQuietlyAsync(FileEndpoints.DocumentsBucket, [replaced], logs.CreateLogger(nameof(CompanyWriteEndpoints)));
             return Results.Ok(new WriteResult(false, doc.Id));
         });
+
+        // Yönetim > Müşteriler > Düzenle "Sil" (z8qgvcccd1) asks this before DELETE /api/companies/documents/{docId}: how many
+        // Ek rows go with it and how many teknik dosyalar will miss it. Nothing breaks: TDs read company documents when the
+        // PDF is made, so the next PDF lacks it until a new one is uploaded (a chosen CE document must be chosen again).
+        g.MapGet("/documents/{docId:guid}/usage", async (Guid id, Guid docId, AppDbContext db, CancellationToken ct) =>
+        {
+            var doc = await db.CompanyDocuments.AsNoTracking().Where(d => d.Id == docId && d.CompanyId == id)
+                .Select(d => new { d.DocType }).SingleOrDefaultAsync(ct);
+            if (doc is null) return Results.NotFound();
+            var attachments = await db.CompanyDocuments.CountAsync(d => d.ParentId == docId, ct);
+            return Results.Ok(new DocumentUsage(attachments, await ProjectsUsingAsync(db, id, docId, doc.DocType, ct)));
+        }).RequireAuthorization(DeleteDocumentPolicy);
     }
+
+    public record DocumentUsage(int Attachments, int Projects);
+
+    /// <summary>
+    /// Who may delete a company document from Yönetim (z8qgvcccd1): admin and gensis, the second exception to "no delete
+    /// for gensis in Yönetim" after Dokümanlar (user decision 2026-11-06). Customers ("Firmam") cannot.
+    /// </summary>
+    public const string DeleteDocumentPolicy = Policies.Staff;
+
+    /// <summary>
+    /// Teknik dosyalar of the company whose next PDF would miss the document: for a CE document the files that chose
+    /// it in their Belgeler step; for the other types (logo, imza sirküleri, sanayi sicil, TSE ...) every file of the
+    /// company, as the PDF takes the company's newest one of that type.
+    /// </summary>
+    private static async Task<int> ProjectsUsingAsync(AppDbContext db, Guid companyId, Guid docId, string docType, CancellationToken ct) =>
+        docType.StartsWith("ce")
+            ? (await db.Database.SqlQuery<int>($"""
+                SELECT count(*)::int AS "Value" FROM projects
+                WHERE company_id = {companyId} AND jsonb_typeof(input_data->'modul_belge_ids') = 'array'
+                  AND input_data->'modul_belge_ids' ? {docId.ToString()}
+                """).ToListAsync(ct)).Single()
+            : await db.Projects.CountAsync(p => p.CompanyId == companyId, ct);
 
     // Same columns and payload keys as the live action, so approval applies them unchanged.
     private static Dictionary<string, object?> Columns(CompanyInput input) => new()

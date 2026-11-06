@@ -4,6 +4,7 @@ import { formatMobile } from "@/lib/phone";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createCompany, updateCompany, deleteCompany, uploadCompanyDocument, deleteCompanyDocument, createNotifiedBody } from "../api";
+import { api } from "@/lib/api/client";
 
 type Company = {
   id: string; short_name: string; legal_name: string | null; address: string | null;
@@ -122,6 +123,32 @@ export default function MusterilerClient({
     }));
     return { logo: one("logo"), imza_sirkuleri: one("imza_sirkuleri"), sanayi_sicil: one("sanayi_sicil"), tse_hyb: one("tse_hyb"), ce_h1: one("ce_h1"), ce_e: one("ce_e"), ce_tasarim: many("ce_tasarim"), ce_b: bList };
   }
+  // "Sil" next to an uploaded document (z8qgvcccd1): deleted right away (row + file), so the same type can be uploaded
+  // again. Yönetim only (admin + gensis), not the customer's Firmam. Warns about Ek rows and teknik dosyalar using it.
+  const canDeleteDoc = !isCustomer;
+  async function deleteDocNow(docId: string, clear: () => void) {
+    if (!editId) return;
+    let usage: { attachments: number; projects: number } | null = null;
+    try { usage = await api(`/api/companies/${editId}/documents/${docId}/usage`); } catch { usage = null; }
+    const parts = ["Bu belge ve dosyası kalıcı olarak silinecek."];
+    if (usage?.attachments) parts.push("Ekleriyle birlikte silinecek.");
+    if (usage?.projects) parts.push(`Bu firmanın ${usage.projects} teknik dosyasında kullanılıyor; yeniden yükleyene kadar belgelerde yer almaz.`);
+    if (!window.confirm(parts.join("\n\n") + "\n\nDevam edilsin mi?")) return;
+    const r = await deleteCompanyDocument(docId);
+    if (!r.ok) { setMsg({ ok: false, text: (r as any).error ?? "Belge silinemedi." }); return; }
+    clear();
+    setDocKey((k) => k + 1);
+    setMsg({ ok: true, text: "Belge silindi. Aynı türde yeni belge yükleyebilirsiniz." });
+    router.refresh();
+  }
+  const delSingle = (t: "imza_sirkuleri" | "sanayi_sicil" | "tse_hyb" | "ce_h1" | "ce_e") => (docId: string) =>
+    deleteDocNow(docId, () => setDocs((s) => ({ ...s, [t]: emptyRow() })));
+  const delTasarim = (i: number) => (docId: string) =>
+    deleteDocNow(docId, () => setDocs((s) => ({ ...s, ce_tasarim: s.ce_tasarim.filter((_, j) => j !== i) })));
+  const delB = (i: number) => (docId: string) =>
+    deleteDocNow(docId, () => setDocs((s) => ({ ...s, ce_b: s.ce_b.filter((_, j) => j !== i) })));
+  const delBEki = (i: number, j: number) => (docId: string) =>
+    deleteDocNow(docId, () => setDocs((s) => ({ ...s, ce_b: s.ce_b.map((x, bi) => (bi === i ? { ...x, eki: x.eki.filter((_, ej) => ej !== j) } : x)) })));
   const setSingle = (t: "logo" | "imza_sirkuleri" | "sanayi_sicil" | "tse_hyb" | "ce_h1" | "ce_e", patch: Partial<Row>) => setDocs((s) => ({ ...s, [t]: { ...s[t], ...patch } }));
   const setTasarim = (i: number, patch: Partial<Row>) => setDocs((s) => ({ ...s, ce_tasarim: s.ce_tasarim.map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
   const addTasarim = () => setDocs((s) => ({ ...s, ce_tasarim: [...s.ce_tasarim, emptyRow()] }));
@@ -343,9 +370,9 @@ export default function MusterilerClient({
         <h3 className="font-bold text-sm">Belgeler</h3>
         <p className="text-xs text-slate-400">Dosya + tarihleri gir; Kaydet ile birlikte yüklenir. 1 aydan az kalınca sarı, dolunca kırmızı.</p>
       </div>
-      <DocRow ad="İmza Sirküleri" row={docs.imza_sirkuleri} nbs={[]} hideDates onlyFile onChange={(p) => setSingle("imza_sirkuleri", p)} rk={`${docKey}-imza`} />
-      <DocRow ad="Sanayi Sicil Belgesi" row={docs.sanayi_sicil} nbs={nbs} onChange={(p) => setSingle("sanayi_sicil", p)} rk={`${docKey}-sanayi`} />
-      <DocRow ad="TSE HYB Belgesi" row={docs.tse_hyb} nbs={nbs} onChange={(p) => setSingle("tse_hyb", p)} rk={`${docKey}-hyb`} />
+      <DocRow ad="İmza Sirküleri" row={docs.imza_sirkuleri} nbs={[]} hideDates onlyFile onChange={(p) => setSingle("imza_sirkuleri", p)} onDelete={canDeleteDoc ? delSingle("imza_sirkuleri") : undefined} rk={`${docKey}-imza`} />
+      <DocRow ad="Sanayi Sicil Belgesi" row={docs.sanayi_sicil} nbs={nbs} onChange={(p) => setSingle("sanayi_sicil", p)} onDelete={canDeleteDoc ? delSingle("sanayi_sicil") : undefined} rk={`${docKey}-sanayi`} />
+      <DocRow ad="TSE HYB Belgesi" row={docs.tse_hyb} nbs={nbs} onChange={(p) => setSingle("tse_hyb", p)} onDelete={canDeleteDoc ? delSingle("tse_hyb") : undefined} rk={`${docKey}-hyb`} />
       <div className="border border-brand/20 bg-brand-light/40 rounded-xl p-3">
         <div className="flex items-center gap-3 mb-2">
           <span className="text-sm font-bold text-brand">CE Belgeleri</span>
@@ -360,7 +387,7 @@ export default function MusterilerClient({
         </div>
         {ceModule === "H1" ? (
           <div className="space-y-3">
-            <DocRow ad="Mod H1 Belgesi" row={docs.ce_h1} nbs={nbs} showBelgeNo showNb canAddNb={!isCustomer} onNbAdded={(n) => setNbs((a) => [...a, n])} onChange={(p) => setSingle("ce_h1", p)} rk={`${docKey}-h1`} />
+            <DocRow ad="Mod H1 Belgesi" row={docs.ce_h1} nbs={nbs} showBelgeNo showNb canAddNb={!isCustomer} onNbAdded={(n) => setNbs((a) => [...a, n])} onChange={(p) => setSingle("ce_h1", p)} onDelete={canDeleteDoc ? delSingle("ce_h1") : undefined} rk={`${docKey}-h1`} />
             <div className="text-xs font-semibold text-slate-600">Tasarım İnceleme Belgeleri</div>
             {docs.ce_tasarim.map((r, i) => (
               <div key={r.uid} className="border border-slate-200 rounded-xl p-3 space-y-2 bg-white">
@@ -375,7 +402,7 @@ export default function MusterilerClient({
                     {TI_TIPLERI.map((t) => <option key={t.v} value={t.v}>{t.ad}</option>)}
                   </select>
                 </div>
-                <DocRow ad="Belge Bilgileri" row={r} nbs={nbs} showBelgeNo showNb onChange={(p) => setTasarim(i, p)} rk={r.uid} />
+                <DocRow ad="Belge Bilgileri" row={r} nbs={nbs} showBelgeNo showNb onChange={(p) => setTasarim(i, p)} onDelete={canDeleteDoc ? delTasarim(i) : undefined} rk={r.uid} />
               </div>
             ))}
             <button type="button" onClick={addTasarim} className="text-xs font-semibold text-brand hover:underline">+ Tasarım İnceleme Ekle</button>
@@ -395,18 +422,18 @@ export default function MusterilerClient({
                     {B_TIPLERI.map((t) => <option key={t.v} value={t.v}>{t.ad}</option>)}
                   </select>
                 </div>
-                <DocRow ad="Belge Bilgileri" row={b} nbs={nbs} showBelgeNo showNb canAddNb={!isCustomer} onNbAdded={(n) => setNbs((a) => [...a, n])} onChange={(p) => setB(i, p)} rk={b.uid} />
+                <DocRow ad="Belge Bilgileri" row={b} nbs={nbs} showBelgeNo showNb canAddNb={!isCustomer} onNbAdded={(n) => setNbs((a) => [...a, n])} onChange={(p) => setB(i, p)} onDelete={canDeleteDoc ? delB(i) : undefined} rk={b.uid} />
                 <div className="pl-3 border-l-2 border-brand/20 space-y-2">
                   <div className="text-[11px] font-semibold text-slate-500">Bu Mod B'ye ait ekler (sadece dosya)</div>
                   {b.eki.map((e, j) => (
-                    <DocRow key={e.uid} ad={`Ek ${j + 1}`} row={e} nbs={[]} hideDates onlyFile onChange={(p) => setBEki(i, j, p)} onRemove={() => removeBEki(i, j)} rk={e.uid} />
+                    <DocRow key={e.uid} ad={`Ek ${j + 1}`} row={e} nbs={[]} hideDates onlyFile onChange={(p) => setBEki(i, j, p)} onDelete={canDeleteDoc ? delBEki(i, j) : undefined} onRemove={() => removeBEki(i, j)} rk={e.uid} />
                   ))}
                   <button type="button" onClick={() => addBEki(i)} className="text-xs font-semibold text-brand hover:underline">+ Ek Ekle</button>
                 </div>
               </div>
             ))}
             <button type="button" onClick={addB} className="text-xs font-semibold text-brand hover:underline">+ Mod B Ekle</button>
-            <DocRow ad="Mod E Belgesi" row={docs.ce_e} nbs={nbs} showBelgeNo showNb canAddNb={!isCustomer} onNbAdded={(n) => setNbs((a) => [...a, n])} onChange={(p) => setSingle("ce_e", p)} rk={`${docKey}-e`} />
+            <DocRow ad="Mod E Belgesi" row={docs.ce_e} nbs={nbs} showBelgeNo showNb canAddNb={!isCustomer} onNbAdded={(n) => setNbs((a) => [...a, n])} onChange={(p) => setSingle("ce_e", p)} onDelete={canDeleteDoc ? delSingle("ce_e") : undefined} rk={`${docKey}-e`} />
           </div>
         )}
       </div>
@@ -541,11 +568,12 @@ export default function MusterilerClient({
 }
 
 function DocRow({
-  ad, row, nbs, showBelgeNo, showNb, hideDates, onlyFile, canAddNb, onNbAdded, onChange, onRemove, rk,
+  ad, row, nbs, showBelgeNo, showNb, hideDates, onlyFile, canAddNb, onNbAdded, onChange, onRemove, onDelete, rk,
 }: {
   ad: string; row: Row; nbs: NB[]; showBelgeNo?: boolean; showNb?: boolean; hideDates?: boolean; onlyFile?: boolean;
   canAddNb?: boolean; onNbAdded?: (n: NB) => void;
   onChange: (p: Partial<Row>) => void; onRemove?: () => void; rk: string;
+  onDelete?: (docId: string) => void; // z8qgvcccd1: delete the uploaded document now
 }) {
   const durum = (hideDates || onlyFile)
     ? (row.original_name || row.file ? { t: "Yüklendi", c: "green" } : { t: "Yok", c: "slate" })
@@ -583,6 +611,12 @@ function DocRow({
           <a href={`/api/files/company/${row.id}`} target="_blank" rel="noreferrer" className="text-navy font-semibold hover:underline inline-flex items-center gap-1">
             <span className="material-symbols-rounded text-[15px]">description</span>{row.original_name}
           </a>
+          {onDelete && (
+            <button type="button" onClick={() => onDelete(row.id!)}
+              className="ml-3 text-xs font-semibold text-red-600 hover:underline inline-flex items-center gap-0.5">
+              <span className="material-symbols-rounded text-[15px]">delete</span>Sil
+            </button>
+          )}
         </div>
       )}
       {!onlyFile && showBelgeNo && (

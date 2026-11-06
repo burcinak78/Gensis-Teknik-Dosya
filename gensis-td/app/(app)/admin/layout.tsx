@@ -4,6 +4,7 @@ import AdminTabs from "./AdminTabs";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // Admin ve Kullanıcı (gensis) Yönetim'e erişir; Kullanıcı'da silme yoktur (aksiyon/buton bazında engellenir).
   // İstisna: Dokümanlar sekmesinde gensis de siler ve arşivler (kullanıcı kararı 2026-11-05).
+  // İstisna 2: Müşteriler > Düzenle'de eklenmiş belgeyi gensis de siler (kullanıcı kararı 2026-11-06, z8qgvcccd1).
   const me = await requireMe(["admin", "gensis"]);
 
   return (
