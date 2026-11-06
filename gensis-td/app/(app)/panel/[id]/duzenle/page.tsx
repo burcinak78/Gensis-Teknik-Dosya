@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, getMe } from "@/lib/api/server";
 import DataEntryWizard, { type InitialData } from "../../../yeni/DataEntryWizard";
 import { loadWizardReference } from "../../../yeni/reference";
 
@@ -20,13 +20,14 @@ export default async function DuzenlePage(props: { params: Promise<{ id: string 
   const params = await props.params;
   const pid = encodeURIComponent(params.id);
 
-  const [ref, p, equipRows, files, muhasebe] = await Promise.all([
+  const [ref, p, equipRows, files, muhasebe, me] = await Promise.all([
     loadWizardReference(),
     apiGet<ProjectApi>(`/api/projects/${pid}`),
     apiGet<EquipmentApi[]>(`/api/projects/${pid}/equipment`),
     apiGet<{ id: string; kind: string; originalName: string | null }[]>(`/api/projects/${pid}/files`),
     // Muhasebe teslim edildi mi (cariye işlendi) → Dosya Tamamlama kilitli
     apiGet<{ sent: boolean; posted: boolean }>(`/api/projects/${pid}/muhasebe`),
+    getMe(),
   ]);
   if (!p) notFound();
 
@@ -63,6 +64,7 @@ export default async function DuzenlePage(props: { params: Promise<{ id: string 
     id: project.id,
     companyId: project.company_id ?? "",
     takipId: p.takipId ?? "",
+    companyLocked: me?.role !== "admin", // z8qgvccb0e
     dosyaNo: project.dosya_no ?? "",
     dosyaTarihi: project.dosya_tarihi ? String(project.dosya_tarihi).slice(0, 10) : new Date().toISOString().slice(0, 10),
     binaAdi: project.bina_adi ?? "",

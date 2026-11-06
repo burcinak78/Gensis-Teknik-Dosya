@@ -34,6 +34,7 @@ type EditData = {
   il_adi?: string | null; // saved names: older records may have them without a province/district id
   ilce_adi?: string | null;
   linkedTds?: { id: string; tdNo: string | null; dosyaNo: string; asansorSeriNo: string | null }[]; // z8qgvcc816
+  firmaKilitli?: boolean; // z8qgvccb0e: saved job's Firma changes by admin only (also enforced by the API)
 };
 
 // "ATD Belgeler" (z8qgvcc816): the linked teknik dosya's Belgeler page in a new tab, so this form stays open.
@@ -95,6 +96,7 @@ export default function YeniProjeForm({
   const router = useRouter();
   const isEdit = !!edit;
   const kilitli = !!edit?.kilitli; // muhasebe teslim edildi → fiyat/fatura/teslim/tamamlanma kilitli
+  const firmaKilit = isEdit && !!edit?.firmaKilitli; // Güncelle: Firma Adı yalnız admin
   const [companies, setCompanies] = useState<Company[]>(companiesInit);
 
   const [f, setF] = useState<Record<string, string>>(edit?.values ?? {
@@ -491,17 +493,19 @@ export default function YeniProjeForm({
 
               <Field label="Firma Adı *">
                 <div className="flex gap-2">
-                  <select className={inp + reqCls(!f.company_id)} value={f.company_id} onChange={(e) => set("company_id", e.target.value)}>
+                  <select className={inp + reqCls(!f.company_id) + (firmaKilit ? " bg-slate-50 text-slate-600 cursor-not-allowed" : "")}
+                    value={f.company_id} disabled={firmaKilit} onChange={(e) => set("company_id", e.target.value)}>
                     <option value="">Müşteri seçiniz…</option>
                     {companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
                   </select>
-                  {!revMode && (
+                  {!revMode && !firmaKilit && (
                     <button type="button" onClick={() => setShowMusteri(true)}
                       className="flex-none text-xs font-bold text-brand border border-brand/30 rounded-lg px-3 hover:bg-brand-light whitespace-nowrap">
                       + Yeni Oluştur
                     </button>
                   )}
                 </div>
+                {firmaKilit && <p className="text-[11px] text-slate-500 mt-1">Firma yalnız yönetici tarafından değiştirilebilir.</p>}
               </Field>
 
               {selectedIsDiger && (

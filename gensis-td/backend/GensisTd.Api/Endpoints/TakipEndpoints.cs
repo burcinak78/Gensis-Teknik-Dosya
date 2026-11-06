@@ -119,11 +119,13 @@ public static class TakipEndpoints
             return Results.Created($"/api/takip/{row.Id}", new { row.Id, row.ProjeNo });
         });
 
-        write.MapPut("/{id:guid}", async (Guid id, TakipInput input, AppDbContext db, CancellationToken ct) =>
+        write.MapPut("/{id:guid}", async (Guid id, TakipInput input, Actor actor, AppDbContext db, CancellationToken ct) =>
         {
             if (Validate(input) is { } invalid) return invalid;
             var row = await db.TakipProjelers.Include(t => t.TakipMuhasebe).SingleOrDefaultAsync(t => t.Id == id && t.TdNo == null, ct);
             if (row is null) return Results.NotFound();
+            // Firma Adı: admin only once saved (z8qgvccb0e).
+            if (row.CompanyId != input.CompanyId && !actor.IsAdmin) return ProjectWriteEndpoints.CompanyLockedResult();
             // Delivered by accounting: price, invoice type and estimated date are final (KRR-032). An older record
             // without an invoice type gets the form's default back, which is not a change.
             var posted = row.TakipMuhasebe?.CariyeIslendi == true;

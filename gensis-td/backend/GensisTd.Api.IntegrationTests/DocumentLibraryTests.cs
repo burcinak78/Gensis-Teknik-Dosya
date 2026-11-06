@@ -183,7 +183,7 @@ public class DocumentLibraryTests(ApiFixture api)
         var manual = await UploadAsync(CompanyA, "seyir_defteri");
         var b = await UploadAsync(CompanyB, Bakim, isDefault: true);
         var project = await NewProjectAsync(Staff, CompanyA);
-        var staff = await api.As(Staff);
+        var staff = await api.As(Admin);
         Assert.Equal(HttpStatusCode.OK, await staff.SendAsync("PUT", $"/api/projects/{project}/document-choices/seyir_defteri", new { libraryDocumentId = manual }));
 
         // Saving without moving leaves them alone.
@@ -200,7 +200,7 @@ public class DocumentLibraryTests(ApiFixture api)
     [Fact]
     public async Task Delivered_project_cannot_change_company_or_documents()
     {
-        var staff = await api.As(Staff);
+        var staff = await api.As(Admin);
         var doc = await UploadAsync(CompanyA, Bakim);
         await api.ExecAsync("INSERT INTO project_document_choices (project_id, doc_type, library_document_id, updated_at) VALUES ($1, 'seyir_defteri', $2, now()) ON CONFLICT DO NOTHING", ProjectA3, await UploadAsync(CompanyA, "seyir_defteri"));
         var seyir = await ChosenAsync(ProjectA3, "seyir_defteri");

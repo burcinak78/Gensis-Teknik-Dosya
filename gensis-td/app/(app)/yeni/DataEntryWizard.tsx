@@ -51,6 +51,7 @@ export type InitialData = {
   muhasebeKilit?: boolean; // muhasebe teslim edildi → Dosya Tamamlama kilitli
   files?: ProjectFile[];
   takipId?: string; // Proje Takip job the file was opened from (z8qgvcc7xf); "" for older files
+  companyLocked?: boolean; // z8qgvccb0e: saved file's Montaj / Mimarlık Firması changes by admin only (API enforces)
 };
 
 type Props = {
@@ -197,7 +198,9 @@ export default function DataEntryWizard(props: Props) {
   const [dosyaNo, setDosyaNo] = useState(init?.dosyaNo ?? "");
   // Proje Takip bağı: seçilince ortak bilgiler dolar; hepsi sonradan değiştirilebilir, takip kaydı değişmez.
   const [takipId, setTakipId] = useState(init?.takipId ?? "");
-  const takipList = props.takipProjects ?? [];
+  const firmaKilit = isEdit && !!init?.companyLocked;
+  // Firma kilitliyse yalnız aynı firmanın projeleri seçilebilir (seçim firmayı değiştirmesin).
+  const takipList = (props.takipProjects ?? []).filter((t) => !firmaKilit || t.companyId === companyId);
   const takip = takipList.find((t) => t.id === takipId) ?? null;
   const [dosyaTarihi, setDosyaTarihi] = useState(init?.dosyaTarihi ?? new Date().toISOString().slice(0, 10));
   const [binaAdi, setBinaAdi] = useState(init?.binaAdi ?? "");
@@ -1107,10 +1110,12 @@ export default function DataEntryWizard(props: Props) {
                 <p className="text-xs text-slate-400 mt-1">Seçime göre asansör alanları ve ekipman listesi (motor ↔ hidrolik valfler) değişir.</p>
               </Field>
               <Field label="Montaj / Mimarlık Firması *">
-                <select value={companyId} onChange={(e) => { setCompanyId(e.target.value); if (takip && takip.companyId !== e.target.value) setTakipId(""); }} className={"inp" + ec(companyId)}>
+                <select value={companyId} disabled={firmaKilit} onChange={(e) => { setCompanyId(e.target.value); if (takip && takip.companyId !== e.target.value) setTakipId(""); }}
+                  className={"inp" + ec(companyId) + (firmaKilit ? " bg-slate-50 text-slate-600 cursor-not-allowed" : "")}>
                   <option value="">Firma seçiniz…</option>
                   {props.companies.map((c) => <option key={c.id} value={c.id}>{c.short_name}</option>)}
                 </select>
+                {firmaKilit && <p className="text-[11px] text-slate-500 mt-1">Firma yalnız yönetici tarafından değiştirilebilir.</p>}
               </Field>
               {takipList.length > 0 && (
                 <Field label="Proje Takip'ten seç">

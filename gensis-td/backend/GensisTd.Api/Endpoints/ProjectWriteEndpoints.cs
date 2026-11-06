@@ -28,6 +28,15 @@ public static partial class ProjectWriteEndpoints
 
     public record CreatedProject(Guid Id, string TdNo);
 
+    /// <summary>
+    /// Company lock on the edit screens (z8qgvccb0e, user decision 2026-11-06): once saved, a teknik dosya's or a
+    /// Proje Takip job's company is changed by an admin only; gensis, muhasebeci and customers get 403. Creating
+    /// stays free. Checked before the KRR-034 posted lock, which still holds for the admin.
+    /// </summary>
+    public const string CompanyLocked = "Firma yalnız yönetici tarafından değiştirilebilir.";
+
+    internal static IResult CompanyLockedResult() => Results.Json(new { error = CompanyLocked }, statusCode: StatusCodes.Status403Forbidden);
+
     public static void MapProjectWriteEndpoints(this WebApplication app)
     {
         var g = app.MapGroup("/api/projects").RequireAuthorization();
@@ -62,6 +71,7 @@ public static partial class ProjectWriteEndpoints
             // A delivered file stays with its company: moving it would orphan the accounting lock (KRR-034).
             // Before the engineer check, so nobody fixes engineers for a move that cannot happen.
             var companyChanged = project.CompanyId != input.CompanyId;
+            if (companyChanged && !actor.IsAdmin) return CompanyLockedResult();
             if (companyChanged && await DocumentLibraryEndpoints.IsPostedAsync(db, project.TdNo, ct))
                 return Results.Conflict(new { error = "Muhasebe teslim etti: bu teknik dosyanın firması değiştirilemez." });
             if (await EngineerRule.ValidateAsync(db, input.CompanyId, input.MakineMuhendisId, input.ElektrikMuhendisId, gensis.Id, ct) is { } badEngineer) return badEngineer;

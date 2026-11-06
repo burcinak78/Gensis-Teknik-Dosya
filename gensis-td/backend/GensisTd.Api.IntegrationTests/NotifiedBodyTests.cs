@@ -12,7 +12,7 @@ public class NotifiedBodyTests(ApiFixture api)
     [Fact]
     public async Task Address_is_saved_on_create_and_edit()
     {
-        using var admin = await api.As(Admin);
+        var admin = await api.As(Admin); // cached per user: do not dispose
         using var created = await admin.PostAsJsonAsync("/api/catalog/notified-bodies",
             new { name = "TEST-OK Belgelendirme A.Ş.", shortName = "TEST-OK", country = "Türkiye", city = "Ankara", address = "Eski Adres 1" });
         Assert.Equal(HttpStatusCode.OK, created.StatusCode);

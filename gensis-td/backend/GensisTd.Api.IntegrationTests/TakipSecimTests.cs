@@ -177,7 +177,7 @@ public class TakipSecimTests(ApiFixture api)
     [Fact]
     public async Task Update_keeps_the_link_but_not_across_companies()
     {
-        var staff = await api.As(Staff);
+        var staff = await api.As(Admin);
         var job = await JobAsync(CompanyA);
         var (_, body) = await PostAsync(staff, "/api/projects", Td(CompanyA, job));
         var project = body.GetProperty("id").GetGuid();

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, getMe } from "@/lib/api/server";
 import { getTakip, loadTakipReference } from "../../data";
 import YeniProjeForm from "../../YeniProjeForm";
 
@@ -11,11 +11,12 @@ const SLOT_KINDS = ["mimari_proje", "elektrik_projesi", "statik_projesi", "olcu_
 
 export default async function DuzenlePage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const [p, ref, linkedTds] = await Promise.all([
+  const [p, ref, linkedTds, me] = await Promise.all([
     getTakip(params.id),
     loadTakipReference(),
     // "ATD Belgeler": teknik dosyalar opened from this job (revision → its root's)
     apiGet<LinkedTd[]>(`/api/takip/${encodeURIComponent(params.id)}/teknik-dosyalar`),
+    getMe(),
   ]);
   if (!p) notFound();
   const docs = p.docs;
@@ -60,6 +61,7 @@ export default async function DuzenlePage(props: { params: Promise<{ id: string 
         durum: p.durum, tamamlanma_tarihi: p.tamamlanma_tarihi, teslim_tipi: p.teslim_tipi, hard_copy_adedi: p.hard_copy_adedi,
         tamamlananDocs: tamamlananDocs as any, kilitli, il_adi: p.il_adi, ilce_adi: p.ilce_adi,
         linkedTds: linkedTds ?? [],
+        firmaKilitli: me?.role !== "admin", // z8qgvccb0e
       }}
     />
   );
