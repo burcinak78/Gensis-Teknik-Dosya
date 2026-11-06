@@ -43,6 +43,7 @@ public static class TakipEndpoints
     public record CompleteInput(DateOnly? TamamlanmaTarihi, string? TeslimTipi, int? HardCopyAdedi);
     public record UploadUrlRequest(string? Kind, string? FileName, string? ContentType);
     public record DocumentInput(string? Key, string? OriginalName);
+    public record LinkedTd(Guid Id, string? TdNo, string DosyaNo, string? AsansorSeriNo);
 
     public static void MapTakipEndpoints(this WebApplication app)
     {
@@ -76,6 +77,20 @@ public static class TakipEndpoints
             var m = await db.TakipMuhasebes.AsNoTracking().Where(x => x.TakipId == id)
                 .Select(x => new MuhasebeItem(x.CariyeIslendi, x.TeslimTarihi)).SingleOrDefaultAsync(ct);
             return Results.Ok(new ListRow(row, docs, m));
+        });
+
+        // "ATD Belgeler" (z8qgvcc816): teknik dosyalar opened from this job (projects.takip_id, z8qgvcc7xf). A TD links
+        // to the root row, so a revision answers with its root's files. Only files the user may open (Project.VisibleTo):
+        // the accountant is not staff and gets just its own company's, so the button never leads to a 404.
+        read.MapGet("/{id:guid}/teknik-dosyalar", async (Guid id, Actor actor, AppDbContext db, CancellationToken ct) =>
+        {
+            var root = await db.TakipProjelers.AsNoTracking().Where(t => t.Id == id && t.TdNo == null)
+                .Select(t => (Guid?)(t.ParentId ?? t.Id)).SingleOrDefaultAsync(ct);
+            if (root is null) return Results.NotFound();
+            var rows = await db.Projects.AsNoTracking().VisibleTo(actor).Where(p => p.TakipId == root)
+                .OrderBy(p => p.CreatedAt).Select(p => new { p.Id, p.TdNo, p.DosyaNo, p.InputData }).ToListAsync(ct);
+            return Results.Ok(rows.Select(p => new LinkedTd(p.Id, p.TdNo, p.DosyaNo,
+                ProjectEndpoints.Text(ProjectEndpoints.ReadInput(p.InputData), "asansor_seri_no") is { Length: > 0 } seri ? seri : null)));
         });
 
         // Gensis staff who can be put in charge of a job.

@@ -108,14 +108,14 @@ public static class ProjectEndpoints
         return TimeZoneInfo.ConvertTimeToUtc(new DateTime(local.Year, local.Month, 1, 0, 0, 0, DateTimeKind.Unspecified), Istanbul);
     }
 
-    private static JsonElement ReadInput(string json)
+    internal static JsonElement ReadInput(string json)
     {
         using var doc = JsonDocument.Parse(string.IsNullOrEmpty(json) ? "{}" : json);
         return doc.RootElement.Clone();
     }
 
     // input_data values are user-entered; numbers and strings both occur.
-    private static string Text(JsonElement input, string key) =>
+    internal static string Text(JsonElement input, string key) =>
         input.ValueKind == JsonValueKind.Object && input.TryGetProperty(key, out var v)
             ? v.ValueKind switch
             {

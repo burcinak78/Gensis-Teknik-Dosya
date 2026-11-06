@@ -235,4 +235,50 @@ public class TakipSecimTests(ApiFixture api)
         await api.ExecAsync("UPDATE takip_projeler SET company_id = $1 WHERE id = $2", CompanyB, job);
         Assert.Empty(Permits(await alfa.JsonAsync($"/api/projects/{project}/pdf-source")));
     }
+
+    // ---------- "ATD Belgeler" on the Proje Takip edit screen (z8qgvcc816) ----------
+
+    private async Task<Guid> LinkedTdAsync(Guid company, Guid job, string? seri = null)
+    {
+        var (status, body) = await PostAsync(await api.As(Staff), "/api/projects",
+            new { companyId = company, dosyaNo = $"ATD-{Guid.NewGuid():N}", inputData = new { asansor_seri_no = seri }, takipId = job });
+        Assert.Equal(HttpStatusCode.Created, status);
+        return body.GetProperty("id").GetGuid();
+    }
+
+    [Fact]
+    public async Task Linked_files_of_the_job_and_of_its_revisions_root()
+    {
+        var staff = await api.As(Staff);
+        var job = await JobAsync(CompanyA);
+        var revision = await JobAsync(CompanyA, parent: job);
+        var first = await LinkedTdAsync(CompanyA, job, "SN-1");
+        var second = await LinkedTdAsync(CompanyA, job);
+        await LinkedTdAsync(CompanyA, await JobAsync(CompanyA)); // another job's file
+
+        var list = await staff.JsonAsync($"/api/takip/{job}/teknik-dosyalar");
+        Assert.Equal([first.ToString(), second.ToString()], list.Ids());
+        Assert.Equal("SN-1", list[0].GetProperty("asansorSeriNo").GetString());
+        Assert.Equal(JsonValueKind.Null, list[1].GetProperty("asansorSeriNo").ValueKind);
+        Assert.StartsWith("TD-", list[0].GetProperty("tdNo").GetString());
+        Assert.Equal(list.Ids(), (await staff.JsonAsync($"/api/takip/{revision}/teknik-dosyalar")).Ids());
+
+        Assert.Empty((await staff.JsonAsync($"/api/takip/{await JobAsync(CompanyA)}/teknik-dosyalar")).EnumerateArray());
+        Assert.Equal(HttpStatusCode.NotFound, await staff.SendAsync("GET", $"/api/takip/{Guid.NewGuid()}/teknik-dosyalar"));
+    }
+
+    [Fact]
+    public async Task Linked_files_follow_proje_takip_and_project_access()
+    {
+        var job = await JobAsync(CompanyA);
+        await LinkedTdAsync(CompanyA, job);
+        var path = $"/api/takip/{job}/teknik-dosyalar";
+
+        Assert.Equal(HttpStatusCode.Forbidden, await (await api.As(CustomerA)).SendAsync("GET", path));
+        using var anon = api.Anonymous();
+        Assert.Equal(HttpStatusCode.Unauthorized, await anon.SendAsync("GET", path));
+        // The accountant reads Proje Takip but opens only its own company's files: ALFA's file is not offered.
+        Assert.Empty((await (await api.As(Muhasebeci)).JsonAsync(path)).EnumerateArray());
+        Assert.Single((await (await api.As(Admin)).JsonAsync(path)).EnumerateArray());
+    }
 }

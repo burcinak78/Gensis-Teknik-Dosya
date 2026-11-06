@@ -5,11 +5,18 @@ import YeniProjeForm from "../../YeniProjeForm";
 
 export const dynamic = "force-dynamic";
 
+type LinkedTd = { id: string; tdNo: string | null; dosyaNo: string; asansorSeriNo: string | null };
+
 const SLOT_KINDS = ["mimari_proje", "elektrik_projesi", "statik_projesi", "olcu_formu", "yapi_ruhsati", "diger"];
 
 export default async function DuzenlePage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const [p, ref] = await Promise.all([getTakip(params.id), loadTakipReference()]);
+  const [p, ref, linkedTds] = await Promise.all([
+    getTakip(params.id),
+    loadTakipReference(),
+    // "ATD Belgeler": teknik dosyalar opened from this job (revision → its root's)
+    apiGet<LinkedTd[]>(`/api/takip/${encodeURIComponent(params.id)}/teknik-dosyalar`),
+  ]);
   if (!p) notFound();
   const docs = p.docs;
 
@@ -52,6 +59,7 @@ export default async function DuzenlePage(props: { params: Promise<{ id: string 
         id: p.id, proje_no: p.proje_no, values, initialDistricts, docs: slotDocs as any,
         durum: p.durum, tamamlanma_tarihi: p.tamamlanma_tarihi, teslim_tipi: p.teslim_tipi, hard_copy_adedi: p.hard_copy_adedi,
         tamamlananDocs: tamamlananDocs as any, kilitli, il_adi: p.il_adi, ilce_adi: p.ilce_adi,
+        linkedTds: linkedTds ?? [],
       }}
     />
   );

@@ -33,7 +33,33 @@ type EditData = {
   kilitli?: boolean; // muhasebe teslim edildi → fiyat/fatura/teslim/tamamlanma kilitli
   il_adi?: string | null; // saved names: older records may have them without a province/district id
   ilce_adi?: string | null;
+  linkedTds?: { id: string; tdNo: string | null; dosyaNo: string; asansorSeriNo: string | null }[]; // z8qgvcc816
 };
+
+// "ATD Belgeler" (z8qgvcc816): the linked teknik dosya's Belgeler page in a new tab, so this form stays open.
+// One file opens directly, several give a list (TD no + asansör seri no), none shows nothing.
+const atdBtn = "inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-navy text-white hover:opacity-90 cursor-pointer";
+const tdLabel = (t: { tdNo: string | null; dosyaNo: string }) => t.tdNo ?? t.dosyaNo;
+function AtdBelgeler({ tds }: { tds: { id: string; tdNo: string | null; dosyaNo: string; asansorSeriNo: string | null }[] }) {
+  if (tds.length === 0) return null;
+  const icon = <span className="material-symbols-rounded text-[16px]">description</span>;
+  if (tds.length === 1)
+    return <a href={`/panel/${tds[0].id}`} target="_blank" rel="noreferrer" className={atdBtn}>{icon} ATD Belgeler</a>;
+  return (
+    <details className="relative">
+      <summary className={atdBtn + " list-none"}>{icon} ATD Belgeler ({tds.length}) ▾</summary>
+      <div className="absolute right-0 z-20 mt-1 w-72 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+        {tds.map((t) => (
+          <a key={t.id} href={`/panel/${t.id}`} target="_blank" rel="noreferrer"
+            className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+            <span className="font-semibold text-navy">{tdLabel(t)}</span>
+            <span className="text-slate-500"> · {t.asansorSeriNo || "seri no yok"}</span>
+          </a>
+        ))}
+      </div>
+    </details>
+  );
+}
 
 const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
 const money = (n: number | null) =>
@@ -419,7 +445,10 @@ export default function YeniProjeForm({
           {/* Proje No — en üstte */}
           <div className="flex items-center justify-between bg-navy/5 border border-navy/10 rounded-xl px-4 py-3">
             <span className="text-sm font-semibold text-slate-600">Proje No {revMode && <span className="text-brand">· Revizyon</span>}</span>
-            <span className="text-2xl font-extrabold text-navy">{projeNoText}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-extrabold text-navy">{projeNoText}</span>
+              {isEdit && <AtdBelgeler tds={edit!.linkedTds ?? []} />}
+            </div>
           </div>
 
           {/* Revizyon konteyneri — dokümanlardan önce */}
