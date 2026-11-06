@@ -3,6 +3,7 @@ import React from "react";
 import { renderPdf, withPdfBusy } from "@/lib/pdf/render";
 import { PUBLIC_DIR, readAsset } from "@/lib/pdf/assets";
 import { PDFDocument, rgb } from "pdf-lib";
+import { shrinkPagesForFooter } from "@/lib/pdf/kilavuzLayout";
 import fontkit from "@pdf-lib/fontkit";
 import { apiFetch } from "@/lib/api/server";
 import { TeknikDosyaDoc } from "@/lib/pdf/TeknikDosyaDoc";
@@ -310,7 +311,8 @@ async function buildPdf(req: NextRequest, projectId: string, src: PdfSource, sig
     try {
       const kilavuzBytes = await readAsset(`kilavuz/${kilavuzFile}`);
       if (!kilavuzBytes) return;
-      const doc = await PDFDocument.load(kilavuzBytes, { ignoreEncryption: true });
+      // Body text of these PDFs runs into the stamped footer on some pages: shrink first (z8qgvcc825).
+      const doc = await shrinkPagesForFooter(await PDFDocument.load(kilavuzBytes, { ignoreEncryption: true }));
       // Footer: 1. satır Ticari Ünvan (kalın), 2. satır Adres · Telefon · E-posta — sola dayalı, siyah
       const cf = (ctx as any)?.firma || {};
       const fUnvan = String(cf.unvan || cf.kisa_ad || "").trim();
