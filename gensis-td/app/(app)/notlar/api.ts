@@ -33,3 +33,14 @@ export async function deleteNote(id: string): Promise<Result> {
     return fail(e, "Not silinemedi.");
   }
 }
+
+// Edit the text (owner only); the counter stays, Ertele restarts it (z8qgvccdud).
+export async function updateNote(id: string, icerik: string): Promise<Result> {
+  if (!icerik?.trim()) return { ok: false, error: "Not boş olamaz." };
+  try {
+    const r = await api<{ message: string }>(`/api/notes/${id}`, { method: "PUT", body: JSON.stringify({ icerik }) });
+    return { ok: true, message: r.message };
+  } catch (e) {
+    return fail(e, "Not güncellenemedi.");
+  }
+}

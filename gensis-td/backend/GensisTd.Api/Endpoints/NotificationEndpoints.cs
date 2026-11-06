@@ -13,6 +13,8 @@ public static class NotificationEndpoints
 {
     private static readonly TimeZoneInfo Istanbul = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
     public const int WarnDays = 30;
+    /// <summary>A note is overdue this many days after its counter started (created or snoozed); the Notlar page uses the same rule.</summary>
+    public const int NoteOverdueDays = 3;
 
     public record NoteDto(Guid Id, string Icerik, DateTime SayacBaslangic, DateTime CreatedAt);
     public record NoteInput(string? Icerik);
@@ -21,7 +23,7 @@ public static class NotificationEndpoints
     public record EngineerDocAlert(Guid Id, Guid EngineerId, string Ad, EngineerDiscipline Brans, string DocType, DateOnly ValidUntil);
     public record CertificateAlert(Guid Id, string? Kategori, string? BelgeTipi, string CertNo, string? Firma, DateOnly ValidUntil);
     public record Notifications(List<CompanyDocAlert> Musteri, List<EngineerDocAlert> Muhendis, List<CertificateAlert> Ekipman);
-    public record Counters(int Bildirim, int Onay, int Takip, int Muhasebe);
+    public record Counters(int Bildirim, int Onay, int Takip, int Muhasebe, int Not);
 
     public static DateOnly Today() => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Istanbul));
 
@@ -51,6 +53,18 @@ public static class NotificationEndpoints
                 .ExecuteUpdateAsync(s => s.SetProperty(n => n.SayacBaslangic, DateTime.UtcNow), ct) == 0
                 ? Results.NotFound()
                 : Results.Ok(new { message = "Not ertelendi." }));
+
+        // Edit the text (z8qgvccdud). Owner only, like every note action; the counter stays (snoozing restarts it).
+        notes.MapPut("/{id:guid}", async (Guid id, NoteInput input, Actor actor, AppDbContext db, CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(input.Icerik))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["icerik"] = ["Not boş olamaz."] });
+            var text = input.Icerik.Trim();
+            return await db.Notlars.OwnedBy(actor).Where(n => n.Id == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(n => n.Icerik, text), ct) == 0
+                ? Results.NotFound()
+                : Results.Ok(new { message = "Not güncellendi." });
+        });
 
         notes.MapDelete("/{id:guid}", async (Guid id, Actor actor, AppDbContext db, CancellationToken ct) =>
             await db.Notlars.OwnedBy(actor).Where(n => n.Id == id).ExecuteDeleteAsync(ct) == 0
@@ -91,7 +105,10 @@ public static class NotificationEndpoints
             var muhasebe = actor.Role is AppRole.Admin or AppRole.Muhasebeci
                 ? await db.TakipProjelers.CountAsync(t => t.MuhasebeyeGonderildi && (t.MuhasebeDurumu == null || t.MuhasebeDurumu != "tamamlandi"), ct)
                 : 0;
-            return new Counters(bildirim, onay, takip, muhasebe);
+            // Animated bell next to Notlar (z8qgvccdud): the user's own overdue notes.
+            var overdueBefore = DateTime.UtcNow.AddDays(-NoteOverdueDays);
+            var not = await db.Notlars.OwnedBy(actor).CountAsync(n => n.SayacBaslangic <= overdueBefore, ct);
+            return new Counters(bildirim, onay, takip, muhasebe, not);
         }).RequireAuthorization();
     }
 

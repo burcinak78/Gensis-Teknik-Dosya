@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type Item = { href: string; label: string; icon: string; match: (p: string) => boolean; badge?: number };
+type Item = { href: string; label: string; icon: string; match: (p: string) => boolean; badge?: number; bell?: number };
 
 export default function SideNav({
-  role, bildirimCount = 0, onayCount = 0, takipCount = 0, muhasebeCount = 0,
-}: { role: string; bildirimCount?: number; onayCount?: number; takipCount?: number; muhasebeCount?: number }) {
+  role, bildirimCount = 0, onayCount = 0, takipCount = 0, muhasebeCount = 0, notCount = 0,
+}: { role: string; bildirimCount?: number; onayCount?: number; takipCount?: number; muhasebeCount?: number; notCount?: number }) {
   const path = usePathname();
   const isAdmin = role === "admin";
   const isStaff = role === "admin" || role === "gensis";
@@ -20,7 +20,8 @@ export default function SideNav({
     { href: "/bildirimler", label: "Bildirimler", icon: "notifications", match: (p) => p.startsWith("/bildirimler"), badge: bildirimCount },
   );
   // Notlar: her kullanıcı kendi notlarını görür
-  items.push({ href: "/notlar", label: "Notlar", icon: "sticky_note_2", match: (p) => p.startsWith("/notlar") });
+  // Gecikmiş (3+ gün) not varsa sallanan zil; yoksa görünmez (z8qgvccdud)
+  items.push({ href: "/notlar", label: "Notlar", icon: "sticky_note_2", match: (p) => p.startsWith("/notlar"), bell: notCount });
   // Proje Takip, Bildirimler'in hemen altında
   if (isStaff) items.push({ href: "/proje-takip", label: "Proje Takip", icon: "table_view", match: (p) => p.startsWith("/proje-takip"), badge: takipCount });
   if (isStaff) items.push({ href: "/onaylar", label: "Onay Bekleyenler", icon: "rate_review", match: (p) => p.startsWith("/onaylar"), badge: onayCount });
@@ -60,6 +61,12 @@ export default function SideNav({
               {it.icon}
             </span>
             {it.label}
+            {!!it.bell && it.bell > 0 && (
+              <span className="ml-auto inline-flex items-center gap-0.5 text-amber-600" title={`${it.bell} gecikmiş not`} aria-label={`${it.bell} gecikmiş not`}>
+                <span className="material-symbols-rounded text-[18px] gs-bell" aria-hidden>notifications_active</span>
+                <span className="text-[11px] font-bold leading-none">{it.bell > 99 ? "99+" : it.bell}</span>
+              </span>
+            )}
             {!!it.badge && it.badge > 0 && (
               <span className="ml-auto min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-red-500 text-white text-[11px] font-bold leading-none">
                 {it.badge > 99 ? "99+" : it.badge}

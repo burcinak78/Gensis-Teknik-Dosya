@@ -7,11 +7,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const rol = me.role;
   // Menü sayaçları: rol kuralları API'de (onay/takip personel, muhasebe admin+muhasebeci).
   // Sayaç alınamazsa menü yine çalışır.
-  const counters = await apiGet<{ bildirim: number; onay: number; takip: number; muhasebe: number }>("/api/me/counters").catch(() => null);
+  const counters = await apiGet<{ bildirim: number; onay: number; takip: number; muhasebe: number; not?: number }>("/api/me/counters").catch(() => null);
   const bildirimCount = counters?.bildirim ?? 0;
   const onayCount = counters?.onay ?? 0;
   const takipCount = counters?.takip ?? 0;
   const muhasebeCount = counters?.muhasebe ?? 0;
+  const notCount = counters?.not ?? 0; // gecikmiş notlar → Notlar'da zil (z8qgvccdud)
   const rolTr = rol === "admin" ? "Admin" : rol === "gensis" ? "Kullanıcı" : rol === "muhasebeci" ? "Muhasebe/Finans" : "Müşteri";
   const adSoyad = me.fullName ?? me.email;
   const bas = adSoyad.trim().slice(0, 2).toUpperCase() || "DL";
@@ -24,7 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <img src="/logo.png" alt="Dosyalift" style={{ height: 78, width: "auto" }} />
         </div>
 
-        <SideNav role={rol} bildirimCount={bildirimCount} onayCount={onayCount} takipCount={takipCount} muhasebeCount={muhasebeCount} />
+        <SideNav role={rol} bildirimCount={bildirimCount} onayCount={onayCount} takipCount={takipCount} muhasebeCount={muhasebeCount} notCount={notCount} />
 
         <div className="p-3">
           <div className="flex items-center gap-3 bg-[#eef1f8] rounded-xl p-3">

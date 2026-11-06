@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createNote, snoozeNote, deleteNote } from "./api";
+import { createNote, snoozeNote, deleteNote, updateNote } from "./api";
 
 type Not = { id: string; icerik: string; sayac_baslangic: string; created_at: string };
 
@@ -12,7 +12,7 @@ const td = "px-4 py-3 text-sm align-top";
 const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("tr-TR") : "—");
 const bugunStr = new Date().toLocaleDateString("tr-TR");
 
-// 3 gün ve üzeri bekleyen not kırmızıya düşer
+// 3 gün ve üzeri bekleyen not kırmızıya düşer (API'deki NoteOverdueDays ile aynı; menüdeki zil de bunu sayar)
 function gecikti(sayacBaslangic: string): boolean {
   const start = new Date(sayacBaslangic).getTime();
   const gun = (Date.now() - start) / (1000 * 60 * 60 * 24);
@@ -26,6 +26,10 @@ export default function NotlarClient({ notlar }: { notlar: Not[] }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Satır içi düzenleme (z8qgvccdud): Düzenle → metin kutusu → Kaydet / İptal
+  const [editId, setEditId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [editErr, setEditErr] = useState<string | null>(null);
 
   const sorted = useMemo(
     () => [...notlar].sort((a, b) => {
@@ -51,6 +55,15 @@ export default function NotlarClient({ notlar }: { notlar: Not[] }) {
     setBusyId(null);
     if (!res.ok) { alert(res.error); return; }
     router.refresh();
+  }
+  function duzenle(n: Not) { setEditId(n.id); setDraft(n.icerik); setEditErr(null); }
+  async function guncelle(id: string) {
+    if (!draft.trim()) { setEditErr("Not boş olamaz."); return; }
+    setBusyId(id); setEditErr(null);
+    const res = await updateNote(id, draft);
+    setBusyId(null);
+    if (!res.ok) { setEditErr(res.error); return; }
+    setEditId(null); router.refresh();
   }
   async function sil(id: string) {
     if (!confirm("Bu not silinsin mi?")) return;
@@ -80,7 +93,7 @@ export default function NotlarClient({ notlar }: { notlar: Not[] }) {
               <tr>
                 <th className={th}>Not</th>
                 <th className={th + " w-40"}>Giriş Tarihi</th>
-                <th className={th + " w-40 text-right"}>İşlem</th>
+                <th className={th + " w-56 text-right"}>İşlem</th>
               </tr>
             </thead>
             <tbody>
@@ -88,7 +101,15 @@ export default function NotlarClient({ notlar }: { notlar: Not[] }) {
                 const kirmizi = gecikti(n.sayac_baslangic);
                 return (
                   <tr key={n.id} className={`border-b border-slate-100 last:border-0 ${kirmizi ? "bg-red-50" : ""}`}>
-                    <td className={td + (kirmizi ? " text-red-700 font-semibold" : "")} style={{ whiteSpace: "pre-wrap" }}>{n.icerik}</td>
+                    <td className={td + (kirmizi ? " text-red-700 font-semibold" : "")} style={{ whiteSpace: "pre-wrap" }}>
+                      {editId === n.id ? (
+                        <div>
+                          <textarea className={inp + " min-h-[72px] text-slate-800 font-normal"} value={draft} autoFocus
+                            onChange={(e) => setDraft(e.target.value)} />
+                          {editErr && <p className="text-[11px] text-red-600 mt-1">{editErr}</p>}
+                        </div>
+                      ) : n.icerik}
+                    </td>
                     <td className={td + " text-slate-500 whitespace-nowrap"}>{dt(n.created_at)}</td>
                     <td className={td + " text-right whitespace-nowrap"}>
                       <div className="inline-flex items-center gap-3">
@@ -97,6 +118,17 @@ export default function NotlarClient({ notlar }: { notlar: Not[] }) {
                           className="text-xs font-bold text-brand hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed">Ertele</button>
                         <button onClick={() => sil(n.id)} disabled={busyId === n.id}
                           className="text-xs font-bold text-red-600 hover:underline disabled:opacity-50">Sil</button>
+                        {editId === n.id ? (
+                          <>
+                            <button onClick={() => guncelle(n.id)} disabled={busyId === n.id}
+                              className="text-xs font-bold text-white bg-navy rounded-md px-2.5 py-1 hover:opacity-90 disabled:opacity-50">Kaydet</button>
+                            <button onClick={() => setEditId(null)} disabled={busyId === n.id}
+                              className="text-xs font-bold text-slate-500 hover:underline disabled:opacity-50">İptal</button>
+                          </>
+                        ) : (
+                          <button onClick={() => duzenle(n)} disabled={busyId === n.id}
+                            className="text-xs font-bold text-navy hover:underline disabled:opacity-50">Düzenle</button>
+                        )}
                       </div>
                     </td>
                   </tr>

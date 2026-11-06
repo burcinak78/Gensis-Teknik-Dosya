@@ -94,3 +94,12 @@ body {
   border-radius: 8px;
   border: 2px solid var(--bg);
 }
+
+/* Notlar: gecikmiş not zili (z8qgvccdud). Hareket azaltma tercihinde durur. */
+@keyframes gsBell {
+  0%, 55%, 100% { transform: rotate(0); }
+  10% { transform: rotate(14deg); } 20% { transform: rotate(-12deg); }
+  30% { transform: rotate(9deg); } 40% { transform: rotate(-6deg); } 50% { transform: rotate(3deg); }
+}
+.gs-bell { display: inline-block; transform-origin: 50% 10%; animation: gsBell 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .gs-bell { animation: none; } }
