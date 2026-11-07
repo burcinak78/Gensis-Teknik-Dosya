@@ -9,6 +9,10 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+// KRR-025: every page renders per request, so Next.js can put middleware's CSP nonce on its inline scripts
+// (a prerendered page would carry no nonce and its scripts would be blocked).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Dosyalift",
   description: "Asansör CE teknik dosya oluşturma platformu",

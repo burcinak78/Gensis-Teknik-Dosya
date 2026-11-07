@@ -21,6 +21,9 @@ services:
     restart: unless-stopped
     environment:
       BACKEND_INTERNAL_URL: http://backend:8080
+      # KRR-025: files host for the page CSP (presigned links); CSP_REPORT_ONLY=1 only reports.
+      STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL}
+      CSP_REPORT_ONLY: ${CSP_REPORT_ONLY:-}
     depends_on:
       - backend
 

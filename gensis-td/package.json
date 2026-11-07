@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:unit": "node --experimental-strip-types --test lib/pdf/limits.test.ts lib/pdf/kilavuzLayout.test.ts lib/pdf/fit.test.ts"
+    "test:unit": "node --experimental-strip-types --test lib/pdf/limits.test.ts lib/pdf/kilavuzLayout.test.ts lib/pdf/fit.test.ts lib/csp.test.ts"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
