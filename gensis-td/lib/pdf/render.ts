@@ -2,6 +2,7 @@
 import { Font, renderToBuffer } from "@react-pdf/renderer";
 import { PdfBusyError } from "./limits";
 import { PUBLIC_DIR } from "./assets";
+import { setCompactFit } from "./pdfText";
 
 // react-pdf 4 keeps the loaded font object in a process-wide store and reusing it for the next document drops
 // or garbles glyphs ("ARANTİ BELGESİ", "INIF"). Each render gets a freshly registered Roboto, and renders run
@@ -65,6 +66,7 @@ export async function renderPdf(doc: Parameters<typeof renderToBuffer>[0]): Prom
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => reject(new PdfBusyError("PDF render timed out")), RENDER_MS);
     });
+    setCompactFit(false); // a document opts in itself (TeknikDosyaDoc compact); nothing carries over
     return await Promise.race([renderToBuffer(doc), timeout]);
   } finally {
     clearTimeout(timer);

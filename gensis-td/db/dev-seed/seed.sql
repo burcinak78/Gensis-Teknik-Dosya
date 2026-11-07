@@ -88,11 +88,18 @@ INSERT INTO public.equipment_categories (id, code, name, sort_order, drive_type)
   ('7e570004-0000-4000-8000-000000000003', 'kapi_kilidi',    'Kapı Kilidi',        3, 'both'),
   ('7e570004-0000-4000-8000-000000000004', 'kabin_kilidi',   'Kabin Kapı Kilidi',  4, 'both'),
   ('7e570004-0000-4000-8000-000000000005', 'tampon',         'Tampon',             5, 'both'),
-  ('7e570004-0000-4000-8000-000000000006', 'regulator',      'Hız Regülatörü',     6, 'elektrik'),
-  ('7e570004-0000-4000-8000-000000000007', 'fren',           'Paraşüt Fren',       7, 'both'),
+  ('7e570004-0000-4000-8000-000000000006', 'hiz_regulatoru', 'Hız Regülatörü',     6, 'elektrik'),
+  ('7e570004-0000-4000-8000-000000000007', 'fren_blogu',     'Paraşüt Fren',       7, 'both'),
   ('7e570004-0000-4000-8000-000000000008', 'kumanda',        'Kumanda Panosu',     8, 'both'),
   ('7e570004-0000-4000-8000-000000000009', 'hidrolik_unite', 'Hidrolik Ünite',     9, 'hidrolik')
 ON CONFLICT DO NOTHING;
+
+-- Earlier versions of this file used the codes 'regulator' and 'fren', which the documents do not read
+-- (they read hiz_regulatoru, fren_blogu): rename those rows where the right code is still free.
+UPDATE public.equipment_categories SET code = 'hiz_regulatoru' WHERE id = '7e570004-0000-4000-8000-000000000006' AND code = 'regulator'
+  AND NOT EXISTS (SELECT 1 FROM public.equipment_categories WHERE code = 'hiz_regulatoru');
+UPDATE public.equipment_categories SET code = 'fren_blogu' WHERE id = '7e570004-0000-4000-8000-000000000007' AND code = 'fren'
+  AND NOT EXISTS (SELECT 1 FROM public.equipment_categories WHERE code = 'fren_blogu');
 
 -- Example values for the declared-load table (not taken from any live table).
 INSERT INTO public.capacity_table (beyan_yuku_kg, kisi_sayisi, kabin_agirlik_kg, karsi_agirlik_kg) VALUES
@@ -152,13 +159,13 @@ SELECT ('7e570007-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid, 'T
        CASE WHEN n % 2 = 0 THEN '7e570002-0000-4000-8000-000000000002' ELSE '7e570002-0000-4000-8000-000000000001' END::uuid,
        '2024-01-01'::date, '2029-01-01'::date, CASE WHEN n % 3 = 0 THEN 'uygunluk_beyani' ELSE 'mod_b' END,
        c.id, 'TEST-Üretici ' || n
-FROM (VALUES (1,'kabin'),(2,'motor'),(3,'kapi_kilidi'),(4,'kabin_kilidi'),(5,'tampon'),(6,'regulator'),(7,'fren'),(8,'kumanda'),(9,'hidrolik_unite')) k(n, code)
+FROM (VALUES (1,'kabin'),(2,'motor'),(3,'kapi_kilidi'),(4,'kabin_kilidi'),(5,'tampon'),(6,'hiz_regulatoru'),(7,'fren_blogu'),(8,'kumanda'),(9,'hidrolik_unite')) k(n, code)
 JOIN public.equipment_categories c ON c.code = k.code
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.equipment_brands (id, category_id, name)
 SELECT ('7e570005-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid, c.id, 'TEST-Marka ' || c.name
-FROM (VALUES (1,'kabin'),(2,'motor'),(3,'kapi_kilidi'),(4,'kabin_kilidi'),(5,'tampon'),(6,'regulator'),(7,'fren'),(8,'kumanda'),(9,'hidrolik_unite')) k(n, code)
+FROM (VALUES (1,'kabin'),(2,'motor'),(3,'kapi_kilidi'),(4,'kabin_kilidi'),(5,'tampon'),(6,'hiz_regulatoru'),(7,'fren_blogu'),(8,'kumanda'),(9,'hidrolik_unite')) k(n, code)
 JOIN public.equipment_categories c ON c.code = k.code
 ON CONFLICT DO NOTHING;
 

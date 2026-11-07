@@ -4,10 +4,19 @@ import { renderPdf, withPdfBusy } from "@/lib/pdf/render";
 import { PUBLIC_DIR, readAsset } from "@/lib/pdf/assets";
 import { PDFDocument, rgb } from "pdf-lib";
 import { shrinkPagesForFooter } from "@/lib/pdf/kilavuzLayout";
+import { fitText } from "@/lib/pdf/fit";
 import fontkit from "@pdf-lib/fontkit";
 import { apiFetch } from "@/lib/api/server";
 import { TeknikDosyaDoc } from "@/lib/pdf/TeknikDosyaDoc";
 import { TEKNIK_DOSYA_BELGELERI } from "@/lib/pdf/belgeler";
+
+// Pages each generated document has with everyday values (z8qgvccjc8). Longer means very long values pushed a cell
+// over: the document is rendered again in compact mode. Tescil is printed in 3 copies of one page.
+const EXPECTED_PAGES: Record<string, number> = {
+  kapak: 1, dilekce: 1, firma_bilgileri: 1, tescil: 3, garanti: 1, bakim_sozlesmesi: 2, muh_taahhut_makine: 1,
+  muh_taahhut_elektrik: 1, uygunluk_beyani: 1, yazili_beyanname: 1, teknik_komponent: 1, motor_beyannamesi: 1,
+  seyir_defteri: 2, egitim_tutanagi: 1, teslim_tutanagi: 1,
+};
 import { imzaToPngDataUri } from "@/lib/pdf/imzaUri";
 import { getMe, isStaff } from "@/lib/api/server";
 import { belgeBasligi } from "@/lib/pdf/belgeler";
@@ -299,10 +308,15 @@ async function buildPdf(req: NextRequest, projectId: string, src: PdfSource, sig
     } catch { /* bozuk dosyayı atla */ }
   }
   async function addDoc(code: string) {
-    const buf = await renderPdf(
-      React.createElement(TeknikDosyaDoc, { data: ctx, only: code, assetBase }) as any
-    );
-    await addPdfBytes(new Uint8Array(buf));
+    const render = (compact: boolean) =>
+      renderPdf(React.createElement(TeknikDosyaDoc, { data: ctx, only: code, assetBase, compact }) as any);
+    let bytes = new Uint8Array(await render(false));
+    // A document that must keep its pages (Tescil: one page per copy) came out longer: very long values. Render it
+    // once more with the compact cell rule (smaller first, at most 2 lines) rather than spill onto a new page.
+    const expected = EXPECTED_PAGES[code];
+    if (expected && (await PDFDocument.load(bytes)).getPageCount() > expected)
+      bytes = new Uint8Array(await render(true));
+    await addPdfBytes(bytes);
   }
   // Hazır kılavuz PDF'i getir, her sayfasının footer'ını (2 satır, sola dayalı, siyah) yaz, ekle
   let robotoBytes: Uint8Array | null = null;
@@ -410,9 +424,9 @@ async function buildPdf(req: NextRequest, projectId: string, src: PdfSource, sig
         rows.forEach((r, i) => {
           const baseY = yTop - i * rowH - rowH + 3.7;
           p1.drawText(r[0], { x: tblX, y: baseY, size: 8, font: fontB, color: black });
-          let vs = 8;
-          while (vs > 5.5 && font.widthOfTextAtSize(r[1], vs) > maxVW) vs -= 0.3;
-          p1.drawText(r[1], { x: tblX + labelW, y: baseY, size: vs, font, color: black });
+          // One line between the form's own rules: shrink to 6 pt, then cut with "…" (lib/pdf/fit.ts, z8qgvccjc8).
+          const fv = fitText(r[1], (t, sz) => font.widthOfTextAtSize(t, sz), { width: maxVW, size: 8, minSize: 6, maxLines: 1 });
+          p1.drawText(fv.text, { x: tblX + labelW, y: baseY, size: fv.size, font, color: black });
         });
       }
       const copied = await finalDoc.copyPages(doc, doc.getPageIndices());

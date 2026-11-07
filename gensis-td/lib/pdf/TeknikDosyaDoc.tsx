@@ -1,6 +1,6 @@
 import React from "react";
 import { Document, View, StyleSheet, Svg, Path, Image } from "@react-pdf/renderer";
-import { Page, Text } from "./pdfText";
+import { Page, Text, FitText, setCompactFit } from "./pdfText";
 import { TEKNIK_DOSYA_BELGELERI } from "./belgeler";
 import { SON_KONTROL } from "./belge_icerik";
 import { SON_KONTROL_NO } from "./son_kontrol_no";
@@ -15,6 +15,12 @@ const TEAL = "#000000";
 const CM = 28.3465;
 const ML = Math.round(2 * CM * 10) / 10;   // sol kenar ≈ 56.7pt
 const MR = Math.round(1 * CM * 10) / 10;   // sağ kenar ≈ 28.3pt
+// Metin alanı genişliği (A4 − sol − sağ kenar ≈ 510pt). Hücre genişlikleri buradan hesaplanır (z8qgvccjc8, FitText).
+const CONTENT_W = 595.28 - ML - MR;
+// Teknik & Komponent tablosu: yüzde sütun − 2+2 padding − 0.9 kenarlık
+const kw = (pct: number) => (CONTENT_W * pct) / 100 - 4 - 0.9;
+// Resmi form (Tescil) kutusu: iki yan kenarlık 0.8
+const FBOX_W = CONTENT_W - 1.6;
 const LOGO_T = Math.round(1 * CM * 10) / 10; // üst 1 cm
 const LOGO_W = Math.round(4 * CM * 10) / 10; // 4 cm genişlik
 const LOGO_H = Math.round(2 * CM * 10) / 10; // 2 cm yükseklik
@@ -128,21 +134,13 @@ const KW_AD_KAT = 29;
 // Resmi form yardımcıları
 // Değer sütunu genişliği ≈ içerik genişliği (A4 − 2cm − 1cm = 510pt) × %63 − yatay padding (8) ≈ 313pt
 const FVAL_W = 313;
-// Excel "sığdır" mantığı: değer tek satırı aşıyorsa punto küçültülüp tek satıra sığdırılır; sığıyorsa aynı kalır.
-function fitFVal(s: any): number {
-  const t = s === undefined || s === null ? "" : String(s);
-  const base = 7.3, min = 5;
-  if (!t.trim()) return base;
-  const est = t.length * base * 0.52; // ortalama karakter ≈ 0.52em
-  return est <= FVAL_W ? base : Math.max(min, (base * FVAL_W) / est);
-}
-function FRow({ l, val, tall }: { l: string; val?: any; tall?: number; max?: number }) {
+function FRow({ l, val, tall, max }: { l: string; val?: any; tall?: number; max?: number }) {
   // tall verildiğinde alignItems'e dokunma (stretch kalsın) → ortadaki dikey çizgi tüm satır boyu tamamlanır
   const txt = val !== undefined && val !== null && String(val).trim() !== "" ? String(val) : "";
   return (
     <View style={[st.fRow, tall ? { minHeight: tall } : null]}>
       <Text style={st.fLabel}>{l}</Text>
-      <Text style={[st.fVal, { fontSize: fitFVal(txt) }]} numberOfLines={1}>{txt}</Text>
+      <FitText style={st.fVal} w={FVAL_W} lines={max ?? 2} shrinkFirst>{txt}</FitText>
     </View>
   );
 }
@@ -221,14 +219,6 @@ const ebat = (a: any, b: any) => (vb(a) && vb(b) ? `${vb(a)} x ${vb(b)}` : "");
 
 // Hücreye sığmayan uzun metinlerde (sertifika/seri no) fontu otomatik küçült.
 // A4 içerik genişliği ≈ 535pt; sütun yüzdesine göre kalan alana göre ölçekler.
-const fitFs = (s: any, widthPct: number, base = 8.4, min = 4.2) => {
-  const txt = vb(s);
-  if (!txt) return base;
-  const contentW = 535 * (widthPct / 100) - 5;
-  const est = txt.length * base * 0.5; // ortalama karakter genişliği ≈ 0.5em
-  if (est <= contentW) return base;
-  return Math.max(min, (base * contentW) / est);
-};
 
 function KInfo({ l, val, unit, sub }: { l: string; val?: any; unit?: string; sub?: boolean }) {
   const s = vb(val);
@@ -236,7 +226,7 @@ function KInfo({ l, val, unit, sub }: { l: string; val?: any; unit?: string; sub
     <View style={st.kInfoRow}>
       <Text style={sub ? st.kSub : st.kLbl}>{l}</Text>
       <Text style={st.kSep}>:</Text>
-      <Text style={st.kVal}>{s ? (unit ? `${s} ${unit}` : s) : ""}</Text>
+      <FitText style={st.kVal} w={CONTENT_W * 0.71}>{s ? (unit ? `${s} ${unit}` : s) : ""}</FitText>
     </View>
   );
 }
@@ -251,29 +241,29 @@ function KBlok({ ad, e, alt }: { ad: string; e: any; alt: { ad: string; seri: st
   return (
     <View style={[st.kRow, { borderBottomWidth: 0.9, borderColor: "#000000" }]}>
       <View style={[st.kCol, { width: KW.ad, justifyContent: "center", paddingHorizontal: 2 }]}>
-        <Text style={{ fontSize: fitFs(ad, 24) }}>{ad}</Text>
+        <FitText w={kw(24)} size={8.4} lines={2} min={5} shrinkFirst>{ad}</FitText>
       </View>
       <View style={[st.kCol, { width: KW.kat }]}>
         {alt.map((k, i) => (
-          <Text key={i} style={[st.kSubC, { fontSize: fitFs(k.ad, 5) }, i === son ? { borderBottomWidth: 0 } : {}]}>{k.ad}</Text>
+          <FitText key={i} style={[st.kSubC, i === son ? { borderBottomWidth: 0 } : {}]} w={kw(5)} lines={2} min={5} shrinkFirst>{k.ad}</FitText>
         ))}
       </View>
       <View style={[st.kCol, { width: KW.marka, justifyContent: "center", paddingHorizontal: 2 }]}>
-        <Text style={{ fontSize: fitFs(e?.marka, 16) }}>{vb(e?.marka)}</Text>
+        <FitText w={kw(16)} size={8.4} lines={2} min={5} shrinkFirst>{vb(e?.marka)}</FitText>
       </View>
       <View style={[st.kCol, { width: KW.tip, justifyContent: "center", paddingHorizontal: 2 }]}>
-        <Text style={{ fontSize: fitFs(e?.model, 16) }}>{vb(e?.model)}</Text>
+        <FitText w={kw(16)} size={8.4} lines={2} min={5} shrinkFirst>{vb(e?.model)}</FitText>
       </View>
       <View style={[st.kCol, { width: KW.seri }]}>
         {alt.map((k, i) => (
-          <Text key={i} style={[st.kSubC, { fontSize: fitFs(k.seri, 14) }, i === son ? { borderBottomWidth: 0 } : {}]}>{k.seri}</Text>
+          <FitText key={i} style={[st.kSubC, i === son ? { borderBottomWidth: 0 } : {}]} w={kw(14)} lines={2} min={5} shrinkFirst>{k.seri}</FitText>
         ))}
       </View>
       <View style={[st.kCol, { width: KW.sert, justifyContent: "center", paddingHorizontal: 2 }]}>
-        <Text style={{ fontSize: fitFs(e?.sertifika_no, 12) }}>{vb(e?.sertifika_no)}</Text>
+        <FitText w={kw(12)} size={8.4} lines={2} min={5} shrinkFirst>{vb(e?.sertifika_no)}</FitText>
       </View>
       <View style={{ width: KW.kur, justifyContent: "center", paddingHorizontal: 2 }}>
-        <Text style={{ fontSize: fitFs(kurulus, 13) }}>{kurulus}</Text>
+        <FitText w={kw(13)} size={8.4} lines={2} min={5} shrinkFirst>{kurulus}</FitText>
       </View>
     </View>
   );
@@ -411,12 +401,12 @@ function teknikKomponentPage(c: any) {
             <KBlok key={i} ad={ad} e={e} alt={tamponAlt(e)} />
           ) : (
             <View style={st.kRow} key={i}>
-              <Text style={[st.kC, { width: `${KW_AD_KAT}%`, fontSize: fitFs(ad, KW_AD_KAT) }]}>{ad}</Text>
-              <Text style={[st.kC, { width: KW.marka, fontSize: fitFs(e?.marka, 16) }]}>{vb(e?.marka)}</Text>
-              <Text style={[st.kC, { width: KW.tip, fontSize: fitFs(e?.model, 16) }]}>{vb(e?.model)}</Text>
-              <Text style={[st.kC, { width: KW.seri, fontSize: fitFs(e?.seri_no, 14) }]}>{vb(e?.seri_no)}</Text>
-              <Text style={[st.kC, { width: KW.sert, fontSize: fitFs(e?.sertifika_no, 12) }]}>{vb(e?.sertifika_no)}</Text>
-              <Text style={[st.kC, { width: KW.kur, fontSize: fitFs(kurulus(e), 13) }]}>{kurulus(e)}</Text>
+              <FitText style={[st.kC, { width: `${KW_AD_KAT}%` }]} w={kw(KW_AD_KAT)} lines={2} min={5} shrinkFirst>{ad}</FitText>
+              <FitText style={[st.kC, { width: KW.marka }]} w={kw(16)} lines={2} min={5} shrinkFirst>{vb(e?.marka)}</FitText>
+              <FitText style={[st.kC, { width: KW.tip }]} w={kw(16)} lines={2} min={5} shrinkFirst>{vb(e?.model)}</FitText>
+              <FitText style={[st.kC, { width: KW.seri }]} w={kw(14)} lines={2} min={5} shrinkFirst>{vb(e?.seri_no)}</FitText>
+              <FitText style={[st.kC, { width: KW.sert }]} w={kw(12)} lines={2} min={5} shrinkFirst>{vb(e?.sertifika_no)}</FitText>
+              <FitText style={[st.kC, { width: KW.kur }]} w={kw(13)} lines={2} min={5} shrinkFirst>{kurulus(e)}</FitText>
             </View>
           )
         )}
@@ -467,7 +457,7 @@ function R({ l, val, plain }: { l: string; val?: any; plain?: boolean }) {
   return (
     <View style={st.row}>
       <View style={st.lbl}><Text>{l}</Text></View>
-      <View style={st.val}><Text style={{ fontWeight: plain ? "normal" : "bold" }}>{v(val)}</Text></View>
+      <View style={st.val}><FitText style={{ fontWeight: plain ? "normal" : "bold" }} w={CONTENT_W * 0.58}>{v(val)}</FitText></View>
     </View>
   );
 }
@@ -476,18 +466,9 @@ function CoverR({ l, val }: { l: string; val?: any }) {
   return (
     <View style={st.coverRow}>
       <View style={st.coverLbl}><Text>{l}</Text></View>
-      <View style={st.coverVal}><Text style={{ fontWeight: "bold" }}>{v(val)}</Text></View>
+      <View style={st.coverVal}><FitText style={{ fontWeight: "bold" }} w={CONTENT_W * 0.58}>{v(val)}</FitText></View>
     </View>
   );
-}
-// LR değeri için "Excel sığdır" mantığı: değer tek satırı aşıyorsa punto küçültülür (fit prop).
-// base = sayfa fontu (AB Uygunluk Beyanı: 9). İçerik genişliği ≈ 510pt (A4 − 2cm − 1cm).
-function fitLRVal(s: string, labelW: number, base = 9, min = 5): number {
-  const t = String(s || "");
-  if (!t.trim() || t.includes("\n")) return base;
-  const avail = 510 - labelW - 8;
-  const est = t.length * base * 0.52;
-  return est <= avail ? base : Math.max(min, (base * avail) / est);
 }
 // Dar satır: değer, başlığın hemen yanında (Dilekçe / Firma Bilgileri)
 function LR({ l, val, w = 110, plain, dark, fit }: { l: string; val?: any; w?: number; plain?: boolean; dark?: boolean; fit?: boolean }) {
@@ -497,7 +478,8 @@ function LR({ l, val, w = 110, plain, dark, fit }: { l: string; val?: any; w?: n
     <View style={{ flexDirection: "row", paddingVertical: 2.2 }}>
       <View style={{ width: w, paddingRight: 6 }}><Text style={{ color: "#000000" }}>{l}</Text></View>
       <View style={{ flex: 1 }}>
-        <Text style={[{ fontWeight: plain ? "normal" : "bold", color: "#000000" }, fit ? { fontSize: fitLRVal(txt, w) } : null]} numberOfLines={fit ? 1 : undefined}>{txt}</Text>
+        <FitText style={{ fontWeight: plain ? "normal" : "bold", color: "#000000" }} w={CONTENT_W - w - 6}
+          lines={fit ? 2 : undefined} shrinkFirst={fit}>{txt}</FitText>
       </View>
     </View>
   );
@@ -507,7 +489,7 @@ function Footer({ unvan, alt }: { unvan?: string; alt?: string }) {
   return (
     <View style={st.footerBox} fixed>
       <Text style={st.footerUnvan} numberOfLines={1}>{unvan || " "}</Text>
-      {!!alt && <Text style={[st.footerAlt, { fontSize: fitFs(alt, 96, 7.5, 5) }]} numberOfLines={1}>{alt}</Text>}
+      {!!alt && <FitText style={st.footerAlt} w={CONTENT_W} size={7.5} min={5} lines={1}>{alt}</FitText>}
     </View>
   );
 }
@@ -764,10 +746,10 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
           </View>
           {guv.map(([lab, e], i) => (
             <View style={st.fRow} key={i} wrap={false}>
-              <Text style={st.fc1} numberOfLines={2}>{lab}</Text>
-              <Text style={st.fc2} numberOfLines={2}>{e?.marka || ""}</Text>
-              <Text style={st.fc3} numberOfLines={2}>{e?.model || ""}</Text>
-              <Text style={st.fc4} numberOfLines={3}>{aksamSeri(lab, e)}</Text>
+              <FitText style={st.fc1} w={FBOX_W * 0.26 - 8.8} lines={3}>{lab}</FitText>
+              <FitText style={st.fc2} w={FBOX_W * 0.11 - 6.8} lines={3} min={5}>{e?.marka || ""}</FitText>
+              <FitText style={st.fc3} w={FBOX_W * 0.11 - 6.8} lines={3} min={5}>{e?.model || ""}</FitText>
+              <FitText style={st.fc4} w={FBOX_W * 0.52 - 6} lines={3} min={5}>{aksamSeri(lab, e)}</FitText>
             </View>
           ))}
           <FSection>MEVZUAT</FSection>
@@ -940,12 +922,12 @@ const RENDERERS: Record<string, (c: Ctx) => React.ReactElement> = {
             <Text style={[st.thcell, { width: "19%" }]}>ASANSÖR KİMLİK NUMARASI</Text>
           </View>
           <View style={st.trow}>
-            <Text style={[st.tcell, { width: "20%" }]}>{v(c.inp.asansor_seri_no)}</Text>
-            <Text style={[st.tcell, { width: "13%" }]}>{c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : ""}</Text>
-            <Text style={[st.tcell, { width: "13%" }]}>{c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""}</Text>
-            <Text style={[st.tcell, { width: "11%" }]}>{v(c.d.durak_adedi)}</Text>
-            <Text style={[st.tcell, { width: "24%" }]}>{c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"}</Text>
-            <Text style={[st.tcell, { width: "19%" }]}>{v(c.inp.asansor_kimlik_no)}</Text>
+            <FitText style={[st.tcell, { width: "20%" }]} w={CONTENT_W * 0.2 - 8.8}>{v(c.inp.asansor_seri_no)}</FitText>
+            <FitText style={[st.tcell, { width: "13%" }]} w={CONTENT_W * 0.13 - 8.8}>{c.d.beyan_yuku_kg ? `${c.d.beyan_yuku_kg} kg` : ""}</FitText>
+            <FitText style={[st.tcell, { width: "13%" }]} w={CONTENT_W * 0.13 - 8.8}>{c.d.beyan_hizi ? `${c.d.beyan_hizi} m/s` : ""}</FitText>
+            <FitText style={[st.tcell, { width: "11%" }]} w={CONTENT_W * 0.11 - 8.8}>{v(c.d.durak_adedi)}</FitText>
+            <FitText style={[st.tcell, { width: "24%" }]} w={CONTENT_W * 0.24 - 8.8}>{c.isHid ? "Hidrolik Tahrik" : "Elektrikli Tahrik"}</FitText>
+            <FitText style={[st.tcell, { width: "19%" }]} w={CONTENT_W * 0.19 - 8.8}>{v(c.inp.asansor_kimlik_no)}</FitText>
           </View>
         </View>
       </BsMadde>
@@ -1407,7 +1389,8 @@ function EkBelgelerPage(c: Ctx) {
 }
 
 // only: tek belge (string) | seçili belgeler (string[]) | tümü (undefined)
-export function TeknikDosyaDoc({ data, only, assetBase }: { data: any; only?: string | string[]; assetBase?: string }) {
+export function TeknikDosyaDoc({ data, only, assetBase, compact }: { data: any; only?: string | string[]; assetBase?: string; compact?: boolean }) {
+  setCompactFit(!!compact); // before any cell renders (z8qgvccjc8)
   const c = buildCtx({ ...data, __assetBase: assetBase ?? data?.__assetBase ?? "" });
   const onlyList = only ? (Array.isArray(only) ? only : [only]) : null;
   const codes = TEKNIK_DOSYA_BELGELERI
