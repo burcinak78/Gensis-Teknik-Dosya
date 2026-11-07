@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { approvePendingChange, rejectPendingChange } from "../admin/api";
+import { TR_DATE } from "@/lib/trDate";
 
 type Item = {
   id: string;
@@ -48,8 +49,8 @@ const COMPANY_FIELD: Record<string, string> = {
   mobile_phone: "Şirket Telefonu", contact_mobile_phone: "Cep Telefonu", industry_reg_no: "Sanayi Sicil No", address: "Adres", ce_module: "CE Modülü",
 };
 
-const tr = (s?: string | null) => (s ? new Date(s).toLocaleDateString("tr-TR") : "—");
-const trDt = (s?: string | null) => (s ? new Date(s).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" }) : "—");
+const tr = (s?: string | null) => (s ? new Date(s).toLocaleDateString("tr-TR", TR_DATE) : "—");
+const trDt = (s?: string | null) => (s ? new Date(s).toLocaleString("tr-TR", { ...TR_DATE, dateStyle: "short", timeStyle: "short" }) : "—");
 const docLabel = (kind: string, t: string | null) =>
   !t ? "" : kind === "company_doc" ? (COMPANY_DOC[t] ?? t) : kind === "engineer_doc" ? (ENG_DOC[t] ?? t) : t;
 

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api/client";
+import { TR_DATE } from "@/lib/trDate";
 
 type Proje = {
   id: string; dosya_no: string; td_no: string | null; status: string; bina_adi: string | null;
@@ -68,7 +69,7 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
       case "seri_no": return p.seri_no ?? "";
       case "kapasite": return `${p.beyan_yuku_kg ?? ""} kg · ${p.kat_adedi ?? ""} kat`;
       case "status": return STATUS[p.status]?.t ?? p.status;
-      case "created_at": return new Date(p.created_at).toLocaleDateString("tr-TR");
+      case "created_at": return new Date(p.created_at).toLocaleDateString("tr-TR", TR_DATE);
     }
   }
   function sortVal(p: Proje, key: ColKey): string | number {
@@ -196,7 +197,7 @@ export default function PanelTable({ projects }: { projects: Proje[] }) {
                     <td className="px-5 py-3 font-semibold text-slate-700">{p.bina_adi ?? "—"}</td>
                     <td className="px-5 py-3 text-slate-600">{p.seri_no || "—"}</td>
                     <td className="px-5 py-3 text-slate-600">{p.beyan_yuku_kg ?? "—"} kg · {p.kat_adedi ?? "—"} kat</td>
-                    <td className="px-5 py-3 text-[#94a3b8]">{new Date(p.created_at).toLocaleDateString("tr-TR")}</td>
+                    <td className="px-5 py-3 text-[#94a3b8]">{new Date(p.created_at).toLocaleDateString("tr-TR", TR_DATE)}</td>
                     <td className="px-5 py-3">
                       <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: st.bg, color: st.fg }}>{st.t}</span>
                     </td>

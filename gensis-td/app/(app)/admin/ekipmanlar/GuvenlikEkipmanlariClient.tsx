@@ -7,6 +7,7 @@ import {
   createEquipmentModel, updateEquipmentModel, deleteEquipmentModel, createEquipmentBrand,
 } from "../api";
 import OkFormModal, { OkNB } from "../onaylanmis-kuruluslar/OkFormModal";
+import { TR_DATE } from "@/lib/trDate";
 
 type Cat = { id: string; name: string };
 type Brand = { id: string; category_id: string; name: string };
@@ -32,7 +33,7 @@ const fInp = "w-full text-xs px-2 py-1 border border-slate-200 rounded focus:out
 const th = "px-3 py-2 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap";
 const td = "px-3 py-2 text-sm whitespace-nowrap";
 const fTh = "px-3 py-1.5 align-top";
-const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("tr-TR") : "—");
+const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("tr-TR", TR_DATE) : "—");
 const tc = (v: unknown) => String(v ?? "").toLocaleLowerCase("tr");
 // Geçerlilik durumu: süresi geçen kırmızı, 1 aydan az sarı
 function certDurum(valid: string | null | undefined): { t: string; c: string } | null {

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { TR_DATE } from "@/lib/trDate";
 
 type Musteri = { id: string; companyId: string; firma: string; docType: string; belgeNo: string | null; valid_until: string };
 type Muhendis = { id: string; engineerId: string; ad: string; brans: string; docType: string; valid_until: string };
@@ -24,7 +25,7 @@ function durum(valid: string) {
   if (d < now) return { t: "Geçersiz", c: "red" };
   return { t: "1 aydan az", c: "amber" };
 }
-const tr = (s: string) => (s ? new Date(s).toLocaleDateString("tr-TR") : "—");
+const tr = (s: string) => (s ? new Date(s).toLocaleDateString("tr-TR", TR_DATE) : "—");
 
 // Sütun tanımı: value = filtre/gösterim metni, render = özel hücre (rozet/link)
 type Col<T> = {

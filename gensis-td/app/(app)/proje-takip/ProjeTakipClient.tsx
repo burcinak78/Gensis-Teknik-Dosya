@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { TR_DATE } from "@/lib/trDate";
 import {
   deleteTakipDoc, saveBekliyorAciklama, completeTakipProje,
   uploadTakipFile,
@@ -41,7 +42,7 @@ const DURUM_BADGE: Record<string, string> = {
 const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
 const money = (n: number | null | undefined) =>
   n == null ? "—" : n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺";
-const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("tr-TR") : "—");
+const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("tr-TR", TR_DATE) : "—");
 
 export default function ProjeTakipClient({
   rows, companies, provinces, sorumlular, currentUserId, today, readOnly = false,

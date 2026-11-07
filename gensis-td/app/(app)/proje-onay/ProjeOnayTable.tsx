@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { TR_DATE } from "@/lib/trDate";
 
 type Row = {
   id: string; dosya_no: string | null; status: string; yapi_sahibi: string | null;
@@ -61,7 +62,7 @@ export default function ProjeOnayTable({ rows }: { rows: Row[] }) {
                 <td className="px-5 py-3 text-slate-500">{r.companies?.short_name ?? "—"}</td>
                 <td className="px-5 py-3 text-slate-600">{[r.input_data?.belediye, r.input_data?.il].filter(Boolean).join(" / ") || "—"}</td>
                 <td className="px-5 py-3 text-slate-600">{r.beyan_yuku_kg ?? "—"} kg · {r.durak_sayisi ?? "—"} durak</td>
-                <td className="px-5 py-3 text-[#94a3b8]">{r.dilekce_tarihi ? new Date(r.dilekce_tarihi).toLocaleDateString("tr-TR") : new Date(r.created_at).toLocaleDateString("tr-TR")}</td>
+                <td className="px-5 py-3 text-[#94a3b8]">{r.dilekce_tarihi ? new Date(r.dilekce_tarihi).toLocaleDateString("tr-TR", TR_DATE) : new Date(r.created_at).toLocaleDateString("tr-TR", TR_DATE)}</td>
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-4">
                     <Link href={`/proje-onay/${r.id}/duzenle`} onClick={(e) => e.stopPropagation()}

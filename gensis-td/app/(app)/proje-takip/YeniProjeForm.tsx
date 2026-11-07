@@ -13,6 +13,7 @@ import { loadDistricts } from "@/app/(app)/yeni/api";
 import { api } from "@/lib/api/client";
 import { toSnake } from "@/lib/api/case";
 import { formatMobile } from "@/lib/phone";
+import { TR_DATE } from "@/lib/trDate";
 
 type Company = { id: string; short_name: string; legal_name: string | null; city: string | null; category?: string | null };
 type Province = { id: number; name: string };
@@ -587,7 +588,7 @@ export default function YeniProjeForm({
                 <input type="date" min={f.siparis_tarihi || undefined} disabled={kilitli}
                   className={inp + (kilitli ? " bg-slate-100 text-slate-500" : reqCls(!f.tahmini_tamamlanma || (!!f.siparis_tarihi && f.tahmini_tamamlanma < f.siparis_tarihi)))}
                   value={f.tahmini_tamamlanma} onChange={(e) => set("tahmini_tamamlanma", e.target.value)} />
-                {f.siparis_tarihi && <p className="text-[11px] text-slate-400 mt-1">Sipariş tarihinden ({new Date(f.siparis_tarihi).toLocaleDateString("tr-TR")}) eski olamaz.</p>}
+                {f.siparis_tarihi && <p className="text-[11px] text-slate-400 mt-1">Sipariş tarihinden ({new Date(f.siparis_tarihi).toLocaleDateString("tr-TR", TR_DATE)}) eski olamaz.</p>}
               </Field>
             </div>
           </div>
@@ -598,7 +599,7 @@ export default function YeniProjeForm({
               <h3 className="font-bold text-sm">Proje Tamamlama</h3>
               {isTamamlandi ? (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 space-y-1">
-                  <div>✓ Proje tamamlandı{edit?.tamamlanma_tarihi ? ` (${new Date(edit.tamamlanma_tarihi).toLocaleDateString("tr-TR")})` : ""}.</div>
+                  <div>✓ Proje tamamlandı{edit?.tamamlanma_tarihi ? ` (${new Date(edit.tamamlanma_tarihi).toLocaleDateString("tr-TR", TR_DATE)})` : ""}.</div>
                   <div>Teslim: {edit?.teslim_tipi === "hard_copy" ? `Hard Copy (${edit?.hard_copy_adedi ?? "?"} adet)` : "Dijital"} · Muhasebeye gönderildi.</div>
                 </div>
               ) : (

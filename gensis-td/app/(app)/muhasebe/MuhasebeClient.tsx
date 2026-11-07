@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveMuhasebe, type MuhasebePayload } from "./api";
+import { TR_DATE } from "@/lib/trDate";
 
 type Company = { id: string; short_name: string };
 type Sorumlu = { id: string; full_name: string | null };
@@ -23,7 +24,7 @@ type Row = {
 const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
 const money = (n: number | null | undefined) =>
   n == null ? "—" : n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺";
-const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("tr-TR") : "—");
+const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("tr-TR", TR_DATE) : "—");
 const TIP_TR: Record<string, string> = { mimari: "Mimari", uygulama: "Uygulama" };
 
 export default function MuhasebeClient({

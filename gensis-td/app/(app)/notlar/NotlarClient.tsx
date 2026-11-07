@@ -3,14 +3,15 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createNote, snoozeNote, deleteNote, updateNote } from "./api";
+import { TR_DATE } from "@/lib/trDate";
 
 type Not = { id: string; icerik: string; sayac_baslangic: string; created_at: string };
 
 const inp = "w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-brand";
 const th = "px-4 py-2.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap";
 const td = "px-4 py-3 text-sm align-top";
-const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("tr-TR") : "—");
-const bugunStr = new Date().toLocaleDateString("tr-TR");
+const dt = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("tr-TR", TR_DATE) : "—");
+const bugunStr = new Date().toLocaleDateString("tr-TR", TR_DATE);
 
 // 3 gün ve üzeri bekleyen not kırmızıya düşer (API'deki NoteOverdueDays ile aynı; menüdeki zil de bunu sayar)
 function gecikti(sayacBaslangic: string): boolean {
