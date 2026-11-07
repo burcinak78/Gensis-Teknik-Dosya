@@ -118,11 +118,20 @@ public static partial class ProjectWriteEndpoints
         if (string.IsNullOrWhiteSpace(input.DosyaNo)) errors["dosyaNo"] = ["Dosya no boş olamaz."];
         if (input.InputData is { ValueKind: not (JsonValueKind.Object or JsonValueKind.Null or JsonValueKind.Undefined) })
             errors["inputData"] = ["inputData bir JSON nesnesi olmalı."];
+        if (BeyanHiziError(input.BeyanHizi) is { } speed) errors["beyanHizi"] = speed;
         var slots = Selected(input.Equipment).Select(e => (e.CategoryId, Slot: SlotOf(e))).ToList();
         if (slots.Count != slots.Distinct().Count())
             errors["equipment"] = ["Aynı kategori ve slot iki kez seçilmiş."];
         return errors.Count == 0 ? null : Results.ValidationProblem(errors);
     }
+
+    /// <summary>
+    /// beyan_hizi is numeric(4,2): a value that rounds to 100 or more failed in the database as a 500 (z8qgvcbynx).
+    /// </summary>
+    internal static string[]? BeyanHiziError(decimal? value) =>
+        value is { } v && (v <= 0 || Math.Round(v, 2) > 99.99m)
+            ? ["Beyan hızı 0'dan büyük ve en fazla 99,99 m/s olmalı."]
+            : null;
 
     private static void Apply(Project p, ProjectInput i)
     {

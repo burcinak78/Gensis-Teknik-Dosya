@@ -713,7 +713,7 @@ export default function DataEntryWizard(props: Props) {
       bina_adi: binaAdi || null, montaj_adresi: montajAdresi || null,
       province_id: provinceId === "" ? null : provinceId, district_id: districtId || null,
       beyan_yuku_kg: beyanYuku === "" ? null : beyanYuku, kisi_sayisi: kisi,
-      beyan_hizi: beyanHizi ? Number(beyanHizi) : null, kat_adedi: katAdedi ? Number(katAdedi) : null,
+      beyan_hizi: beyanHizi ? Number(String(beyanHizi).replace(",", ".")) : null, kat_adedi: katAdedi ? Number(katAdedi) : null,
       durak_adedi: durakAdedi ? Number(durakAdedi) : null, imal_yili: imalYili ? Number(imalYili) : null,
       input_data: {
         aski_tipi: askiTipi, kat_kapisi: katKapisi, montaj_adresi: montajAdresi,

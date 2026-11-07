@@ -124,6 +124,8 @@ public static class ProjeOnayEndpoints
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["companyId"] = ["Firma seçilmedi."] });
         if (input.InputData is { ValueKind: not (JsonValueKind.Object or JsonValueKind.Null or JsonValueKind.Undefined) })
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["inputData"] = ["inputData bir JSON nesnesi olmalı."] });
+        if (ProjectWriteEndpoints.BeyanHiziError(input.BeyanHizi) is { } speed)
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["beyanHizi"] = speed });
         // RLS: staff, or a member of the file's company (also when moving it to another company).
         if (!actor.CanAccessCompany(input.CompanyId)) return Results.Forbid();
         return await EngineerRule.ValidateAsync(db, input.CompanyId, input.MakineMuhendisId, input.ElektrikMuhendisId, gensis.Id, ct);
